@@ -1,0 +1,53 @@
+/*
+ * Canonical consuming-app Tailwind v4 entry (Standard 7 Part A).
+ * @source paths are relative to this file.
+ */
+@import "tailwindcss";
+
+@source "./**/*.{js,ts,jsx,tsx}";
+@source "../node_modules/@solvera/pace-core/src/**/*.{js,ts,jsx,tsx}";
+
+@import "@solvera/pace-core/styles/core.css";
+
+@theme static {
+  --color-main-raw: oklch(0.58 0.23 300);
+  --color-main-50: oklch(0.98 0.003 300);
+  --color-main-100: oklch(0.96 0.014 300);
+  --color-main-200: oklch(0.927 0.033 300);
+  --color-main-300: oklch(0.881 0.059 300);
+  --color-main-400: oklch(0.822 0.093 300);
+  --color-main-500: oklch(0.75 0.133 300);
+  --color-main-600: oklch(0.665 0.182 300);
+  --color-main-700: oklch(0.58 0.23 300);
+  --color-main-800: oklch(0.456 0.158 300);
+  --color-main-900: oklch(0.332 0.099 300);
+  --color-main-950: oklch(0.195 0.047 300);
+
+  --color-sec-raw: oklch(0.675 0.169 244.75);
+  --color-sec-50: oklch(0.98 0.003 244.75);
+  --color-sec-100: oklch(0.96 0.014 244.75);
+  --color-sec-200: oklch(0.927 0.032 244.75);
+  --color-sec-300: oklch(0.881 0.057 244.75);
+  --color-sec-400: oklch(0.822 0.089 244.75);
+  --color-sec-500: oklch(0.75 0.128 244.75);
+  --color-sec-600: oklch(0.675 0.169 244.75);
+  --color-sec-700: oklch(0.567 0.134 244.75);
+  --color-sec-800: oklch(0.456 0.101 244.75);
+  --color-sec-900: oklch(0.332 0.068 244.75);
+  --color-sec-950: oklch(0.195 0.037 244.75);
+
+  --color-acc-raw: oklch(0.64 0.23 7.385);
+  --color-acc-50: oklch(0.98 0.003 7.385);
+  --color-acc-100: oklch(0.96 0.017 7.385);
+  --color-acc-200: oklch(0.927 0.039 7.385);
+  --color-acc-300: oklch(0.881 0.069 7.385);
+  --color-acc-400: oklch(0.822 0.109 7.385);
+  --color-acc-500: oklch(0.75 0.157 7.385);
+  --color-acc-600: oklch(0.64 0.23 7.385);
+  --color-acc-700: oklch(0.567 0.193 7.385);
+  --color-acc-800: oklch(0.456 0.142 7.385);
+  --color-acc-900: oklch(0.332 0.092 7.385);
+  --color-acc-950: oklch(0.195 0.047 7.385);
+}
+
+@import "./index.css";
