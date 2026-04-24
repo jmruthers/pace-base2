@@ -130,6 +130,11 @@ Use the shared authenticated shell contract from the shared shell contract in [`
 - The registration-types screen should present a list-first admin view with inline state badges, scope summary, and edit affordances
 - Registration-type detail/editing should make approval-chain order, type-specific config, and disabled states obvious at a glance
 - Loading, empty, denied, and error states must use the shared shell and shared RBAC fallback patterns
+- Do not duplicate the selected event identifier in registration policy page content when it is already visible in the shared shell header
+- Use a two-column field layout for primary registration policy metadata on medium and larger screens
+- Primary policy persistence uses `SaveActions` from `@solvera/pace-core/components`
+- Registration scope uses a select control bound to the contract allowlist (`open`, `hierarchy`, `org_only`, `invite_only`, `closed`)
+- Policy save calls `app_base_registration_policy_upsert` with PostgREST-named parameters; the `requirements` argument is a JSON object whose `requirement_rules` entries use `check_type`, `sort_order`, and `is_automated` as consumed by `app_base_registration_type_upsert` in pace-core2
 
 ## Verification
 

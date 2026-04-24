@@ -32,6 +32,30 @@
 - Concurrent edit collision for same form.
 - Author has event access but lacks authoring permission.
 
+## UI verification
+
+- On `/forms`, do not show a duplicate in-page event scope line when event context is already displayed in the shell header.
+- On `/forms`, display each form as its own card.
+- On `/forms`, provide both add-new and edit-existing form actions.
+- On `/form-builder`, do not show a duplicate in-page event scope line when event context is already displayed in the shell header.
+- On `/form-builder`, display builder fields in a two-column layout.
+- On `/form-builder`, use a select control for access mode options.
+- On `/form-builder`, use the `@solvera/pace-core` `SaveActions` primary save button.
+
+## Testing feedback
+
+- On the /forms page
+    - Resolved: edit saves now send stable `form_id`, so changing slug updates the same form record.
+    - Resolved: `Add new form` is presented as a button.
+    - Resolved: Preview and Share links route to in-shell BA03 surfaces instead of not-found.
+
+### Retest checklist
+
+- Edit an existing form, change slug, save, and verify only one form record exists for that form id.
+- Confirm `/forms` shows `Add new form` as a button control.
+- Open Preview and Share from `/forms` and verify both routes load without not-found.
+
+
 ## Pass/fail evidence fields
 
 | Field | Evidence |

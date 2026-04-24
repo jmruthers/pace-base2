@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import {
-  Button,
   Card,
   Checkbox,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
+  DatePickerWithTimezone,
   Form,
   Input,
   Label,
+  SaveActions,
   Textarea,
 } from '@solvera/pace-core/components';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
@@ -25,7 +25,6 @@ interface EventConfigurationFormState {
   typical_unit_size: number;
   event_code: string;
   expected_participants: number;
-  event_colours: string;
   event_email: string;
   is_visible: boolean;
   description: string;
@@ -41,7 +40,6 @@ const DEFAULT_FORM_STATE: EventConfigurationFormState = {
   typical_unit_size: 0,
   event_code: '',
   expected_participants: 0,
-  event_colours: '',
   event_email: '',
   is_visible: false,
   description: '',
@@ -61,6 +59,39 @@ function asBoolean(value: unknown, fallback = false): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function toDateValue(value: string): Date | undefined {
+  if (value.trim().length === 0) {
+    return undefined;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const parsedDate = new Date(`${value}T12:00:00`);
+    return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate;
+  }
+
+  const parsedDate = new Date(value);
+  return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate;
+}
+
+function formatDateValue(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function resolveEventIdentifier(eventRecord: Record<string, unknown>): string | null {
+  if (typeof eventRecord.event_id === 'string') {
+    return eventRecord.event_id;
+  }
+
+  if (typeof eventRecord.id === 'string') {
+    return eventRecord.id;
+  }
+
+  return null;
+}
+
 function mapEventToFormState(eventRecord: Record<string, unknown>): EventConfigurationFormState {
   return {
     event_name: asString(eventRecord.event_name),
@@ -70,7 +101,6 @@ function mapEventToFormState(eventRecord: Record<string, unknown>): EventConfigu
     typical_unit_size: asNumber(eventRecord.typical_unit_size, 0),
     event_code: asString(eventRecord.event_code),
     expected_participants: asNumber(eventRecord.expected_participants, 0),
-    event_colours: asString(eventRecord.event_colours),
     event_email: asString(eventRecord.event_email),
     is_visible: asBoolean(eventRecord.is_visible),
     description: asString(eventRecord.description),
@@ -115,8 +145,8 @@ export function EventConfigurationPage() {
       };
     };
 
-    const eventId = (selectedEvent as Record<string, unknown>).id;
-    if (typeof eventId !== 'string') {
+    const eventId = resolveEventIdentifier(selectedEvent as Record<string, unknown>);
+    if (eventId == null) {
       setStatusMessage('Configuration update failed: event id is unavailable.');
       return;
     }
@@ -125,7 +155,7 @@ export function EventConfigurationPage() {
     const { error } = await typedClient
       .from('core_events')
       .update(formState)
-      .eq('id', eventId);
+      .eq('event_id', eventId);
 
     if (error != null) {
       setStatusMessage(`Configuration update failed: ${error.message}`);
@@ -148,182 +178,169 @@ export function EventConfigurationPage() {
             ) : (
               <Form<EventConfigurationFormState>
                 defaultValues={formState}
+                className="grid gap-4"
                 onSubmit={() => {
                   void handleSubmit();
                 }}
               >
-                <Label htmlFor="event_name">
-                  Event name
-                  <Input
-                    id="event_name"
-                    value={formState.event_name}
-                    onChange={(nextValue) =>
-                      setFormState((previous) => ({ ...previous, event_name: String(nextValue) }))
-                    }
-                  />
-                </Label>
+                <section className="grid gap-4 md:grid-cols-2">
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="event_name">Event name</Label>
+                    <Input
+                      id="event_name"
+                      value={formState.event_name}
+                      onChange={(nextValue) =>
+                        setFormState((previous) => ({ ...previous, event_name: String(nextValue) }))
+                      }
+                    />
+                  </fieldset>
 
-                <Label htmlFor="event_date">
-                  Event date
-                  <Input
-                    id="event_date"
-                    value={formState.event_date}
-                    onChange={(nextValue) =>
-                      setFormState((previous) => ({ ...previous, event_date: String(nextValue) }))
-                    }
-                  />
-                </Label>
+                  <fieldset className="grid gap-2">
+                    <Label>Event date</Label>
+                    <DatePickerWithTimezone
+                      value={toDateValue(formState.event_date)}
+                      onChange={(nextValue) =>
+                        setFormState((previous) => ({
+                          ...previous,
+                          event_date: formatDateValue(nextValue),
+                        }))
+                      }
+                    />
+                  </fieldset>
 
-              <Label htmlFor="event_days">
-                Event days
-                <Input
-                  id="event_days"
-                  type="number"
-                  value={String(formState.event_days)}
-                  onChange={(nextValue) =>
-                    setFormState((previous) => ({
-                      ...previous,
-                      event_days: Number(nextValue),
-                    }))
-                  }
-                />
-              </Label>
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="event_days">Event days</Label>
+                    <Input
+                      id="event_days"
+                      type="number"
+                      value={String(formState.event_days)}
+                      onChange={(nextValue) =>
+                        setFormState((previous) => ({
+                          ...previous,
+                          event_days: Number(nextValue),
+                        }))
+                      }
+                    />
+                  </fieldset>
 
-              <Label htmlFor="event_venue">
-                Event venue
-                <Input
-                  id="event_venue"
-                  value={formState.event_venue}
-                  onChange={(nextValue) =>
-                    setFormState((previous) => ({ ...previous, event_venue: String(nextValue) }))
-                  }
-                />
-              </Label>
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="event_venue">Event venue</Label>
+                    <Input
+                      id="event_venue"
+                      value={formState.event_venue}
+                      onChange={(nextValue) =>
+                        setFormState((previous) => ({ ...previous, event_venue: String(nextValue) }))
+                      }
+                    />
+                  </fieldset>
 
-              <Label htmlFor="typical_unit_size">
-                Typical unit size
-                <Input
-                  id="typical_unit_size"
-                  type="number"
-                  value={String(formState.typical_unit_size)}
-                  onChange={(nextValue) =>
-                    setFormState((previous) => ({
-                      ...previous,
-                      typical_unit_size: Number(nextValue),
-                    }))
-                  }
-                />
-              </Label>
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="typical_unit_size">Typical unit size</Label>
+                    <Input
+                      id="typical_unit_size"
+                      type="number"
+                      value={String(formState.typical_unit_size)}
+                      onChange={(nextValue) =>
+                        setFormState((previous) => ({
+                          ...previous,
+                          typical_unit_size: Number(nextValue),
+                        }))
+                      }
+                    />
+                  </fieldset>
 
-              <Label htmlFor="event_code">
-                Event code
-                <Input
-                  id="event_code"
-                  value={formState.event_code}
-                  onChange={(nextValue) =>
-                    setFormState((previous) => ({ ...previous, event_code: String(nextValue) }))
-                  }
-                />
-              </Label>
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="event_code">Event code</Label>
+                    <Input
+                      id="event_code"
+                      value={formState.event_code}
+                      onChange={(nextValue) =>
+                        setFormState((previous) => ({ ...previous, event_code: String(nextValue) }))
+                      }
+                    />
+                  </fieldset>
 
-              <Label htmlFor="expected_participants">
-                Expected participants
-                <Input
-                  id="expected_participants"
-                  type="number"
-                  value={String(formState.expected_participants)}
-                  onChange={(nextValue) =>
-                    setFormState((previous) => ({
-                      ...previous,
-                      expected_participants: Number(nextValue),
-                    }))
-                  }
-                />
-              </Label>
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="expected_participants">Expected participants</Label>
+                    <Input
+                      id="expected_participants"
+                      type="number"
+                      value={String(formState.expected_participants)}
+                      onChange={(nextValue) =>
+                        setFormState((previous) => ({
+                          ...previous,
+                          expected_participants: Number(nextValue),
+                        }))
+                      }
+                    />
+                  </fieldset>
 
-              <Label htmlFor="event_colours">
-                Event colours
-                <Input
-                  id="event_colours"
-                  value={formState.event_colours}
-                  onChange={(nextValue) =>
-                    setFormState((previous) => ({
-                      ...previous,
-                      event_colours: String(nextValue),
-                    }))
-                  }
-                />
-              </Label>
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="event_email">Event email</Label>
+                    <Input
+                      id="event_email"
+                      value={formState.event_email}
+                      onChange={(nextValue) =>
+                        setFormState((previous) => ({ ...previous, event_email: String(nextValue) }))
+                      }
+                    />
+                  </fieldset>
 
-              <Label htmlFor="event_email">
-                Event email
-                <Input
-                  id="event_email"
-                  value={formState.event_email}
-                  onChange={(nextValue) =>
-                    setFormState((previous) => ({ ...previous, event_email: String(nextValue) }))
-                  }
-                />
-              </Label>
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      value={formState.description}
+                      onChange={(nextValue) =>
+                        setFormState((previous) => ({ ...previous, description: String(nextValue) }))
+                      }
+                    />
+                  </fieldset>
 
-              <Label htmlFor="description">
-                Description
-                <Textarea
-                  id="description"
-                  value={formState.description}
-                  onChange={(nextValue) =>
-                    setFormState((previous) => ({ ...previous, description: String(nextValue) }))
-                  }
-                />
-              </Label>
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="registration_scope">Registration scope</Label>
+                    <Input
+                      id="registration_scope"
+                      value={formState.registration_scope}
+                      onChange={(nextValue) =>
+                        setFormState((previous) => ({
+                          ...previous,
+                          registration_scope: String(nextValue) as RegistrationScope,
+                        }))
+                      }
+                    />
+                  </fieldset>
 
-              <Label htmlFor="registration_scope">
-                Registration scope
-                <Input
-                  id="registration_scope"
-                  value={formState.registration_scope}
-                  onChange={(nextValue) =>
-                    setFormState((previous) => ({
-                      ...previous,
-                      registration_scope: String(nextValue) as RegistrationScope,
-                    }))
-                  }
-                />
-              </Label>
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="is_visible">Is visible</Label>
+                    <Checkbox
+                      id="is_visible"
+                      checked={formState.is_visible}
+                      onChange={(checkedValue) =>
+                        setFormState((previous) => ({
+                          ...previous,
+                          is_visible: Boolean(checkedValue),
+                        }))
+                      }
+                    />
+                  </fieldset>
 
-              <Label htmlFor="is_visible">
-                Is visible
-                <Checkbox
-                  id="is_visible"
-                  checked={formState.is_visible}
-                  onChange={(checkedValue) =>
-                    setFormState((previous) => ({
-                      ...previous,
-                      is_visible: Boolean(checkedValue),
-                    }))
-                  }
-                />
-              </Label>
+                  <fieldset className="grid gap-2">
+                    <Label htmlFor="public_readable">Public readable</Label>
+                    <Checkbox
+                      id="public_readable"
+                      checked={formState.public_readable}
+                      onChange={(checkedValue) =>
+                        setFormState((previous) => ({
+                          ...previous,
+                          public_readable: Boolean(checkedValue),
+                        }))
+                      }
+                    />
+                  </fieldset>
+                </section>
 
-              <Label htmlFor="public_readable">
-                Public readable
-                <Checkbox
-                  id="public_readable"
-                  checked={formState.public_readable}
-                  onChange={(checkedValue) =>
-                    setFormState((previous) => ({
-                      ...previous,
-                      public_readable: Boolean(checkedValue),
-                    }))
-                  }
-                />
-              </Label>
-
-                <CardFooter>
-                  <Button type="submit" disabled={!canSave}>
-                    Save configuration
-                  </Button>
-                </CardFooter>
+                <SaveActions saveDisabled={!canSave} />
               </Form>
             )}
 

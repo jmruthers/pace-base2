@@ -71,7 +71,8 @@ vi.mock('@solvera/pace-core/components', async () => {
 });
 
 const selectedEventFixture: Record<string, unknown> = {
-  id: 'event-001',
+  id: 'legacy-event-id',
+  event_id: 'event-001',
   event_name: 'Autumn Camp',
   event_date: '2026-05-01',
   event_days: 4,
@@ -79,7 +80,6 @@ const selectedEventFixture: Record<string, unknown> = {
   typical_unit_size: 6,
   event_code: 'AC26',
   expected_participants: 240,
-  event_colours: 'main',
   event_email: 'event@example.com',
   is_visible: true,
   description: 'Event description',
@@ -117,9 +117,10 @@ describe('BA01 event workspace surfaces', () => {
     render(<EventConfigurationPage />);
 
     expect(screen.queryByLabelText('Event name')).not.toBeNull();
-    expect(screen.queryByLabelText('Event date')).not.toBeNull();
+    expect(screen.queryByText('Event date')).not.toBeNull();
     expect(screen.queryByLabelText('Registration scope')).not.toBeNull();
     expect(screen.queryByLabelText('Public readable')).not.toBeNull();
+    expect(screen.queryByLabelText('Event colours')).toBeNull();
     expect(screen.queryByLabelText('Organisation id')).toBeNull();
   });
 
@@ -127,10 +128,11 @@ describe('BA01 event workspace surfaces', () => {
     const user = userEvent.setup();
     render(<EventConfigurationPage />);
 
-    await user.click(screen.getByRole('button', { name: 'Save configuration' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(fromMock).toHaveBeenCalledWith('core_events');
     expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(updateEqMock).toHaveBeenCalledWith('event_id', 'event-001');
 
     const payloadCall = updateMock.mock.calls[0];
     if (payloadCall == null) {
@@ -139,6 +141,7 @@ describe('BA01 event workspace surfaces', () => {
     const payload = payloadCall[0] as Record<string, unknown>;
     expect(payload.registration_scope).toBe('member');
     expect(payload.event_name).toBe('Autumn Camp');
+    expect(payload.event_colours).toBeUndefined();
     expect(payload.organisation_id).toBeUndefined();
   });
 });

@@ -56,7 +56,7 @@ describe('BA10 participant activity booking workflow contracts', () => {
       { rpc: rpcMock },
       { bookingId: 'booking-1', participantId: 'person-1' }
     );
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true, data: { cancelled: true } });
     expect(rpcMock).toHaveBeenCalledWith('app_base_activity_booking_cancel', {
       p_booking_id: 'booking-1',
       p_participant_id: 'person-1',

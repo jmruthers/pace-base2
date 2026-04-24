@@ -37,10 +37,22 @@ export function useRegistrationPolicySave() {
       };
 
       const typedClient = secureSupabase as RegistrationPolicyClient;
-      const { error } = await typedClient.rpc(
-        'app_base_registration_policy_upsert',
-        payload as unknown as Record<string, unknown>
-      );
+      const requirementRules = payload.requirements.map((row) => ({
+        check_type: row.requirement_type,
+        sort_order: row.sort_order,
+        is_automated: false,
+      }));
+
+      const { error } = await typedClient.rpc('app_base_registration_policy_upsert', {
+        eligibility_summary: payload.eligibility_summary,
+        event_id: payload.event_id,
+        registration_scope: payload.registration_scope,
+        registration_type_name: payload.registration_type_name,
+        requirements: {
+          eligibility_rules: [],
+          requirement_rules: requirementRules,
+        },
+      });
       if (error != null) {
         return { ok: false, errorMessage: error.message };
       }

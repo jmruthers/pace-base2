@@ -23,11 +23,12 @@ This slice owns BASE-side form listing, form builder, event-scoped form configur
 
 ## Current baseline behavior
 
-- `/forms` lists event-specific forms, supports preview/share links, and manages deletion.
-- `/form-builder` creates or edits forms through tabbed details and fields panes.
+- `/forms` currently uses an event-scoped list surface with preview/share links and delete controls, but static seed data was used during early BA03 implementation and is not authoritative.
+- `/form-builder` creates or edits forms through a focused authoring form for details and field metadata.
 - The builder relies on event selection, legacy form context lookups, and RPC-backed field browsing.
 - Forms currently use direct table/column field mapping and persistence behavior inherited from the legacy generic engine.
 - The current flow still carries legacy assumptions about event-specific forms, preview URLs, and delete checks.
+- Implementation note (2026-04-24): list and builder-prefill must read from persisted `core_forms` / `core_form_fields` records in event scope, with backend-owned delete checks.
 
 ## Rebuild delta
 
@@ -70,34 +71,40 @@ This slice owns BASE-side form listing, form builder, event-scoped form configur
 ## Acceptance criteria
 
 - `/forms` lists forms for the selected event and supports preview/share/delete flows.
+- `/forms` presents each form in a dedicated card and provides explicit add and edit actions.
 - `/form-builder` can create and edit a form using the shared forms contract.
+- `/form-builder` uses a two-column builder layout on medium and larger screens, with `access_mode` chosen from approved options via a select control.
 - Event-scoped configuration is explicit and validated.
 - No direct client-side table-write semantics remain in the BASE form-authoring surface.
 - Form authoring is permission-gated and does not expose unauthorized edit paths.
+- Primary form persistence actions use `SaveActions` from `@solvera/pace-core/components`.
 - Preview/share links resolve according to the workflow-aware slug contract.
 
 ## API / Contract
 
-- Form list contract.
-- Form create/edit contract.
+- Form list contract: event-scoped read from `core_forms` plus `core_form_fields` (for primary `field_key`) via secure Supabase read path; UI maps `id`, `slug`, `title`, `workflow_type`, `access_mode`, and first `field_key`.
+- Form create/edit contract: `app_base_forms_builder_upsert(event_id, title, slug, workflow_type, access_mode, field_key, form_id)` where `form_id` is optional for create and required for stable edit semantics when slug changes.
 - Event-scoped form configuration contract.
-- Preview/share-link contract.
-- Delete and dependency-check contract.
+- Preview/share-link contract: BASE provides author-facing routes for preview/share targets, and these routes must resolve in-shell without falling through to not-found.
+- Delete and dependency-check contract: `app_base_form_delete(p_event_id, p_form_id)` returning `deleted`, `response_count`, and `registration_binding_count`.
 - Shared forms-platform integration contract.
 - BASE registration-type binding contract for `base_registration` forms.
 
 ## Visual specification
 
 - Keep `/forms` as a concise management list with clear actions for create, preview, share, edit, and delete.
-- Keep `/form-builder` as a focused authoring experience with tabbed detail and field configuration.
-- Show event context clearly so operators know which event the form belongs to.
+- Keep `/forms` as a card-based list, with one card per form and clear add/edit actions.
+- Use a button control for the add-new action on `/forms`.
+- Keep `/form-builder` as a focused authoring experience with a two-column field layout for metadata entry.
+- Do not duplicate the selected event identifier within `/forms` or `/form-builder` content when it is already visible in the shared shell header.
+- Use a select control for access-mode choices and `SaveActions` for the primary save workflow.
 - Preserve clear loading, empty, and denied states; do not bury them in generic error text.
 
 ## Verification
 
 - Forms list loads for the selected event.
 - Form creation and editing persist through the shared contract.
-- Preview and share links resolve to the correct public surface.
+- Preview and share links resolve via BASE author-facing targets without returning a not-found page.
 - Delete behavior respects dependency checks and permissions.
 - The builder cannot proceed without the required event and auth context.
 - BASE registration forms can be bound to one or more registration types without inventing a second entrypoint record.

@@ -1,3 +1,5 @@
+import type { ApiResult } from './apiResult';
+
 export type RegistrationSubmissionResult =
   | { status: 'approved'; applicationId: string }
   | { status: 'under_review'; applicationId: string; firstCheckId: string | null }
@@ -43,13 +45,19 @@ export function resolveEntrypointSelection(input: ResolveEntrypointInput): {
 export async function submitRegistrationApplication(
   client: SecureSupabaseRpcClient,
   input: SubmitRegistrationInput
-): Promise<RegistrationSubmissionResult> {
+): Promise<ApiResult<RegistrationSubmissionResult>> {
   const scopeResult = await client.rpc('data_event_applicant_org_allowed', {
     p_event_id: input.eventId,
     p_person_id: input.personId,
   });
   if (scopeResult.error != null) {
-    return { status: 'rejected', reason: 'scope_denied' };
+    return {
+      ok: false,
+      error: {
+        code: 'scope_denied',
+        message: scopeResult.error.message,
+      },
+    };
   }
 
   const createResult = await client.rpc('app_base_application_create', {
@@ -61,7 +69,13 @@ export async function submitRegistrationApplication(
   });
 
   if (createResult.error != null || createResult.data == null) {
-    return { status: 'rejected', reason: 'validation_failed' };
+    return {
+      ok: false,
+      error: {
+        code: 'validation_failed',
+        message: createResult.error?.message ?? 'Registration application failed validation.',
+      },
+    };
   }
 
   const createData = createResult.data as {
@@ -71,12 +85,18 @@ export async function submitRegistrationApplication(
   };
 
   if (createData.status === 'approved') {
-    return { status: 'approved', applicationId: createData.application_id };
+    return {
+      ok: true,
+      data: { status: 'approved', applicationId: createData.application_id },
+    };
   }
 
   return {
-    status: 'under_review',
-    applicationId: createData.application_id,
-    firstCheckId: createData.first_check_id ?? null,
+    ok: true,
+    data: {
+      status: 'under_review',
+      applicationId: createData.application_id,
+      firstCheckId: createData.first_check_id ?? null,
+    },
   };
 }

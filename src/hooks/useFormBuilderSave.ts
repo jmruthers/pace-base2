@@ -8,6 +8,7 @@ interface BuilderPayload {
   workflow_type: string;
   access_mode: string;
   field_key: string;
+  form_id?: string;
 }
 
 interface BuilderSaveResult {

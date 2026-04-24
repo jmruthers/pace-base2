@@ -71,12 +71,12 @@ This slice owns the event dashboard, event-scoped operational entrypoint, and ev
   - `typical_unit_size`
   - `event_code`
   - `expected_participants`
-  - `event_colours`
   - `event_email`
   - `is_visible`
   - `description`
   - `public_readable`
   - `registration_scope`
+- Event configuration writes must target `core_events.event_id` as the row selector, using the selected event context identifier.
 - `event_id`, `organisation_id`, and audit/system-managed fields must not be editable through the normal `/configuration` flow.
 - Event selection and org resolution are shared context concerns, not event-page responsibilities.
 - File/logo persistence must align with the shared attachment contract, not with page-local table writes.
@@ -86,6 +86,9 @@ This slice owns the event dashboard, event-scoped operational entrypoint, and ev
 - `/event-dashboard` shows the selected event and approved operational entrypoints.
 - `/configuration` loads the current event, validates edits, and saves through the documented contract.
 - `/configuration` allows editing of the approved business-facing `core_events` fields and excludes `organisation_id` plus system-managed fields.
+- `/configuration` presents editable fields in a two-column form layout.
+- `event_date` uses the shared pace-core date picker field surface, not a plain text date input.
+- Save actions use the shared footer action primitive with a right-aligned primary `Save` action.
 - `registration_scope` is visible and actionable in the event configuration contract.
 - Event configuration does not assume legacy field parity.
 - Event-specific reads and writes respect shared RBAC.
@@ -103,6 +106,10 @@ This slice owns the event dashboard, event-scoped operational entrypoint, and ev
 
 - The event dashboard should present the selected event prominently, followed by a compact grid of operational entrypoints.
 - The configuration page should feel like a focused admin form, not a generic data grid.
+- Configuration fields should render in a two-column grid to support faster scanning and editing.
+- Description should align with the same label/control sizing pattern as other editable fields.
+- Date selection should use the shared pace-core date picker field.
+- Save actions should be right-aligned in the card footer area and use `Save` as the primary action label.
 - Keep logo and media handling embedded in the event context card or form area, not as detached utility UI.
 - Use clear loading and denied states so operators know whether the workspace is unavailable or merely unauthorized.
 
@@ -111,6 +118,7 @@ This slice owns the event dashboard, event-scoped operational entrypoint, and ev
 - Event selection flows through the shell into both routes.
 - Dashboard counts and event metadata load for a permitted user.
 - Configuration reads and saves the expected event fields.
+- Configuration save targets `core_events.event_id` and does not rely on a non-existent `core_events.id` column.
 - Permission-denied states are shown for read and update failures.
 
 ## Testing requirements
@@ -118,6 +126,7 @@ This slice owns the event dashboard, event-scoped operational entrypoint, and ev
 - Happy path: permitted organiser loads the event dashboard and successfully updates event configuration.
 - Validation failure: invalid configuration payloads are rejected with explicit field or contract errors.
 - Auth/permission failure: a user without update permission can view only the read state and cannot save configuration.
+- UI contract: configuration form renders as two columns, excludes `event_colours`, uses date-picker input for `event_date`, and shows right-aligned `Save` action.
 - Add coverage for selected-event absence, event-context loading, and logo/file refresh behavior where relevant.
 
 ## Acceptance traceability

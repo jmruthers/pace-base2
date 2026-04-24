@@ -33,6 +33,21 @@
 - Invalid field payload or schema mismatch from UI.
 - Concurrent edits by two users causing stale update conflict.
 
+## Test feedback
+
+- One the event configuration page:
+    - Display the fields in a two column grid
+    - Event date should use the pae-core date field with date picker
+    - Remove the Event colours field
+    - Ensure the Description field label and input box are positioned and sized similarly to all the other fields
+    - Save configuration button should just show "Save" and the button should appear at the bottom right corner of the card (currently bottom left). pace-core has created a new primitive and eslint rule for this - please implement per their directive.
+    - When I try to make a change and save, I get this error in the UI:
+        Configuration update failed: column core_events.id does not exist
+      And this error in the console:
+        XHRPATCH
+        https://rkytnffgmwnnmewevqgp.supabase.co/rest/v1/core_events?id=eq.c6e3bd79-209b-446f-a403-7e95db1a1581
+        [HTTP/3 400  56ms]
+
 ## Pass/fail evidence fields
 
 | Field | Evidence |

@@ -10,6 +10,7 @@ import { EventDashboardPage } from './pages/event/EventDashboardPage';
 import { EventConfigurationPage } from './pages/event/EventConfigurationPage';
 import { FormsListPage } from './pages/forms/FormsListPage';
 import { FormBuilderPage } from './pages/forms/FormBuilderPage';
+import { FormRouteSurfacePage } from './pages/forms/FormRouteSurfacePage';
 import { RegistrationTypesPage } from './pages/registration/RegistrationTypesPage';
 import { ApplicationsReviewPage } from './pages/applications/ApplicationsReviewPage';
 import { UnitsPage } from './pages/units/UnitsPage';
@@ -84,8 +85,13 @@ function App() {
                       <EventConfigurationPage />
                     ) : route.path === '/forms' ? (
                       <FormsListPage />
-                    ) : route.path === '/form-builder' ? (
+                    ) : route.path === '/form-builder' ||
+                      route.path === '/form-builder/:slug' ? (
                       <FormBuilderPage />
+                    ) : route.path === '/forms/preview/:slug' ? (
+                      <FormRouteSurfacePage mode="preview" />
+                    ) : route.path === '/forms/share/:slug' ? (
+                      <FormRouteSurfacePage mode="share" />
                     ) : route.path === '/registration-types' ? (
                       <RegistrationTypesPage />
                     ) : route.path === '/applications' ? (

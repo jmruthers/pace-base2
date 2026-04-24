@@ -1,16 +1,36 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
-  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  Form,
   Input,
   Label,
+  SaveActions,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@solvera/pace-core/components';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AccessDenied, PagePermissionGuard, useSecureSupabase } from '@solvera/pace-core/rbac';
+import {
+  eventRegistrationTypesQueryKey,
+  useEventRegistrationTypesList,
+} from '@/hooks/useEventRegistrationTypesList';
 import { useRegistrationPolicySave } from '@/hooks/useRegistrationPolicySave';
+
+/** Values aligned with `core_events.registration_scope` and `app_base_registration_policy_upsert`. */
+const REGISTRATION_SCOPE_OPTIONS = [
+  'open',
+  'hierarchy',
+  'org_only',
+  'invite_only',
+  'closed',
+] as const;
 
 interface RequirementDraft {
   requirement_type: string;
@@ -41,12 +61,20 @@ const DEFAULT_REGISTRATION_DRAFT: RegistrationTypeDraft = {
 export function RegistrationTypesPage() {
   const { selectedEvent } = useUnifiedAuth();
   const secureSupabase = useSecureSupabase();
+  const queryClient = useQueryClient();
   const { savePolicy } = useRegistrationPolicySave();
   const [draft, setDraft] = useState<RegistrationTypeDraft>(DEFAULT_REGISTRATION_DRAFT);
   const [statusMessage, setStatusMessage] = useState('');
 
   const eventId =
     selectedEvent != null && typeof selectedEvent.id === 'string' ? selectedEvent.id : null;
+
+  const {
+    data: registrationTypes = [],
+    isPending: registrationTypesPending,
+    isError: registrationTypesError,
+    error: registrationTypesErrorValue,
+  } = useEventRegistrationTypesList(eventId);
 
   const canSave =
     secureSupabase != null &&
@@ -77,6 +105,7 @@ export function RegistrationTypesPage() {
       return;
     }
 
+    await queryClient.invalidateQueries({ queryKey: eventRegistrationTypesQueryKey(eventId) });
     setStatusMessage('Registration policy saved.');
   };
 
@@ -96,59 +125,99 @@ export function RegistrationTypesPage() {
               <p>Select an event before configuring registration policy.</p>
             ) : (
               <>
-                <p>Event scope: {eventId}</p>
-                <Label htmlFor="registration-type-name">
-                  Registration type
-                  <Input
-                    id="registration-type-name"
-                    value={draft.name}
-                    onChange={(nextValue) =>
-                      setDraft((previous) => ({ ...previous, name: String(nextValue) }))
-                    }
-                  />
-                </Label>
-                <Label htmlFor="registration-type-scope">
-                  Registration scope
-                  <Input
-                    id="registration-type-scope"
-                    value={draft.registration_scope}
-                    onChange={(nextValue) =>
-                      setDraft((previous) => ({
-                        ...previous,
-                        registration_scope: String(nextValue),
-                      }))
-                    }
-                  />
-                </Label>
-                <Label htmlFor="registration-type-eligibility">
-                  Eligibility summary
-                  <Input
-                    id="registration-type-eligibility"
-                    value={draft.eligibility_summary}
-                    onChange={(nextValue) =>
-                      setDraft((previous) => ({
-                        ...previous,
-                        eligibility_summary: String(nextValue),
-                      }))
-                    }
-                  />
-                </Label>
-                <p>Approval workflow order:</p>
-                <ul>
-                  {draft.requirements
-                    .slice()
-                    .sort((left, right) => left.sort_order - right.sort_order)
-                    .map((requirement) => (
-                      <li key={`${requirement.requirement_type}-${requirement.sort_order}`}>
-                        <p>{requirement.requirement_type}</p>
-                        <p>Order: {requirement.sort_order}</p>
-                        <p>State: {requirement.state}</p>
-                      </li>
-                    ))}
-                </ul>
-                <Button onClick={() => void handleSave()} disabled={!canSave}>
-                  Save registration policy
-                </Button>
+                {registrationTypesPending ? (
+                  <p>Loading registration types…</p>
+                ) : registrationTypesError ? (
+                  <p>{registrationTypesErrorValue.message}</p>
+                ) : registrationTypes.length === 0 ? (
+                  <p>No registration types for this event yet. Save a policy below to create one.</p>
+                ) : (
+                  <section>
+                    <p>Registration types for this event</p>
+                    <ul>
+                      {registrationTypes.map((registrationType) => (
+                        <li key={registrationType.id}>
+                          <p>
+                            {registrationType.name}
+                            {registrationType.is_active ? '' : ' (inactive)'}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                <Form<RegistrationTypeDraft>
+                  defaultValues={draft}
+                  className="grid gap-4"
+                  onSubmit={() => {
+                    void handleSave();
+                  }}
+                >
+                  <section className="grid gap-4 md:grid-cols-2">
+                    <fieldset className="grid gap-2">
+                      <Label htmlFor="registration-type-name">Registration type</Label>
+                      <Input
+                        id="registration-type-name"
+                        value={draft.name}
+                        onChange={(nextValue) =>
+                          setDraft((previous) => ({ ...previous, name: String(nextValue) }))
+                        }
+                      />
+                    </fieldset>
+                    <fieldset className="grid gap-2" aria-label="Registration scope">
+                      <Label>Registration scope</Label>
+                      <Select
+                        value={draft.registration_scope}
+                        onValueChange={(nextValue) =>
+                          setDraft((previous) => ({
+                            ...previous,
+                            registration_scope: nextValue ?? '',
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select registration scope" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {REGISTRATION_SCOPE_OPTIONS.map((scope) => (
+                            <SelectItem key={scope} value={scope}>
+                              {scope}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </fieldset>
+                    <fieldset className="grid gap-2 md:col-span-2">
+                      <Label htmlFor="registration-type-eligibility">Eligibility summary</Label>
+                      <Input
+                        id="registration-type-eligibility"
+                        value={draft.eligibility_summary}
+                        onChange={(nextValue) =>
+                          setDraft((previous) => ({
+                            ...previous,
+                            eligibility_summary: String(nextValue),
+                          }))
+                        }
+                      />
+                    </fieldset>
+                  </section>
+                  <section className="grid gap-2">
+                    <p>Approval workflow order:</p>
+                    <ul>
+                      {draft.requirements
+                        .slice()
+                        .sort((left, right) => left.sort_order - right.sort_order)
+                        .map((requirement) => (
+                          <li key={`${requirement.requirement_type}-${requirement.sort_order}`}>
+                            <p>{requirement.requirement_type}</p>
+                            <p>Order: {requirement.sort_order}</p>
+                            <p>State: {requirement.state}</p>
+                          </li>
+                        ))}
+                    </ul>
+                  </section>
+                  <SaveActions saveDisabled={!canSave} />
+                </Form>
                 {statusMessage.length > 0 && <p>{statusMessage}</p>}
               </>
             )}

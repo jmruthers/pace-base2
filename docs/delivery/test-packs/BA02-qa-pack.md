@@ -6,6 +6,8 @@
 - Requirement source: `docs/requirements/BA02-shared-forms-platform-contracts_requirements.md`
 - Depends on: None
 - Route ownership: Contract-only (no dedicated BASE route)
+- Suggested manual surfaces: BA02 does not mandate BASE routes. For UI smoke checks of the same contracts, use BA03 entrypoints `/forms` and `/form-builder` (see `docs/delivery/test-packs/BA03-qa-pack.md`).
+- Beyond those pages: submission, deny-path, and “no generic table/column write” checks may require RPC/API or other apps—use whatever exposes the shared forms contract in your environment.
 
 ## Preconditions/environment
 
@@ -32,6 +34,11 @@
 - Unsupported workflow type submitted.
 - Duplicate or malformed `field_key` values.
 - Authoring valid form but submitter role lacks required access mode.
+
+## Test feedback
+
+- UI feedback for `/forms` and `/form-builder` is owned by BA03 and tracked in `docs/delivery/test-packs/BA03-qa-pack.md`.
+- Keep BA02 manual testing focused on shared forms contract behavior rather than BASE route presentation.
 
 ## Pass/fail evidence fields
 

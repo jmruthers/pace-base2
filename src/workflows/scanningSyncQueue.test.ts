@@ -23,7 +23,10 @@ describe('BA14 scanning sync and reconciliation contract', () => {
     });
 
     const result = await uploadQueuedScan({ rpc: rpcMock }, queueItem);
-    expect(result.state).toBe('uploaded');
+    expect(result).toEqual({
+      ok: true,
+      data: { ...queueItem, state: 'uploaded' },
+    });
     expect(rpcMock).toHaveBeenCalledWith('app_base_scan_event_upload', {
       p_event_id: 'client-generated-id-1',
       p_scan_point_id: 'scan-point-1',
@@ -42,8 +45,16 @@ describe('BA14 scanning sync and reconciliation contract', () => {
     });
 
     const result = await uploadQueuedScan({ rpc: rpcMock }, queueItem);
-    expect(result.state).toBe('upload_conflict');
-    expect(result.validationResult).toBe('upload_conflict');
-    expect(result.validationReason).toBe('duplicate_scan');
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected upload conflict result.');
+    }
+    expect(result.error.code).toBe('upload_conflict');
+    const conflictQueueItem = result.error.details?.queueItem as
+      | { state: string; validationResult: string; validationReason: string | null }
+      | undefined;
+    expect(conflictQueueItem?.state).toBe('upload_conflict');
+    expect(conflictQueueItem?.validationResult).toBe('upload_conflict');
+    expect(conflictQueueItem?.validationReason).toBe('duplicate_scan');
   });
 });

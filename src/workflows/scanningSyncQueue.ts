@@ -1,3 +1,5 @@
+import type { ApiResult } from './apiResult';
+
 export type QueueState =
   | 'pending_upload'
   | 'uploaded'
@@ -28,7 +30,7 @@ interface RpcClient {
 export async function uploadQueuedScan(
   client: RpcClient,
   queueItem: QueuedScanEvent
-): Promise<QueuedScanEvent> {
+): Promise<ApiResult<QueuedScanEvent>> {
   const { error } = await client.rpc('app_base_scan_event_upload', {
     p_event_id: queueItem.id,
     p_scan_point_id: queueItem.scanPointId,
@@ -36,18 +38,39 @@ export async function uploadQueuedScan(
     p_validation_reason: queueItem.validationReason,
   });
   if (error == null) {
-    return { ...queueItem, state: 'uploaded' };
+    return {
+      ok: true,
+      data: { ...queueItem, state: 'uploaded' },
+    };
   }
 
   if (error.message.includes('conflict')) {
     return {
-      ...queueItem,
-      state: 'upload_conflict',
-      validationResult: 'upload_conflict',
+      ok: false,
+      error: {
+        code: 'upload_conflict',
+        message: error.message,
+        details: {
+          queueItem: {
+            ...queueItem,
+            state: 'upload_conflict',
+            validationResult: 'upload_conflict',
+          },
+        },
+      },
     };
   }
 
-  return { ...queueItem, state: 'upload_failed' };
+  return {
+    ok: false,
+    error: {
+      code: 'upload_failed',
+      message: error.message,
+      details: {
+        queueItem: { ...queueItem, state: 'upload_failed' },
+      },
+    },
+  };
 }
 
 export function markPendingUpload(queueItem: Omit<QueuedScanEvent, 'state'>): QueuedScanEvent {

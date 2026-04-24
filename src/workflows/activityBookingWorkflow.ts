@@ -1,3 +1,5 @@
+import type { ApiResult } from './apiResult';
+
 type BookingFailureReason =
   | 'window_closed'
   | 'capacity_full'
@@ -63,10 +65,20 @@ export async function requestActivityBooking(
 export async function cancelActivityBooking(
   client: RpcClient,
   input: { bookingId: string; participantId: string }
-): Promise<{ ok: boolean }> {
+): Promise<ApiResult<{ cancelled: true }>> {
   const { error } = await client.rpc('app_base_activity_booking_cancel', {
     p_booking_id: input.bookingId,
     p_participant_id: input.participantId,
   });
-  return { ok: error == null };
+  if (error != null) {
+    return {
+      ok: false,
+      error: {
+        code: 'booking_cancel_failed',
+        message: error.message,
+      },
+    };
+  }
+
+  return { ok: true, data: { cancelled: true } };
 }

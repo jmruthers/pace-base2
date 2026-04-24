@@ -1,55 +1,27 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Button,
   Card,
   CardContent,
   CardHeader,
+  LoadingSpinner,
   CardTitle,
 } from '@solvera/pace-core/components';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AccessDenied, PagePermissionGuard } from '@solvera/pace-core/rbac';
-
-interface FormListItem {
-  id: string;
-  slug: string;
-  title: string;
-  workflowType: string;
-  accessMode: string;
-}
-
-function createEventScopedForms(eventId: string): ReadonlyArray<FormListItem> {
-  return [
-    {
-      id: `${eventId}-registration-primary`,
-      slug: 'registration-primary',
-      title: 'Primary registration',
-      workflowType: 'base_registration',
-      accessMode: 'authenticated_member',
-    },
-    {
-      id: `${eventId}-medical-intake`,
-      slug: 'medical-intake',
-      title: 'Medical intake',
-      workflowType: 'base_registration',
-      accessMode: 'authenticated_member',
-    },
-  ];
-}
+import { useDeleteEventForm } from '@/hooks/useDeleteEventForm';
+import { useEventFormsList } from '@/hooks/useEventFormsList';
 
 export function FormsListPage() {
+  const navigate = useNavigate();
   const { selectedEvent } = useUnifiedAuth();
-  const [hiddenFormIds, setHiddenFormIds] = useState<ReadonlyArray<string>>([]);
+  const [statusMessage, setStatusMessage] = useState('');
 
   const eventId =
     selectedEvent != null && typeof selectedEvent.id === 'string' ? selectedEvent.id : null;
-
-  const forms = useMemo(() => {
-    if (eventId == null) {
-      return [];
-    }
-    return createEventScopedForms(eventId).filter((form) => !hiddenFormIds.includes(form.id));
-  }, [eventId, hiddenFormIds]);
+  const formsQuery = useEventFormsList(eventId);
+  const deleteMutation = useDeleteEventForm(eventId);
 
   if (eventId == null) {
     return (
@@ -76,33 +48,56 @@ export function FormsListPage() {
             <CardTitle>Forms</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>Event scope: {eventId}</p>
-            <p>
-              <Link to="/form-builder">Create or edit forms</Link>
-            </p>
-            <ul>
-              {forms.map((form) => (
-                <li key={form.id}>
-                  <p>{form.title}</p>
-                  <p>Slug: {form.slug}</p>
-                  <p>Workflow: {form.workflowType}</p>
-                  <p>Access mode: {form.accessMode}</p>
-                  <p>
-                    <a href={`/preview/${form.slug}`}>Preview</a>
-                  </p>
-                  <p>
-                    <a href={`/share/${form.slug}`}>Share</a>
-                  </p>
-                  <Button
-                    onClick={() =>
-                      setHiddenFormIds((previous) => [...previous, form.id])
-                    }
-                  >
-                    Delete
-                  </Button>
-                </li>
+            <Button type="button" onClick={() => navigate('/form-builder')}>
+              Add new form
+            </Button>
+            {formsQuery.isLoading && (
+              <p>
+                <LoadingSpinner />
+              </p>
+            )}
+            {formsQuery.isError && <p>Unable to load forms: {formsQuery.error.message}</p>}
+            {statusMessage.length > 0 && <p>{statusMessage}</p>}
+            {!formsQuery.isLoading &&
+              !formsQuery.isError &&
+              (formsQuery.data?.length ?? 0) === 0 && <p>No forms found for this event.</p>}
+            <section className="grid gap-4 md:grid-cols-2">
+              {(formsQuery.data ?? []).map((form) => (
+                <Card key={form.id}>
+                  <CardHeader>
+                    <CardTitle>{form.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p>Slug: {form.slug}</p>
+                    <p>Workflow: {form.workflowType}</p>
+                    <p>Access mode: {form.accessMode}</p>
+                    <section className="grid gap-2 md:grid-cols-4">
+                      <Link to={`/form-builder/${form.slug}`}>Edit</Link>
+                      <Link to={`/forms/preview/${form.slug}`}>Preview</Link>
+                      <Link to={`/forms/share/${form.slug}`}>Share</Link>
+                      <Button
+                        onClick={() => {
+                          setStatusMessage('');
+                          deleteMutation.mutate(form.id, {
+                            onSuccess: () => {
+                              setStatusMessage('Form deleted.');
+                            },
+                            onError: (error) => {
+                              setStatusMessage(
+                                error instanceof Error ? error.message : 'Unable to delete form.'
+                              );
+                            },
+                          });
+                        }}
+                        disabled={deleteMutation.isPending}
+                      >
+                        Delete
+                      </Button>
+                    </section>
+                  </CardContent>
+                </Card>
               ))}
-            </ul>
+            </section>
           </CardContent>
         </Card>
       </section>

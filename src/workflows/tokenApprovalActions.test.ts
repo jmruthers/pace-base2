@@ -29,7 +29,10 @@ describe('BA07 token approval action contracts', () => {
     }));
 
     const result = await resolveToken({ rpc: rpcMock }, 'token-abc');
-    expect(result).toEqual({ state: 'valid', checkId: 'check-1' });
+    expect(result).toEqual({
+      ok: true,
+      data: { state: 'valid', checkId: 'check-1' },
+    });
   });
 
   it('submits decision through backend-owned submit contract', async () => {

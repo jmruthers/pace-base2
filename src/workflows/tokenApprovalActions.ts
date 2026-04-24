@@ -1,3 +1,5 @@
+import type { ApiResult } from './apiResult';
+
 export type TokenApprovalDecision = 'approve' | 'reject';
 
 export type TokenResolutionState =
@@ -27,16 +29,25 @@ export function validateTokenDecisionInput(input: {
 export async function resolveToken(
   client: RpcClient,
   token: string
-): Promise<{ state: TokenResolutionState; checkId?: string }> {
+): Promise<ApiResult<{ state: TokenResolutionState; checkId?: string }>> {
   const { data, error } = await client.rpc('data_base_application_check_token_resolve', {
     p_token: token,
   });
   if (error != null || data == null) {
-    return { state: 'invalid' };
+    return {
+      ok: false,
+      error: {
+        code: 'invalid_token',
+        message: error?.message ?? 'Token resolution returned no data.',
+      },
+    };
   }
 
   const resolved = data as { state: TokenResolutionState; check_id?: string };
-  return { state: resolved.state, checkId: resolved.check_id };
+  return {
+    ok: true,
+    data: { state: resolved.state, checkId: resolved.check_id },
+  };
 }
 
 export async function submitTokenDecision(

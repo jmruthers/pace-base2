@@ -48,7 +48,10 @@ describe('BA05a registration submission workflow contracts', () => {
       }
     );
 
-    expect(result).toEqual({ status: 'approved', applicationId: 'app-1' });
+    expect(result).toEqual({
+      ok: true,
+      data: { status: 'approved', applicationId: 'app-1' },
+    });
   });
 
   it('returns under_review with first check when backend requires approval chain', async () => {
@@ -74,9 +77,12 @@ describe('BA05a registration submission workflow contracts', () => {
     );
 
     expect(result).toEqual({
-      status: 'under_review',
-      applicationId: 'app-2',
-      firstCheckId: 'check-1',
+      ok: true,
+      data: {
+        status: 'under_review',
+        applicationId: 'app-2',
+        firstCheckId: 'check-1',
+      },
     });
   });
 
@@ -97,6 +103,12 @@ describe('BA05a registration submission workflow contracts', () => {
       }
     );
 
-    expect(result).toEqual({ status: 'rejected', reason: 'scope_denied' });
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: 'scope_denied',
+        message: 'scope denied',
+      },
+    });
   });
 });

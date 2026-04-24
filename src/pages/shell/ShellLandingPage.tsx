@@ -33,7 +33,7 @@ export function ShellLandingPage() {
                 operations.
               </p>
             ) : (
-              <p>Active event: {selectedEvent.id}</p>
+              <p>Event context is active. Change the event from the shell header when needed.</p>
             )}
             <p>Available event contexts: {events.length}</p>
           </CardContent>

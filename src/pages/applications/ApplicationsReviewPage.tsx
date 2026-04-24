@@ -6,54 +6,55 @@ import {
   CardHeader,
   CardTitle,
 } from '@solvera/pace-core/components';
+import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AccessDenied, PagePermissionGuard } from '@solvera/pace-core/rbac';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  eventApplicationsReviewQueryKey,
+  useEventApplicationsReviewList,
+} from '@/hooks/useEventApplicationsReviewList';
 import { useApplicationReviewActions } from '@/hooks/useApplicationReviewActions';
 
-interface ApplicationCheck {
-  checkId: string;
-  checkType: string;
-  resolved: boolean;
-}
-
-interface ApplicationReviewItem {
-  applicationId: string;
-  registrationType: string;
-  status: 'submitted' | 'under_review' | 'approved' | 'rejected';
-  checks: ReadonlyArray<ApplicationCheck>;
-}
-
-const INITIAL_APPLICATIONS: ReadonlyArray<ApplicationReviewItem> = [
-  {
-    applicationId: 'app-1',
-    registrationType: 'Leader',
-    status: 'under_review',
-    checks: [
-      { checkId: 'check-1', checkType: 'guardian_approval', resolved: false },
-      { checkId: 'check-2', checkType: 'home_leader_approval', resolved: true },
-    ],
-  },
-  {
-    applicationId: 'app-2',
-    registrationType: 'Participant',
-    status: 'submitted',
-    checks: [{ checkId: 'check-3', checkType: 'designated_org_review', resolved: false }],
-  },
-];
-
 export function ApplicationsReviewPage() {
+  const { selectedEvent } = useUnifiedAuth();
+  const queryClient = useQueryClient();
   const { setApplicationStatus, reissueApprovalToken } = useApplicationReviewActions();
-  const [applications, setApplications] =
-    useState<ReadonlyArray<ApplicationReviewItem>>(INITIAL_APPLICATIONS);
-  const [selectedApplicationId, setSelectedApplicationId] = useState<string>('app-1');
+  const [pickedApplicationId, setPickedApplicationId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
 
+  const eventId =
+    selectedEvent != null && typeof selectedEvent.id === 'string' ? selectedEvent.id : null;
+
+  const {
+    data: applications = [],
+    isPending,
+    isError,
+    error: listError,
+  } = useEventApplicationsReviewList(eventId);
+
+  const selectedApplicationId = useMemo(() => {
+    if (applications.length === 0) {
+      return null;
+    }
+    if (
+      pickedApplicationId != null &&
+      applications.some((application) => application.applicationId === pickedApplicationId)
+    ) {
+      return pickedApplicationId;
+    }
+    return applications[0].applicationId;
+  }, [applications, pickedApplicationId]);
+
   const selectedApplication = useMemo(
-    () => applications.find((application) => application.applicationId === selectedApplicationId) ?? null,
+    () =>
+      selectedApplicationId == null
+        ? null
+        : (applications.find((application) => application.applicationId === selectedApplicationId) ?? null),
     [applications, selectedApplicationId]
   );
 
   const handleStatusAction = async (status: 'approved' | 'rejected' | 'under_review') => {
-    if (selectedApplication == null) {
+    if (selectedApplication == null || eventId == null) {
       return;
     }
     const result = await setApplicationStatus({
@@ -65,13 +66,7 @@ export function ApplicationsReviewPage() {
       return;
     }
 
-    setApplications((previous) =>
-      previous.map((application) =>
-        application.applicationId === selectedApplication.applicationId
-          ? { ...application, status }
-          : application
-      )
-    );
+    await queryClient.invalidateQueries({ queryKey: eventApplicationsReviewQueryKey(eventId) });
     setStatusMessage(`Application moved to ${status}.`);
   };
 
@@ -92,17 +87,27 @@ export function ApplicationsReviewPage() {
             <CardTitle>Applications</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul>
-              {applications.map((application) => (
-                <li key={application.applicationId}>
-                  <Button onClick={() => setSelectedApplicationId(application.applicationId)}>
-                    Open {application.applicationId}
-                  </Button>
-                  <p>Registration type: {application.registrationType}</p>
-                  <p>Status: {application.status}</p>
-                </li>
-              ))}
-            </ul>
+            {eventId == null ? (
+              <p>Select an event before reviewing applications.</p>
+            ) : isPending ? (
+              <p>Loading applications…</p>
+            ) : isError ? (
+              <p>{listError.message}</p>
+            ) : applications.length === 0 ? (
+              <p>No applications for this event yet.</p>
+            ) : (
+              <ul>
+                {applications.map((application) => (
+                  <li key={application.applicationId}>
+                    <Button onClick={() => setPickedApplicationId(application.applicationId)}>
+                      Open {application.applicationId}
+                    </Button>
+                    <p>Registration type: {application.registrationType}</p>
+                    <p>Status: {application.status}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
 
@@ -119,8 +124,8 @@ export function ApplicationsReviewPage() {
                 {selectedApplication.checks.map((check) => (
                   <li key={check.checkId}>
                     <p>{check.checkType}</p>
-                    <p>{check.resolved ? 'completed' : 'pending'}</p>
-                    {!check.resolved && (
+                    <p>{check.checkStatus}</p>
+                    {check.checkStatus === 'pending' && (
                       <Button onClick={() => void handleTokenReissue(check.checkId)}>
                         Reissue request
                       </Button>
