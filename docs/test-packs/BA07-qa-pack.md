@@ -10,12 +10,12 @@
 
 | scenario_id | requirement_ref | route_or_screen | steps | expected_result | result | notes |
 |---|---|---|---|---|---|---|
-| S-01 | §3.5, §5.1, TA-16 | pace-portal `/approvals/:token` | Open token route with a valid pending token. | Approval page renders required event/application/check context and token-limited view behavior. |  |  |
-| S-02 | §3.5 step 3, §5.2 resolve failure | pace-portal `/approvals/:token` | Open token route with invalid/expired/unusable token. | Participant-safe invalid/unusable link outcome is shown without internal state disclosure. |  |  |
-| S-03 | TA-15, §3.5 step 4, §5.2 validation failure | pace-portal `/approvals/:token` reject action | Resolve token, choose reject, and attempt submit with blank/whitespace comments. | Submit is blocked until trimmed comment is non-empty and user receives visible validation feedback. |  |  |
-| S-04 | §3.5 steps 5-6, §5.2 submit success, §7.4 | pace-portal `/approvals/:token` approve action | Resolve token, choose approve, and submit with no usable notes. | Submit succeeds and confirmation reflects satisfied/approved result path. |  |  |
-| S-05 | §6.2, §6.4, §5.2 submit success, §7.4 | pace-portal `/approvals/:token` reject action | Resolve token, choose reject with non-empty trimmed comments, and submit. | Submit succeeds and confirmation reflects failed/rejected result path. |  |  |
-| S-06 | TA-13, §5.2 submit failure, §7.3 | pace-portal `/approvals/:token` replay attempt | Attempt to resolve/submit again with already consumed or stale token. | Failure messaging matches participant-safe invalid/expired/used token handling. |  |  |
+| S-01 | TA-01, TA-02, TA-03 | pace-portal `/approvals/:token` | Open token route with a valid pending token. | Resolve succeeds and page renders using allow-listed resolve payload only. |  |  |
+| S-02 | §7.3, TA-13 | pace-portal `/approvals/:token` | Open route with invalid, expired, or already-consumed token. | Resolve failure maps to participant-safe invalid/expired token outcome. |  |  |
+| S-03 | TA-15, TA-08 | pace-portal `/approvals/:token` reject action | Resolve token, choose reject, and attempt submit with blank/whitespace comments. | Client blocks submit until trimmed reject comment is non-empty. |  |  |
+| S-04 | TA-06, TA-09, TA-11 | pace-portal `/approvals/:token` approve action | Resolve token and submit outcome `approve` without notes. | Submit succeeds with `new_status='satisfied'` and token becomes unusable on replay. |  |  |
+| S-05 | TA-06, TA-10, TA-11 | pace-portal `/approvals/:token` reject action | Resolve token and submit outcome `reject` with non-empty comment. | Submit succeeds with `new_status='failed'` and decision comment is persisted per contract. |  |  |
+| S-06 | TA-14, §7.5 | BA06 reissue flow + portal token route | Reissue a pending guardian/referee token and attempt old/new token resolution. | Old token no longer resolves; newly issued token resolves and shows updated expiry behavior. |  |  |
 
 ## Test run summary
 

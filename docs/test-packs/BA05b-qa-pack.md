@@ -10,12 +10,12 @@
 
 | scenario_id | requirement_ref | route_or_screen | steps | expected_result | result | notes |
 |---|---|---|---|---|---|---|
-| S-01 | §3.4, §5.4 | Participant application progress route | Open progress route without authenticated participant session. | Standard sign-in affordance is shown and progress RPC call does not execute before authentication. |  |  |
-| S-02 | §3.4, §5.2 Invalid route param | Participant application progress route (invalid `applicationId`) | Open progress route with non-UUID `applicationId`. | Participant-safe invalid identifier state is shown and RPC call is not made. |  |  |
-| S-03 | §5.1, PP-15, PP-16, §5.3 | Participant application progress route (owned application) | Open progress for owned application with non-empty checks. | Sections render from payload with raw status strings and participant-safe requirements list behavior. |  |  |
-| S-04 | §5.2 Success-empty-checks, §3.4 | Participant application progress route | Open progress for owned application with empty checks array. | Requirements section still renders and shows no-approval-steps helper text. |  |  |
-| S-05 | §3.4, §5.2 Access denied, §6.5 | Participant application progress route (access denied case) | Open progress for unowned/denied application id while signed in. | Single participant-safe access denied message is shown without existence-oracle details. |  |  |
-| S-06 | AC-07, §5.3, §6.1 | Participant application progress route | Open progress page with known fixture statuses and inspect displayed status values. | Application and check statuses display as literal raw payload values without relabeling. |  |  |
+| S-01 | §3.4, PP-01 | Participant progress route | Open progress route without an authenticated participant session. | Sign-in gating appears and progress RPC is not called before authentication. |  |  |
+| S-02 | §3.4 | Participant progress route (invalid id) | Open route using a non-UUID `applicationId`. | Invalid identifier state is shown and progress RPC is not called. |  |  |
+| S-03 | PP-04, PP-08, PP-09, PP-10 | Participant progress route (owned application) | Open progress for an owned application with checks. | Payload-backed view renders application + registration type + ordered checks with raw status values. |  |  |
+| S-04 | PP-08, AC-05 | Participant progress route | Open progress for an owned application with zero check rows. | Progress view loads successfully with `checks` as an empty list. |  |  |
+| S-05 | PP-13, PP-14, AC-03 | Participant progress route payload inspection | Inspect returned progress payload for sensitive field exposure. | Sensitive keys (token fields, staff audit fields, carer/referee ids) are absent from response surface. |  |  |
+| S-06 | PP-02, PP-03, AC-04 | Participant progress route (unauthorized application) | Attempt to open progress for an application not owned by the signed-in user. | Access-denied outcome is shown without exposing whether the target id exists. |  |  |
 
 ## Test run summary
 

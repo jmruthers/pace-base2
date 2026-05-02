@@ -10,13 +10,13 @@
 
 | scenario_id | requirement_ref | route_or_screen | steps | expected_result | result | notes |
 |---|---|---|---|---|---|---|
-| S-01 | FL-ES-01, FL-PE-02 | `/forms` | Clear selected event and open `/forms`. | Select-event message card renders; grid and Create Form button are hidden. |  |  |
-| S-02 | FL-PE-01, FL-PC-01, FL-PC-02, FL-PC-03, FL-PC-04, FL-PC-05, FL-PC-06, BR-01, BR-02 | `/forms` | Select event and load forms list. | Cards render in descending created order with required metadata and status badge mapping; open/close lines render only when values are present. |  |  |
-| S-03 | FL-PC-10 | `/forms` card action row | Click Copy URL when clipboard API succeeds. | URL is copied and icon switches to checkmark briefly, then resets. |  |  |
-| S-04 | FL-EC-01 | `/forms` Preview / Copy URL actions | With `VITE_PORTAL_BASE_URL` missing, click Preview or Copy URL. | Destructive toast indicates portal URL is not configured; no preview navigation and no clipboard write. |  |  |
-| S-05 | FL-PA-03, FL-PA-05, BR-08 | `/forms` delete flow | Delete a form where RPC returns `deleted=true`. | Pending state appears, dialog closes, form is removed/refreshed, and success toast is shown. |  |  |
-| S-06 | FL-PA-04, BR-08, BR-09 | `/forms` delete blocked flow | Delete a form where RPC returns `deleted=false` with response/binding counts. | Cannot delete dialog opens with count-based blocking message and form remains in list. |  |  |
-| S-07 | FB-PE-01, FB-PA-01, FB-PA-02, BR-11, BR-14 | `/form-builder` create flow | From `/forms`, create a form with valid metadata and at least one field, then save. | Save sequence succeeds, success toast appears, and navigation returns to `/forms`. |  |  |
+| S-01 | FL-ES-01 | `/forms` | Open `/forms` with no selected event. | Select-event card renders and forms grid is hidden. |  |  |
+| S-02 | FL-PC-01, FL-PC-02, FL-PC-03, FL-PC-07 | `/forms` | Load `/forms` with event selected and existing forms. | Cards show name, field count, status badge, and action row (Edit, Preview, Copy URL, Delete per permission). |  |  |
+| S-03 | FL-PC-09, FL-PC-10, FL-EC-01 | `/forms` card actions | Use Preview and Copy URL actions with and without `VITE_PORTAL_BASE_URL` configured. | Configured environment opens/copies URL; missing configuration shows destructive toast and no URL action executes. |  |  |
+| S-04 | FL-PA-03, FL-PA-04, FL-PA-05 | `/forms` delete flow | Execute delete on both deletable and blocked forms. | Success path removes card and shows success toast; blocked path shows cannot-delete dialog and retains row. |  |  |
+| S-05 | FB-PE-01, BR-11, BR-13 | `/form-builder` create mode | Open `/form-builder` without formId and type a form name, then edit slug manually. | Initial state uses create defaults, slug auto-generates from name, and manual slug edits are preserved on subsequent name changes. |  |  |
+| S-06 | FB-PE-02, BR-12, BR-06 | `/form-builder?formId={id}` | Open builder in edit mode for a published form. | Saved state loads into shell and published-form slug remains locked per slice rule. |  |  |
+| S-07 | FB-PA-01, FB-PA-02, BR-14 | `/form-builder` save flow | Save a valid form, including a `base_registration` form with bindings selected. | Save sequence completes in required order, success toast appears, and navigation returns to `/forms`. |  |  |
 
 ## Test run summary
 

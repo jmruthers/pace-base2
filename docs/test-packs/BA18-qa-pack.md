@@ -10,8 +10,10 @@
 
 | scenario_id | requirement_ref | route_or_screen | steps | expected_result | result | notes |
 |---|---|---|---|---|---|---|
-| S-01 | AC-10, F-15, §12 Scenario 4 | `/applications` | After executing BA18 seed/reset contract, sign in with scoped organiser permissions, select event `BASEBA18`, and open `/applications`. | Applications list shows seeded rows for the selected event (non-empty, data-backed). |  |  |
-| S-02 | AC-01, AC-02, §12 Scenario 1, §12 Scenario 2 | shell event selector and `/applications` | After first seed run and after idempotent rerun, select `BASE BA18 Seed Event` and open `/applications`. | UI remains loadable and continues to show seeded applications after rerun. |  |  |
+| S-01 | AC-01, F-05, F-15 | Shell event selector + `/applications` | Execute BA18 seed reset, select event code `BASEBA18`, then open `/applications`. | Event is available and applications list is non-empty from seeded database rows. |  |  |
+| S-02 | AC-02, F-02 | Shell event selector + `/applications` | Execute BA18 seed reset a second time, then revisit `BASEBA18` applications list. | Re-run remains stable and list state stays valid without duplicate-data regressions. |  |  |
+| S-03 | AC-06, AC-07 | `/forms` and registration type context screens | With `BASEBA18` selected, inspect form and registration type surfaces tied to seed records. | Seed registration types and seed registration form/bindings are available for manual verification flows. |  |  |
+| S-04 | AC-09 | `/applications` detail/check context | Open the `under_review` seeded application and inspect check status in admin detail surface. | Pending seeded application check is present and tied to the seeded under-review application. |  |  |
 
 ## Test run summary
 

@@ -10,13 +10,13 @@
 
 | scenario_id | requirement_ref | route_or_screen | steps | expected_result | result | notes |
 |---|---|---|---|---|---|---|
-| S-01 | FS-02 | Participant registration entry (form with multiple bindings) | Open registration flow for a form with multiple registration type bindings and progress toward submit. | Registration type selection is required before submit for multi-binding forms. |  |  |
-| S-02 | FS-18 | Participant registration form render surface | Open registration form in participant flow. | Shared `WorkflowFormRenderer` contract is used for form rendering. |  |  |
-| S-03 | FS-19, FS-14, AC-06 | Pre-submit checks section | Complete configured pre-submission checks and submit with required consent payload. | Submission succeeds with consent snapshot behavior aligned to requirement refs. |  |  |
-| S-04 | FS-12, BR-05, BR-09, AC-05 | Referee-required registration submit flow | Select eligible referee via required eligibility source and submit. | Submission succeeds and required referee handling path is satisfied. |  |  |
-| S-05 | FS-12, AC-05 | Referee-required registration submit flow | Attempt submit without required referee and then with ineligible referee id. | Validation/error handling follows required referee-required and ineligible paths. |  |  |
-| S-06 | FS-11, BR-04, AC-04 | Optional carer section in registration submit flow | Submit once without carer and once with valid distinct carer. | Omitted carer remains optional; valid carer path persists correctly per requirement behavior. |  |  |
-| S-07 | BR-02, AC-03, FS-05, FS-06 | Registration submit flow (scope vs eligibility cases) | Execute one scope-denied case and one eligibility-failed case. | Scope and eligibility failures remain distinct handling paths. |  |  |
+| S-01 | FS-02 | Participant registration entrypoint | Open a `base_registration` form with multiple `base_form_registration_type` bindings. | Registration type selection is required before submit for open-selection entrypoints. |  |  |
+| S-02 | FS-03, FS-04 | Registration submit flow | Submit a valid registration and inspect resulting linked records. | Form response capture is created and linked to the created `base_application` as workflow subject. |  |  |
+| S-03 | FS-11, AC-04 | Registration submit flow (carer) | Submit once without carer and once with a valid distinct carer. | Carer is optional when omitted; valid distinct carer persists successfully. |  |  |
+| S-04 | FS-12, AC-05 | Referee-required registration flow | Submit a referee-required type once without referee and once with ineligible referee. | Missing referee triggers required-path failure; ineligible referee triggers ineligible-path failure. |  |  |
+| S-05 | FS-07, AC-01, AC-02 | Registration submit flow (status derivation) | Submit one type without requirements and one with requirements. | Requirement-free type starts approved with no checks; requirement-backed type starts under_review with pending check rows. |  |  |
+| S-06 | FS-13, FS-14, AC-06 | Pre-submission checks / consent capture | Complete required pre-submission checks and submit with consent payload. | Consent snapshots are created with non-null verbatim text for provided consent entries. |  |  |
+| S-07 | FS-05, FS-06, AC-03 | Registration submit flow (scope vs eligibility) | Execute one submission blocked by scope and one blocked by eligibility rules. | Scope denial and eligibility failure remain distinct failure outcomes. |  |  |
 
 ## Test run summary
 

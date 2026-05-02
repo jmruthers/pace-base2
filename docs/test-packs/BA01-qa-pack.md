@@ -10,12 +10,12 @@
 
 | scenario_id | requirement_ref | route_or_screen | steps | expected_result | result | notes |
 |---|---|---|---|---|---|---|
-| S-01 | D-ES-01 | `/event-dashboard` | Sign in with no selected event and open `/event-dashboard`. | Event identity and nav cards are hidden; centered message reads "Select an event from the header to begin." |  |  |
-| S-02 | D-PE-01, D-PE-02, D-PC-07 | `/event-dashboard` | Sign in with dashboard read permission, select an event, then open `/event-dashboard`. | Header/subtitle render and exactly five nav cards render (Forms, Applications, Registration Types, Reports, Communications). |  |  |
-| S-03 | D-NV-01, D-PA-01 | `/event-dashboard` | Click a dashboard nav card when event is selected. | Card navigates to its configured route via standard link interaction. |  |  |
-| S-04 | C-NC-01 | `/configuration` | Sign in with no selected event and open `/configuration`. | Configuration form is not shown and message reads "No event selected. Choose an event from the header to begin." |  |  |
-| S-05 | C-LS-01 | `/configuration` | Select an event and open `/configuration` during initial data load. | Centered loading spinner appears with "Loading event data…" and form stays hidden until load completes. |  |  |
-| S-06 | C-PA-02, C-PA-03 | `/configuration` | With update permission, edit valid fields and submit Save Changes. | Button shows "Saving…" and is disabled during mutation; success toast appears and form remains populated after save. |  |  |
+| S-01 | D-ES-01 | `/event-dashboard` | Open `/event-dashboard` with no selected event. | Event identity and nav cards are hidden; message reads "Select an event from the header to begin." |  |  |
+| S-02 | D-PC-07, D-PC-08 | `/event-dashboard` | Select an event and load dashboard. | Exactly five nav cards render with expected titles and card content. |  |  |
+| S-03 | D-PA-01, D-NV-01 | `/event-dashboard` | Click each nav card from the dashboard. | Full card click navigates to the correct destination route while event context is preserved. |  |  |
+| S-04 | C-NC-01 | `/configuration` | Open `/configuration` with no selected event. | Form is replaced by no-event message "No event selected. Choose an event from the header to begin." |  |  |
+| S-05 | C-LS-01, C-PC-01 | `/configuration` | Open `/configuration` with a selected event during initial load. | Centered spinner with "Loading event data..." appears, then header card "Event Configuration" renders once loaded. |  |  |
+| S-06 | C-PA-02, C-PA-03, C-PA-04 | `/configuration` | Edit valid fields and save, then trigger a save error path. | Valid save shows success toast and keeps form populated; failed save shows mutation error feedback and keeps form editable for retry. |  |  |
 
 ## Test run summary
 
