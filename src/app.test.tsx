@@ -72,6 +72,14 @@ vi.mock('./pages/eventConfiguration/EventConfigurationRoute', () => ({
   EventConfigurationRoute: () => <main>Event Configuration Page</main>,
 }));
 
+vi.mock('./pages/forms/FormsListPage', () => ({
+  FormsListPage: () => <main>Forms List Page</main>,
+}));
+
+vi.mock('./pages/forms/FormBuilderPage', () => ({
+  FormBuilderPage: () => <main>Form Builder Page</main>,
+}));
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -177,5 +185,19 @@ describe('BA00 route behavior', () => {
     permissionState.allowRead = false;
     renderAt('/scanning/scan-point-1');
     expect(await screen.findByText('Access Denied')).toBeTruthy();
+  });
+
+  it('renders form builder route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/form-builder');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Form Builder Page')).toBeTruthy();
+  });
+
+  it('renders forms route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/forms');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Forms List Page')).toBeTruthy();
   });
 });

@@ -12,6 +12,8 @@ import { FeaturePlaceholderPanel } from '@/components/shell/FeaturePlaceholderPa
 import { ScanRuntimePlaceholderPage } from './pages/shell/ScanRuntimePlaceholderPage';
 import { EventDashboardPage } from './pages/eventConfiguration/EventDashboardPage';
 import { EventConfigurationRoute } from './pages/eventConfiguration/EventConfigurationRoute';
+import { FormsListPage } from './pages/forms/FormsListPage';
+import { FormBuilderPage } from './pages/forms/FormBuilderPage';
 import {
   getShellProtectedRoutes,
 } from './config/baseRouteRegistry';
@@ -65,6 +67,10 @@ function App() {
                         <EventDashboardPage />
                       ) : route.path === '/configuration' ? (
                         <EventConfigurationRoute />
+                      ) : route.path === '/forms' ? (
+                        <FormsListPage />
+                      ) : route.path === '/form-builder' ? (
+                        <FormBuilderPage />
                       ) : route.path === '/scanning/:scanPointId' ? (
                         <ScanRuntimePlaceholderPage />
                       ) : (
