@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  WorkflowFormRenderer,
   WorkflowFormAuthoringShell,
   WorkflowFormFieldEditor,
   WorkflowFormMetadataEditor,
+  WorkflowPreSubmissionChecks,
   buildWorkflowPreviewTarget,
   buildWorkflowSubmissionPayload,
   validateWorkflowAuthoringState,
@@ -66,6 +68,8 @@ function resolveTimeWindowEntrypointState(params: {
 
 describe('shared forms contracts', () => {
   it('resolves required CR21 exports from @solvera/pace-core/forms', () => {
+    expect(WorkflowFormRenderer).toBeTypeOf('function');
+    expect(WorkflowPreSubmissionChecks).toBeTypeOf('function');
     expect(WorkflowFormAuthoringShell).toBeTypeOf('function');
     expect(WorkflowFormMetadataEditor).toBeTypeOf('function');
     expect(WorkflowFormFieldEditor).toBeTypeOf('function');
@@ -211,5 +215,50 @@ describe('shared forms contracts', () => {
           Object.prototype.hasOwnProperty.call(entry as object, 'column_name')
       )
     ).toBe(false);
+  });
+
+  it('preserves pre-submission checks in payload for base_registration', () => {
+    const payload = buildWorkflowSubmissionPayload({
+      formId: 'form-1',
+      workflowType: 'base_registration',
+      fields: [
+        {
+          id: 'field-1',
+          fieldKey: 'person.last_name',
+          fieldType: 'text',
+          sortOrder: 0,
+          isActive: true,
+        },
+      ],
+      values: {
+        'person.last_name': 'Citizen',
+      },
+      visibilityContext: {
+        values: {
+          'person.last_name': 'Citizen',
+        },
+      },
+      registrationTypeId: 'registration-type-1',
+      preSubmissionChecks: ['guardian-consent', 'medical-declaration'],
+      metadata: {
+        consentSnapshots: {
+          'guardian-consent': 'I confirm guardian approval is in place.',
+          'medical-declaration': 'I confirm this medical declaration is accurate.',
+        },
+      },
+    });
+
+    expect(payload.workflowType).toBe('base_registration');
+    expect(payload.registrationTypeId).toBe('registration-type-1');
+    expect(payload.preSubmissionChecks).toEqual([
+      'guardian-consent',
+      'medical-declaration',
+    ]);
+    expect(payload.metadata).toEqual({
+      consentSnapshots: {
+        'guardian-consent': 'I confirm guardian approval is in place.',
+        'medical-declaration': 'I confirm this medical declaration is accurate.',
+      },
+    });
   });
 });
