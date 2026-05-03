@@ -27,7 +27,7 @@ function deriveUserFullName(
   if (metadataName && metadataName.trim().length > 0) {
     return metadataName;
   }
-  return user?.email ?? 'Authenticated user';
+  return user?.email ?? 'User';
 }
 
 export function AuthenticatedShell() {
@@ -53,7 +53,7 @@ export function AuthenticatedShell() {
   );
 
   const userFullName = useMemo(() => deriveUserFullName(user), [user]);
-  const userEmail = user?.email ?? 'No email available';
+  const userEmail = user?.email ?? '';
 
   if (isLoading) {
     return <LoadingSpinner />;
