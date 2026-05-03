@@ -11,7 +11,7 @@ type SupabaseLogoClient = {
     select: (...args: unknown[]) => {
       eq: (...args: unknown[]) => {
         eq: (...args: unknown[]) => {
-          eq: (...args: unknown[]) => {
+          like: (...args: unknown[]) => {
             order: (...args: unknown[]) => {
               limit: (...args: unknown[]) => {
                 maybeSingle: () => Promise<{ data: unknown; error: unknown }>;
@@ -37,7 +37,7 @@ async function fetchEventLogoReference(
     .select('*')
     .eq('table_name', 'core_events')
     .eq('record_id', eventId)
-    .eq('category', 'event_logos')
+    .like('file_path', '%/event_logos/%')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();

@@ -16,39 +16,23 @@ const mocks = vi.hoisted(() => {
     if (name === 'app_base_form_fields_replace') {
       return { data: null, error: null };
     }
+    if (name === 'app_base_form_registration_bindings_replace') {
+      return { data: null, error: null };
+    }
     return { data: null, error: null };
   });
 
-  const deleteEqEvent = vi.fn(async () => ({ error: null }));
-  const deleteEqForm = vi.fn(() => ({ eq: deleteEqEvent }));
-  const deleteCall = vi.fn(() => ({ eq: deleteEqForm }));
-
-  const insert = vi.fn(async () => ({ error: null }));
-  const from = vi.fn((table: string) => {
-    if (table === 'base_form_registration_type') {
-      return {
-        delete: deleteCall,
-        insert,
-      };
-    }
-    return {
-      select: vi.fn(() => ({
-        eq: vi.fn(),
-      })),
-      delete: deleteCall,
-      insert,
-    };
-  });
+  const from = vi.fn(() => ({
+    select: vi.fn(() => ({
+      eq: vi.fn(),
+    })),
+  }));
 
   const supabase = { rpc, from };
   return {
     callOrder,
     rpc,
     from,
-    deleteCall,
-    deleteEqForm,
-    deleteEqEvent,
-    insert,
     supabase,
   };
 });
@@ -100,11 +84,6 @@ describe('formsAuthoring configuration mutation sequencing', () => {
   it('saves base registration forms with ordered RPC and binding writes', async () => {
     mocks.callOrder.length = 0;
     mocks.rpc.mockClear();
-    mocks.from.mockClear();
-    mocks.deleteCall.mockClear();
-    mocks.deleteEqForm.mockClear();
-    mocks.deleteEqEvent.mockClear();
-    mocks.insert.mockClear();
 
     const holder: { mutateAsync: ((params: unknown) => Promise<unknown>) | null } = { mutateAsync: null };
     function Probe() {
@@ -129,15 +108,16 @@ describe('formsAuthoring configuration mutation sequencing', () => {
       userId: 'user-1',
     });
 
-    expect(mocks.callOrder).toEqual(['app_base_form_upsert', 'app_base_form_fields_replace']);
-    expect(mocks.deleteCall).toHaveBeenCalledTimes(1);
-    expect(mocks.insert).toHaveBeenCalledTimes(1);
+    expect(mocks.callOrder).toEqual([
+      'app_base_form_upsert',
+      'app_base_form_fields_replace',
+      'app_base_form_registration_bindings_replace',
+    ]);
   });
 
   it('skips binding writes for non-base workflow forms', async () => {
     mocks.callOrder.length = 0;
-    mocks.deleteCall.mockClear();
-    mocks.insert.mockClear();
+    mocks.rpc.mockClear();
 
     const holder: { mutateAsync: ((params: unknown) => Promise<unknown>) | null } = { mutateAsync: null };
     function Probe() {
@@ -160,7 +140,5 @@ describe('formsAuthoring configuration mutation sequencing', () => {
     });
 
     expect(mocks.callOrder).toEqual(['app_base_form_upsert', 'app_base_form_fields_replace']);
-    expect(mocks.deleteCall).not.toHaveBeenCalled();
-    expect(mocks.insert).not.toHaveBeenCalled();
   });
 });

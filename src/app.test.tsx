@@ -9,6 +9,7 @@ import { BASE_ROUTE_REGISTRY, getShellNavigationItems } from './config/baseRoute
 const authState = vi.hoisted(() => ({
   isAuthenticated: false,
   isLoading: false,
+  isRestoring: false,
 }));
 
 const permissionState = vi.hoisted(() => ({
@@ -27,7 +28,13 @@ vi.mock('@solvera/pace-core/components', () => ({
     loginPath?: string;
     requireEvent?: boolean;
   }) => (authState.isAuthenticated ? <Outlet /> : <Navigate to={loginPath} replace />),
-  SessionRestorationLoader: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SessionRestorationLoader: ({
+    message,
+    children,
+  }: {
+    message: string;
+    children: React.ReactNode;
+  }) => (authState.isRestoring ? <main>{message}</main> : <>{children}</>),
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
   CardTitle: ({ children }: { children: React.ReactNode }) => <h1>{children}</h1>,
@@ -137,7 +144,16 @@ describe('BA00 route behavior', () => {
   beforeEach(() => {
     authState.isAuthenticated = false;
     authState.isLoading = false;
+    authState.isRestoring = false;
     permissionState.allowRead = true;
+  });
+
+  it('holds all route content behind restoration loader while restoring session', async () => {
+    authState.isRestoring = true;
+    renderAt('/');
+    expect(await screen.findByText('Restoring session…')).toBeTruthy();
+    expect(screen.queryByText('Login Page BASE')).toBeNull();
+    expect(screen.queryByText('Event Dashboard Page')).toBeNull();
   });
 
   it('redirects unauthenticated root users to /login', async () => {

@@ -127,13 +127,20 @@ export function computeEventEndDate(startDate: string | null | undefined, eventD
 
 export function mapRecordToFormValues(record: EventConfigurationRecord): EventConfigurationFormValues {
   const eventDate = record.event_date ? new Date(record.event_date) : null;
+  const venue = typeof record.event_venue === 'string' ? record.event_venue.trim() : '';
+  const eventVenue: AddressValue | undefined =
+    venue.length > 0
+      ? ({
+          formattedAddress: venue,
+        } as AddressValue)
+      : undefined;
   return {
     event_name: record.event_name ?? '',
     event_code: record.event_code ?? null,
     event_email: record.event_email ?? null,
     event_date: Number.isNaN(eventDate?.getTime() ?? 0) ? null : eventDate,
     event_days: record.event_days ?? 1,
-    event_venue: undefined,
+    event_venue: eventVenue,
     expected_participants: record.expected_participants ?? 0,
     typical_unit_size: record.typical_unit_size ?? 0,
     description: record.description ?? null,

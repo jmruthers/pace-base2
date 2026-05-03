@@ -141,16 +141,24 @@ async function fetchFormBindings(
   formId: string,
   eventId: string
 ): Promise<ApiResult<FormRegistrationBindingRow[]>> {
-  const { data, error } = await supabase
-    .from('base_form_registration_type')
-    .select('registration_type_id, sort_order, is_default')
-    .eq('form_id', formId)
-    .eq('event_id', eventId)
-    .order('sort_order', { ascending: true });
+  const { data, error } = await supabase.rpc('app_base_form_registration_bindings_get', {
+    p_form_id: formId,
+    p_event_id: eventId,
+    p_organisation_id: null,
+  });
   if (error != null) {
     return apiFailure('form-bindings-read-error', 'Failed to load registration bindings', error);
   }
-  return apiSuccess((data as FormRegistrationBindingRow[] | null) ?? []);
+  const rows = ((data as Array<{
+    registration_type_id: string;
+    sort_order: number;
+    is_default: boolean;
+  }> | null) ?? []).map((row) => ({
+    registration_type_id: row.registration_type_id,
+    sort_order: row.sort_order,
+    is_default: row.is_default,
+  }));
+  return apiSuccess(rows);
 }
 
 async function fetchRegistrationTypes(
@@ -177,36 +185,26 @@ async function saveBindings(params: {
   organisationId: string;
   userId: string | null;
 }): Promise<ApiResult<null>> {
-  const { error: deleteError } = await params.supabase
-    .from('base_form_registration_type')
-    .delete()
-    .eq('form_id', params.resolvedFormId)
-    .eq('event_id', params.eventId);
-  if (deleteError != null) {
-    return apiFailure('registration-bindings-clear-error', 'Failed to clear registration bindings', deleteError);
-  }
-
   const checkedBindings = params.bindings.filter((binding) => binding.checked);
-  if (checkedBindings.length === 0) {
-    return apiSuccess(null);
-  }
-
-  const rows = checkedBindings.map((binding, index) => ({
-    form_id: params.resolvedFormId,
+  const payload = checkedBindings.map((binding, index) => ({
     registration_type_id: binding.typeId,
-    event_id: params.eventId,
-    organisation_id: params.organisationId,
     sort_order: index,
     is_default: binding.isDefault,
-    created_by: params.userId,
-    updated_by: params.userId,
   }));
 
-  const { error: insertError } = await params.supabase
-    .from('base_form_registration_type')
-    .insert(rows);
-  if (insertError != null) {
-    return apiFailure('registration-bindings-save-error', 'Failed to save registration bindings', insertError);
+  const rpcArgs: Record<string, unknown> = {
+    p_form_id: params.resolvedFormId,
+    p_event_id: params.eventId,
+    p_organisation_id: params.organisationId,
+    p_bindings: payload,
+  };
+  if (params.userId != null) {
+    rpcArgs.p_actor = params.userId;
+  }
+
+  const { error } = await params.supabase.rpc('app_base_form_registration_bindings_replace', rpcArgs);
+  if (error != null) {
+    return apiFailure('registration-bindings-save-error', 'Failed to save registration bindings', error);
   }
   return apiSuccess(null);
 }

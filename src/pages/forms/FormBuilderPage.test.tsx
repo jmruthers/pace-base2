@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { createElement } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FormBuilderPage } from './FormBuilderPage';
@@ -70,10 +70,18 @@ vi.mock('@solvera/pace-core/components', () => ({
 
 vi.mock('@solvera/pace-core/forms', () => ({
   WorkflowFormAuthoringShell: ({
+    state,
+    onStateChange,
     heading,
     disabled,
     middleContent,
   }: {
+    state: {
+      metadata: {
+        workflowType: string;
+      };
+    };
+    onStateChange: (nextState: unknown) => void;
     heading: string;
     disabled?: boolean;
     middleContent?: React.ReactNode;
@@ -81,6 +89,21 @@ vi.mock('@solvera/pace-core/forms', () => ({
     <section>
       <h1>{heading}</h1>
       <p>{disabled ? 'Shell Disabled' : 'Shell Enabled'}</p>
+      <button
+        type="button"
+        aria-label="toggle-workflow-type"
+        onClick={() => {
+          onStateChange({
+            ...state,
+            metadata: {
+              ...state.metadata,
+              workflowType: state.metadata.workflowType === 'base_registration' ? 'generic' : 'base_registration',
+            },
+          });
+        }}
+      >
+        Toggle workflow
+      </button>
       {middleContent}
     </section>
   ),
@@ -282,5 +305,44 @@ describe('FormBuilderPage', () => {
     expect(screen.getByText('Youth')).toBeTruthy();
     expect(screen.getByText('Adult')).toBeTruthy();
     expect(screen.getAllByText('Set as default').length).toBeGreaterThan(0);
+  });
+
+  it('rehydrates persisted bindings when toggling away from and back to base registration', () => {
+    state.builderData = {
+      form: {
+        id: 'form-1',
+        event_id: 'event-1',
+        organisation_id: 'org-1',
+        slug: 'camp-form',
+        name: 'Camp Form',
+        description: null,
+        workflow_type: 'base_registration',
+        access_mode: 'authenticated_member',
+        status: 'draft',
+        workflow_config: {},
+        is_active: true,
+        is_primary_entrypoint: false,
+        opens_at: null,
+        closes_at: null,
+        max_submissions: null,
+        confirmation_message: null,
+      },
+      fields: [],
+      bindings: [{ registration_type_id: 'type-1', sort_order: 0, is_default: true }],
+    };
+    state.registrationTypes = [
+      { id: 'type-1', name: 'Youth', description: null, is_active: true },
+      { id: 'type-2', name: 'Adult', description: null, is_active: true },
+    ];
+
+    renderAt('/form-builder?formId=form-1');
+    expect(document.querySelectorAll('[data-checked="true"]').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-workflow-type' }));
+    expect(screen.queryByText('Registration Type Bindings')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-workflow-type' }));
+    expect(screen.getByText('Registration Type Bindings')).toBeTruthy();
+    expect(document.querySelectorAll('[data-checked="true"]').length).toBeGreaterThan(0);
   });
 });

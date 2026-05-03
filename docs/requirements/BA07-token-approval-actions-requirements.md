@@ -205,7 +205,7 @@ Both are **`SECURITY DEFINER`** with hardened **`search_path`** to **`public`** 
 | `requirement_id` | uuid | `base_application_check.requirement_id` |
 | `expires_at` | string (ISO-8601 UTC, e.g. `2026-05-15T10:30:00Z`) \| null | `base_application_check.token_expires_at` cast to UTC — use `token_expires_at AT TIME ZONE 'UTC'` in RPC serialisation |
 | `check_type` | string | `base_registration_type_requirement.check_type` joined via `requirement_id` |
-| `event_title` | string | `core_events.title` via `base_application.event_id` |
+| `event_title` | string | `core_events.event_name` via `base_application.event_id` |
 | `registration_type_name` | string | `base_registration_type.name` via `base_application.registration_type_id` |
 | `applicant_display_name` | string | Applicant `core_person`: `first_name \|\| ' ' \|\| last_name` — both columns are NOT NULL per schema constraint (verified on dev-db) |
 

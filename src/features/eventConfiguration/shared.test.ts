@@ -3,6 +3,7 @@ import {
   computeEventEndDate,
   eventConfigurationSchema,
   formatEventLogoFallback,
+  mapRecordToFormValues,
   parseEventColours,
   serialiseAddressToVenue,
   toEventDateIso,
@@ -67,5 +68,30 @@ describe('event configuration shared helpers', () => {
       expect(messages).toContain('Event name is required');
       expect(messages).toContain('Registration scope is required');
     }
+  });
+
+  it('hydrates venue text into formattedAddress for form defaults', () => {
+    const values = mapRecordToFormValues({
+      event_id: 'event-1',
+      event_name: 'Camp',
+      event_code: null,
+      event_email: null,
+      event_date: null,
+      event_days: 1,
+      event_venue: 'Main Hall',
+      expected_participants: 0,
+      typical_unit_size: 0,
+      event_colours: null,
+      is_visible: true,
+      organisation_id: 'org-1',
+      description: null,
+      registration_scope: 'org_only',
+      created_at: null,
+      created_by: null,
+      updated_at: null,
+      updated_by: null,
+    });
+
+    expect(values.event_venue?.formattedAddress).toBe('Main Hall');
   });
 });

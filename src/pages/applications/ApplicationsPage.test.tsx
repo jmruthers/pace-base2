@@ -337,4 +337,62 @@ describe('ApplicationsPage', () => {
       })
     );
   });
+
+  it('blocks reject application without notes', async () => {
+    queueState.data = [
+      {
+        id: 'application-6',
+        event_id: 'event-1',
+        person_id: 'person-6',
+        status: 'under_review',
+        submitted_at: '2026-05-01T00:00:00.000Z',
+        created_at: '2026-05-01T00:00:00.000Z',
+        registration_type_id: 'type-1',
+        person: { preferred_name: 'Kai', first_name: 'Kai', last_name: 'Stone', email: 'kai@example.com' },
+        registration_type: { id: 'type-1', name: 'Camper' },
+        checks: [],
+      },
+    ];
+    render(<ApplicationsPage />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'View' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Reject application' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Reject application' })[1]!);
+    await Promise.resolve();
+
+    expect(mutationState.appStatusMutateAsync).not.toHaveBeenCalled();
+    expect(toastSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Rejection notes required',
+      })
+    );
+  });
+
+  it('submits reject application when notes are present', async () => {
+    queueState.data = [
+      {
+        id: 'application-7',
+        event_id: 'event-1',
+        person_id: 'person-7',
+        status: 'under_review',
+        submitted_at: '2026-05-01T00:00:00.000Z',
+        created_at: '2026-05-01T00:00:00.000Z',
+        registration_type_id: 'type-1',
+        person: { preferred_name: 'Nia', first_name: 'Nia', last_name: 'Bryn', email: 'nia@example.com' },
+        registration_type: { id: 'type-1', name: 'Camper' },
+        checks: [],
+      },
+    ];
+    render(<ApplicationsPage />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'View' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Reject application' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Needs follow-up documents' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Reject application' })[1]!);
+    await Promise.resolve();
+
+    expect(mutationState.appStatusMutateAsync).toHaveBeenCalledWith({
+      applicationId: 'application-7',
+      targetStatus: 'rejected',
+      notes: 'Needs follow-up documents',
+    });
+  });
 });

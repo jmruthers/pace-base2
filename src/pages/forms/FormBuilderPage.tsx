@@ -79,6 +79,7 @@ function FormBuilderEditor({
   const [bindings, setBindings] = useState<RegistrationBindingDraft[]>(initialBindings);
   const [isSaving, setIsSaving] = useState(false);
   const lastAutoGenSlugRef = useRef(initialState.metadata.slug);
+  const persistedBindingsRef = useRef<RegistrationBindingDraft[]>(initialBindings);
 
   const shellHeading = state.metadata.id != null ? 'Edit Form' : 'Create Form';
   const workflowConfig = (state.metadata.workflowConfig ?? {}) as Record<string, unknown>;
@@ -104,6 +105,12 @@ function FormBuilderEditor({
   const handleStateChange = (nextState: WorkflowAuthoringState) => {
     if (state.metadata.workflowType === 'base_registration' && nextState.metadata.workflowType !== 'base_registration') {
       setBindings([]);
+    }
+    if (
+      state.metadata.workflowType !== 'base_registration' &&
+      nextState.metadata.workflowType === 'base_registration'
+    ) {
+      setBindings(persistedBindingsRef.current.map((binding) => ({ ...binding })));
     }
     if (!nextState.metadata.id && nextState.metadata.name !== state.metadata.name) {
       if (

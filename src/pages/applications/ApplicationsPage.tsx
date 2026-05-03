@@ -293,11 +293,20 @@ export function ApplicationsPage() {
     if (detailRow == null) {
       return;
     }
+    const normalizedNotes = rejectApplicationNotes.trim();
+    if (normalizedNotes.length === 0) {
+      toast({
+        title: 'Rejection notes required',
+        description: 'Provide notes before rejecting this application.',
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
       await setApplicationStatusMutation.mutateAsync({
         applicationId: detailRow.id,
         targetStatus: 'rejected',
-        notes: rejectApplicationNotes.trim(),
+        notes: normalizedNotes,
       });
       ShowSuccessMessage('Application rejected', toast);
       setRejectAppDialogOpen(false);
@@ -667,6 +676,33 @@ export function ApplicationsPage() {
       />
 
       <ConfirmationDialog
+        open={rejectAppDialogOpen}
+        onOpenChange={(open) => {
+          setRejectAppDialogOpen(open);
+          if (!open) {
+            setRejectApplicationNotes('');
+          }
+        }}
+        title="Reject application"
+        description={
+          <section className="grid gap-2">
+            <p>Provide notes for this rejection.</p>
+            <Textarea
+              value={rejectApplicationNotes}
+              onChange={setRejectApplicationNotes}
+              rows={4}
+              placeholder="Add rejection notes"
+            />
+          </section>
+        }
+        confirmLabel="Reject application"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => void handleRejectApplication()}
+        isPending={setApplicationStatusMutation.isPending}
+      />
+
+      <ConfirmationDialog
         open={satisfyCheckConfirmOpen}
         onOpenChange={setSatisfyCheckConfirmOpen}
         title="Satisfy check"
@@ -715,34 +751,6 @@ export function ApplicationsPage() {
         onConfirm={() => void handleRejectCheck()}
         isPending={setCheckStatusMutation.isPending}
       />
-
-      <Dialog open={rejectAppDialogOpen} onOpenChange={setRejectAppDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject application</DialogTitle>
-            <DialogDescription>Provide notes for this rejection.</DialogDescription>
-          </DialogHeader>
-          <DialogBody className="grid gap-2">
-            <Textarea
-              value={rejectApplicationNotes}
-              onChange={setRejectApplicationNotes}
-              rows={4}
-              placeholder="Add rejection notes"
-            />
-          </DialogBody>
-          <DialogFooter>
-            <DialogClose>Cancel</DialogClose>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={setApplicationStatusMutation.isPending || rejectApplicationNotes.trim().length === 0}
-              onClick={() => void handleRejectApplication()}
-            >
-              Reject
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
     </main>
   );

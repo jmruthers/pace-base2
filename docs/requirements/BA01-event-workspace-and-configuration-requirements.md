@@ -318,11 +318,12 @@ Select renders these as `SelectItem` rows in the order shown. The field is requi
     .select('*')
     .eq('table_name', 'core_events')
     .eq('record_id', selectedEventId)
-    .eq('category', 'event_logos')
+    .like('file_path', '%/event_logos/%')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
   ```
+  `core_file_references` does not expose top-level `category`/`folder` columns. Category semantics are carried in `file_metadata.category`, and folder/category conventions are encoded in `file_path` by the upload helper.
   Set `logoRef` to the returned row or `null`. This query runs in parallel with other page-entry reads; it does not block the main form content from rendering.
 - **Display:** pass `logoRef` to `FileDisplay` as `fileReference={logoRef}` with `supabase={secureSupabase}` and `variant="inline"`. When `logoRef` is null, render the abbreviation fallback per §6.5.
 - **After upload (configuration only):** in `onUploadSuccess`, call `setLogoRef(result.file_reference)`. The dashboard does not support logo upload and does not need this step.
@@ -439,7 +440,7 @@ The build agent should verify before implementation:
 2. `registration_scope` is NOT NULL text.
 3. `core_forms`, `base_application`, `base_registration_type` each have an `event_id` column for filtering.
 4. RLS on `core_events` permits the read-and-update flows for users with the relevant permission keys (no schema changes required by this slice).
-5. `core_file_references` exists with columns: `id`, `table_name`, `record_id`, `file_path`, `file_metadata` (jsonb), `app_id`, `is_public`, `category`, `folder`, `created_at`, `updated_at`. Confirm RLS allows the scoped read query in §6.13 for users with `read:page.event-dashboard` and `read:page.configuration`.
+5. `core_file_references` exists with columns: `id`, `table_name`, `record_id`, `file_path`, `file_metadata` (jsonb), `app_id`, `is_public`, `created_at`, `updated_at`. Confirm RLS allows the scoped read query in §6.13 for users with `read:page.event-dashboard` and `read:page.configuration`. `category`/`folder` are upload options and path/metadata conventions, not top-level DB columns.
 6. Confirm the BASE event type shape: verify whether `useEvents().selectedEvent` exposes `event_name`, `event_date`, `event_days`, `event_venue` as direct properties or under a different naming convention.
 
 ### 8.4 Domain reference

@@ -351,6 +351,7 @@ describe('EventConfigurationRoute', () => {
 
     expect((screen.getByLabelText('event_name') as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByLabelText('registration_scope') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByDisplayValue('Main Hall') as HTMLInputElement).disabled).toBe(true);
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Upload logo' })).toBeNull();
   });
