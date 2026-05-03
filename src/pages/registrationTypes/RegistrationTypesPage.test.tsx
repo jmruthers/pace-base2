@@ -206,7 +206,7 @@ describe('RegistrationTypesPage', () => {
     state.selectedEventId = null;
     renderPage();
     expect(screen.getByText('Select an event from the header to manage registration types.')).toBeTruthy();
-    expect(screen.queryByText('Create registration type')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Create registration type' })).toBeNull();
   });
 
   it('shows loading spinner while list query loads', () => {
@@ -223,13 +223,13 @@ describe('RegistrationTypesPage', () => {
   it('hides create action when create permission is denied', () => {
     state.allowCreate = false;
     renderPage();
-    expect(screen.queryByText('Create registration type')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Create registration type' })).toBeNull();
   });
 
   it('shows list error state when list query fails', () => {
     state.listError = new Error('List failed');
     renderPage();
-    expect(screen.getByText('Error')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Error' })).toBeTruthy();
   });
 
   it('shows access denied when read permission is denied', () => {
@@ -262,8 +262,8 @@ describe('RegistrationTypesPage', () => {
 
     renderPage();
     expect(screen.getByText('Youth')).toBeTruthy();
-    expect(screen.queryByText('Edit')).toBeNull();
-    expect(screen.queryByText('Manage requirements')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Manage requirements' })).toBeNull();
     expect(screen.queryByLabelText('Registration type active')).toBeNull();
   });
 

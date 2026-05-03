@@ -162,13 +162,23 @@ describe('FormBuilderPage', () => {
     state.builderError = new Error('Load failed');
     renderAt('/form-builder?formId=form-1');
     expect(screen.getByText('Load failed')).toBeTruthy();
-    expect(screen.getByText('Back to Forms')).toBeTruthy();
+    expect(
+      screen.queryByRole('link', { name: 'Back to Forms' }) ??
+        screen.queryByRole('button', { name: 'Back to Forms' })
+    ).toBeTruthy();
   });
 
   it('renders create mode shell when no formId is provided', () => {
     renderAt('/form-builder');
     expect(screen.getByText('Create Form')).toBeTruthy();
     expect(screen.getByText('Shell Enabled')).toBeTruthy();
+  });
+
+  it('renders nothing when read permission is denied', () => {
+    state.allowRead = false;
+    renderAt('/form-builder');
+    expect(screen.queryByText('Create Form')).toBeNull();
+    expect(screen.queryByText('Shell Enabled')).toBeNull();
   });
 
   it('renders disabled shell when update permission is denied', () => {
@@ -206,5 +216,71 @@ describe('FormBuilderPage', () => {
     renderAt('/form-builder?formId=form-1');
     expect(screen.getByText('Edit Form')).toBeTruthy();
     expect(screen.getByText('Types failed')).toBeTruthy();
+  });
+
+  it('shows registration bindings loading state for base registration forms', () => {
+    state.builderData = {
+      form: {
+        id: 'form-1',
+        event_id: 'event-1',
+        organisation_id: 'org-1',
+        slug: 'camp-form',
+        name: 'Camp Form',
+        description: null,
+        workflow_type: 'base_registration',
+        access_mode: 'authenticated_member',
+        status: 'draft',
+        workflow_config: {},
+        is_active: true,
+        is_primary_entrypoint: false,
+        opens_at: null,
+        closes_at: null,
+        max_submissions: null,
+        confirmation_message: null,
+      },
+      fields: [],
+      bindings: [],
+    };
+    state.registrationTypesLoading = true;
+
+    renderAt('/form-builder?formId=form-1');
+    expect(screen.getByText('Edit Form')).toBeTruthy();
+    expect(screen.getAllByText('Loading Spinner').length).toBeGreaterThan(0);
+    expect(screen.getByText('Registration Type Bindings')).toBeTruthy();
+  });
+
+  it('renders registration bindings list for base registration forms', () => {
+    state.builderData = {
+      form: {
+        id: 'form-1',
+        event_id: 'event-1',
+        organisation_id: 'org-1',
+        slug: 'camp-form',
+        name: 'Camp Form',
+        description: null,
+        workflow_type: 'base_registration',
+        access_mode: 'authenticated_member',
+        status: 'draft',
+        workflow_config: {},
+        is_active: true,
+        is_primary_entrypoint: false,
+        opens_at: null,
+        closes_at: null,
+        max_submissions: null,
+        confirmation_message: null,
+      },
+      fields: [],
+      bindings: [{ registration_type_id: 'type-1', is_default: true }],
+    };
+    state.registrationTypes = [
+      { id: 'type-1', name: 'Youth', description: null, is_active: true },
+      { id: 'type-2', name: 'Adult', description: null, is_active: true },
+    ];
+
+    renderAt('/form-builder?formId=form-1');
+    expect(screen.getByText('Registration Type Bindings')).toBeTruthy();
+    expect(screen.getByText('Youth')).toBeTruthy();
+    expect(screen.getByText('Adult')).toBeTruthy();
+    expect(screen.getAllByText('Set as default').length).toBeGreaterThan(0);
   });
 });

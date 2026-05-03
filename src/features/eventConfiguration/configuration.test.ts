@@ -46,4 +46,41 @@ describe('event configuration payload', () => {
 
     vi.useRealTimers();
   });
+
+  it('normalises optional values to null and preserves nullable date', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-01T00:00:00.000Z'));
+
+    const values: EventConfigurationFormValues = {
+      event_name: '  Event Name  ',
+      event_code: '   ',
+      event_email: '',
+      event_date: null,
+      event_days: 1,
+      event_venue: undefined,
+      expected_participants: 0,
+      typical_unit_size: 0,
+      description: '  ',
+      registration_scope: 'org_only',
+      is_visible: false,
+      event_colours: '',
+    };
+
+    const payload = buildEventConfigurationUpdatePayload({
+      eventId: 'evt-2',
+      userId: null,
+      values,
+    });
+
+    expect(payload.event_name).toBe('Event Name');
+    expect(payload.event_code).toBeNull();
+    expect(payload.event_email).toBeNull();
+    expect(payload.event_date).toBeNull();
+    expect(payload.event_venue).toBeNull();
+    expect(payload.description).toBeNull();
+    expect(payload.event_colours).toBeNull();
+    expect(payload.updated_by).toBeNull();
+
+    vi.useRealTimers();
+  });
 });
