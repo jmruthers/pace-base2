@@ -41,8 +41,12 @@ vi.mock('@solvera/pace-core/components', () => ({
     onUserMenuChangePassword: () => void;
   }) => (
     <main>
-      <button onClick={() => void onUserMenuSignOut()}>Sign out</button>
-      <button onClick={onUserMenuChangePassword}>Change password</button>
+      <section role="button" tabIndex={0} onClick={() => void onUserMenuSignOut()}>
+        Sign out
+      </section>
+      <section role="button" tabIndex={0} onClick={onUserMenuChangePassword}>
+        Change password
+      </section>
       {children}
     </main>
   ),
@@ -66,13 +70,15 @@ vi.mock('@solvera/pace-core/components', () => ({
     onSuccess: () => void;
   }) => (
     <section>
-      <button
+      <article
+        role="button"
+        tabIndex={0}
         onClick={async () => {
           await onSubmit({ newPassword: 'valid-password', confirmPassword: 'valid-password' });
         }}
       >
         Submit password
-      </button>
+      </article>
     </section>
   ),
 }));

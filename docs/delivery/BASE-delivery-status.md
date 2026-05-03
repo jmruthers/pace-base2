@@ -1,7 +1,7 @@
-# BA00-BA07 Delivery Status (Dev DB: `rkytnffgmwnnmewevqgp`)
+# BA00-BA08 Delivery Status (Dev DB: `rkytnffgmwnnmewevqgp`)
 
 Date: 2026-05-03  
-Scope: BA00, BA01, BA02, BA03, BA04, BA05a, BA05b, BA06, BA07 requirement slices audited against code + Supabase MCP
+Scope: BA00, BA01, BA02, BA03, BA04, BA05a, BA05b, BA06, BA07, BA08 requirement slices audited against code + Supabase MCP
 
 ## Executive Status
 
@@ -14,10 +14,17 @@ Scope: BA00, BA01, BA02, BA03, BA04, BA05a, BA05b, BA06, BA07 requirement slices
 - BA05b Participant Application Progress: **COMPLETE** (backend contract in audited environment)
 - BA06 Applications Admin and Review: **COMPLETE**
 - BA07 Token Approval Actions: **COMPLETE** (backend contract in audited environment)
+- BA08 Units and Group Coordination: **COMPLETE**
 
 ## Environment Evidence
 
 - Supabase MCP data queries succeeded against `rkytnffgmwnnmewevqgp` (`list_tables`, `execute_sql`).
+- BA08 backend MCP checks confirmed:
+  - `app_base_unit_preference_submit(p_unit_id uuid, p_event_id uuid)` exists and is executable by `authenticated`.
+  - Migration `20260503223500 ba08_unit_preference_submit_contract` is present.
+  - Migration `20260503224500 ba08_preference_delete_policy_alignment` is present.
+  - `rbac_delete_base_activity_preference` now includes unit-role draft delete path (`submitted_at IS NULL` + `base_user_has_unit_role(...)`).
+  - BA08 table triggers/constraints and RLS policies are present for `base_units`, `base_unit_role_types`, `base_unit_roles`, and `base_activity_preference`.
 - Targeted tests passed:
   - `src/app.test.tsx` (BA00 routing/restoration): 17/17
   - `src/main.test.tsx` (BA00 bootstrap/inactivity wiring): 2/2
@@ -291,6 +298,39 @@ Scope: BA00, BA01, BA02, BA03, BA04, BA05a, BA05b, BA06, BA07 requirement slices
   - Exact key allow-list behavior for resolve, submit, and reissue payloads.
   - Rejection of payloads containing extra/unexpected fields.
 
+## BA08 Status (COMPLETE)
+
+### Confirmed backend contract coverage (MCP + code)
+
+- `app_base_unit_preference_submit(p_unit_id uuid, p_event_id uuid)` exists in the audited environment and is wired at call sites in:
+  - `src/features/unitsCoordination/configuration.ts`
+  - `src/pages/unitPreferences/UnitPreferencesPage.tsx`
+- BA08 migration is present in dev DB history:
+  - `20260503223500 ba08_unit_preference_submit_contract`
+  - `20260503224500 ba08_preference_delete_policy_alignment`
+- BA08 schema and contract enforcement confirmed in dev DB:
+  - Triggers present:
+    - `check_circular_unit_reference_trigger` on `base_units` (INSERT/UPDATE)
+    - `sync_base_unit_roles_event_org_trigger` on `base_unit_roles` (INSERT/UPDATE)
+  - `base_activity_preference` constraints present:
+    - UNIQUE `(unit_id, session_id)`
+    - CHECK `rank > 0`
+  - RLS is enabled and policies exist for `base_units`, `base_unit_role_types`, `base_unit_roles`, and `base_activity_preference`.
+  - `rbac_delete_base_activity_preference` includes the coordinator draft-delete path (`submitted_at IS NULL` + `base_user_has_unit_role(...)`).
+- Frontend BA08 surfaces are in place:
+  - `/units` and `/unit-preferences` are routed in `src/App.tsx`
+  - Route registry/page names are present in `src/config/baseRouteRegistry.ts`
+
+### Gap closure implemented in this repo
+
+- BA08 mutation audit fields aligned in `src/features/unitsCoordination/configuration.ts`:
+  - Write payloads now include `created_by`/`updated_by` on inserts and `updated_by` on updates across units, role types, role assignments, and preferences.
+  - Submit RPC argument shaping is now explicit via BA08 contract keys (`p_unit_id`, `p_event_id`).
+- `/units` null secure client state now renders a centered `LoadingSpinner` in `src/pages/units/UnitsPage.tsx`.
+- BA08 tests now cover the previous gap statements:
+  - `src/features/unitsCoordination/configuration.test.ts` validates actor-field payload helpers and submit RPC argument contract.
+  - `src/pages/units/UnitsPage.test.tsx` includes null-client spinner branch assertion.
+
 ## MCP Evidence (BA05-BA07)
 
 - Supabase MCP checks executed against `rkytnffgmwnnmewevqgp` using `list_migrations`, `list_tables`, and targeted `execute_sql` function/constraint introspection.
@@ -312,6 +352,23 @@ Scope: BA00, BA01, BA02, BA03, BA04, BA05a, BA05b, BA06, BA07 requirement slices
   - `app_base_eligible_referees_for_applicant`
   - `app_base_application_progress_get`
 
+## MCP Evidence (BA08)
+
+- Supabase MCP checks executed against `rkytnffgmwnnmewevqgp` using `list_migrations`, `list_tables`, and `execute_sql`.
+- BA08 migration evidence:
+  - `20260503223500 ba08_unit_preference_submit_contract`
+  - `20260503224500 ba08_preference_delete_policy_alignment`
+- BA08 function evidence:
+  - `app_base_unit_preference_submit(p_unit_id uuid, p_event_id uuid)` exists
+  - EXECUTE grants include `authenticated`, `service_role`, and `postgres`
+- BA08 trigger/constraint evidence:
+  - `base_units`: `check_circular_unit_reference_trigger`
+  - `base_unit_roles`: `sync_base_unit_roles_event_org_trigger`
+  - `base_activity_preference`: UNIQUE `(unit_id, session_id)` and CHECK `(rank > 0)`
+- BA08 policy evidence:
+  - RLS policies present on `base_units`, `base_unit_role_types`, `base_unit_roles`, and `base_activity_preference`
+  - `base_activity_preference` insert/update/delete policies include unit-role draft path (`submitted_at IS NULL` + `base_user_has_unit_role(...)`)
+
 ## Final Completion Call
 
 - **BA00 is complete** for this audited environment.
@@ -323,10 +380,10 @@ Scope: BA00, BA01, BA02, BA03, BA04, BA05a, BA05b, BA06, BA07 requirement slices
 - **BA05b is complete (backend contract)** for this audited environment.
 - **BA06 is complete** for this audited environment.
 - **BA07 is complete (backend contract)** for this audited environment.
+- **BA08 is complete** for this audited environment.
 
 ## Recommended Next Actions
 
-1. Keep BA03/BA04/BA06 regression tests in CI alongside existing BA00-BA02 coverage.
-2. Continue using `rkytnffgmwnnmewevqgp` as the required MCP evidence environment for future slice audits.
-3. Keep BA05a/BA05b/BA07 backend RPC parity checks in the delivery audit loop after each pace-core migration rollout.
-4. Keep BA05b participant contract tests (`src/ba05b-participant-progress-contracts.test.ts`) and BA07 contract tests (`src/features/tokenApprovals/contract.test.ts`) in CI as guardrails for payload-surface regressions.
+1. Keep BA08 payload contract tests (`src/features/unitsCoordination/configuration.test.ts`) and route branch tests (`src/pages/units/UnitsPage.test.tsx`) in CI as regression guardrails.
+2. Keep BA03/BA04/BA06 regression tests in CI alongside existing BA00-BA02 coverage, and keep BA05a/BA05b/BA07 backend parity checks in the delivery audit loop.
+3. Continue using `rkytnffgmwnnmewevqgp` as the required MCP evidence environment for future slice audits.

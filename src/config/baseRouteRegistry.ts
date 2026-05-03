@@ -99,6 +99,14 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     includeInNavigation: true,
   },
   {
+    path: '/unit-preferences',
+    label: 'Unit Preferences',
+    pageName: 'unit-preferences',
+    sliceId: 'units-and-group-coordination',
+    includeInShell: true,
+    includeInNavigation: false,
+  },
+  {
     path: '/activities',
     label: 'Activities',
     pageName: 'activities',

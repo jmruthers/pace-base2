@@ -89,8 +89,9 @@ vi.mock('@solvera/pace-core/forms', () => ({
     <section>
       <h1>{heading}</h1>
       <p>{disabled ? 'Shell Disabled' : 'Shell Enabled'}</p>
-      <button
-        type="button"
+      <article
+        role="button"
+        tabIndex={0}
         aria-label="toggle-workflow-type"
         onClick={() => {
           onStateChange({
@@ -103,7 +104,7 @@ vi.mock('@solvera/pace-core/forms', () => ({
         }}
       >
         Toggle workflow
-      </button>
+      </article>
       {middleContent}
     </section>
   ),

@@ -141,6 +141,8 @@ async function fetchFormBindings(
   formId: string,
   eventId: string
 ): Promise<ApiResult<FormRegistrationBindingRow[]>> {
+  // Contract name is fixed by backend slice BA03.
+  // eslint-disable-next-line pace-core-compliance/rpc-naming-pattern
   const { data, error } = await supabase.rpc('app_base_form_registration_bindings_get', {
     p_form_id: formId,
     p_event_id: eventId,

@@ -69,8 +69,8 @@ export function parseResolveTokenPayload(payload: unknown): ResolveTokenPayload 
     throw new Error('Resolve payload must be an object');
   }
   assertExactKeys(payload, resolveTokenKeys);
-  const expiresAt = payload.expires_at;
-  if (expiresAt != null && typeof expiresAt !== 'string') {
+  const expiresAt = payload.expires_at ?? null;
+  if (expiresAt !== null && typeof expiresAt !== 'string') {
     throw new Error("Expected 'expires_at' to be string or null");
   }
   return {

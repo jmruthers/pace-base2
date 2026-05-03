@@ -16,6 +16,8 @@ import { FormsListPage } from './pages/forms/FormsListPage';
 import { FormBuilderPage } from './pages/forms/FormBuilderPage';
 import { RegistrationTypesPage } from './pages/registrationTypes/RegistrationTypesPage';
 import { ApplicationsPage } from './pages/applications/ApplicationsPage';
+import { UnitsPage } from './pages/units/UnitsPage';
+import { UnitPreferencesPage } from './pages/unitPreferences/UnitPreferencesPage';
 import {
   getShellProtectedRoutes,
 } from './config/baseRouteRegistry';
@@ -77,6 +79,10 @@ function App() {
                         <RegistrationTypesPage />
                       ) : route.path === '/applications' ? (
                         <ApplicationsPage />
+                      ) : route.path === '/units' ? (
+                        <UnitsPage />
+                      ) : route.path === '/unit-preferences' ? (
+                        <UnitPreferencesPage />
                       ) : route.path === '/scanning/:scanPointId' ? (
                         <ScanRuntimePlaceholderPage />
                       ) : (
