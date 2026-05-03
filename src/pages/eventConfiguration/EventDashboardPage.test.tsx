@@ -1,0 +1,122 @@
+// @vitest-environment jsdom
+
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { EventDashboardPage } from './EventDashboardPage';
+
+const dashboardState = vi.hoisted(() => ({
+  selectedEventId: 'event-1' as string | null,
+  selectedEvent: {
+    event_name: 'Summer Event',
+    event_date: '2026-08-20T00:00:00.000Z',
+    event_days: 2,
+    event_venue: 'Main Hall',
+  } as Record<string, unknown> | null,
+  counts: {
+    forms: 5 as number | null,
+    applications: 12 as number | null,
+    registrationTypes: 3 as number | null,
+    isLoading: false,
+  },
+}));
+
+vi.mock('react-router-dom', () => ({
+  Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
+    <a
+      href={to}
+      {...rest}
+    >
+      {children}
+    </a>
+  ),
+}));
+
+vi.mock('@solvera/pace-core/components', () => ({
+  Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  CardDescription: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
+  CardTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+  FileDisplay: () => <p>Logo</p>,
+}));
+
+vi.mock('@solvera/pace-core/hooks', () => ({
+  useEvents: () => ({ selectedEvent: dashboardState.selectedEvent }),
+  useUnifiedAuth: () => ({ selectedEventId: dashboardState.selectedEventId }),
+}));
+
+vi.mock('@solvera/pace-core/rbac', () => ({
+  useSecureSupabase: () => ({}),
+  PagePermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@solvera/pace-core/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@solvera/pace-core/utils')>();
+  return {
+    ...actual,
+    formatDate: (value: string) => value.slice(0, 10),
+  };
+});
+
+vi.mock('@/features/eventConfiguration/dashboard', () => ({
+  useDashboardCounts: () => dashboardState.counts,
+}));
+
+vi.mock('@/features/eventConfiguration/useEventLogoReference', () => ({
+  useEventLogoReference: () => ({ data: null }),
+}));
+
+describe('EventDashboardPage', () => {
+  afterEach(() => {
+    cleanup();
+    dashboardState.selectedEventId = 'event-1';
+    dashboardState.selectedEvent = {
+      event_name: 'Summer Event',
+      event_date: '2026-08-20T00:00:00.000Z',
+      event_days: 2,
+      event_venue: 'Main Hall',
+    };
+    dashboardState.counts = {
+      forms: 5,
+      applications: 12,
+      registrationTypes: 3,
+      isLoading: false,
+    };
+  });
+
+  it('shows no-event guidance when no event is selected', () => {
+    dashboardState.selectedEventId = null;
+    dashboardState.selectedEvent = null;
+
+    render(<EventDashboardPage />);
+
+    expect(screen.getByText('Select an event from the header to begin.')).toBeTruthy();
+  });
+
+  it('shows loading counts with ellipsis while dashboard counts are unresolved', () => {
+    dashboardState.counts = {
+      forms: null,
+      applications: null,
+      registrationTypes: null,
+      isLoading: true,
+    };
+
+    render(<EventDashboardPage />);
+
+    expect(screen.getAllByText('…')).toHaveLength(3);
+  });
+
+  it('shows em-dash counts when count fetches fail', () => {
+    dashboardState.counts = {
+      forms: null,
+      applications: null,
+      registrationTypes: null,
+      isLoading: false,
+    };
+
+    render(<EventDashboardPage />);
+
+    expect(screen.getAllByText('—')).toHaveLength(3);
+  });
+});

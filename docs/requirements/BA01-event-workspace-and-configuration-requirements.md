@@ -155,8 +155,8 @@ The card's content body contains the following fields, in the order listed, grou
 38. C-PC-14 — Below the logo section: field "Event Colours (JSON)". Multi-line textarea (4 rows initial). Helper text reads "Enter valid JSON format for event colours". Placeholder reads `{"primary": "#000000", "secondary": "#ffffff"}`. Validation rule per §6.8.
 
 **Primary actions**
-39. C-PA-01 — A "Save Changes" button is rendered at the bottom-right of the main configuration card. Minimum width 120px. Wrapped in `PagePermissionGuard` with `pageName="configuration"`, `operation="update"`, and `fallback={null}` (button hidden if not authorised).
-40. C-PA-02 — On click of "Save Changes": form values are validated via the BA01 validation contract in §6.6 (implemented through pace-core form patterns). If invalid: a destructive toast appears with title "Validation Error" and the formatted validation error as the body; submission aborts; field-level errors are surfaced inline beneath the failing fields. If valid: the values are written to `core_events` via BA01 mutation hooks/services that encapsulate `useSecureSupabase()` per §6.9. While the write is in flight, the button label becomes "Saving…" and the button is disabled.
+39. C-PA-01 — A "Save" button is rendered at the bottom-right of the main configuration card. Minimum width 120px. Wrapped in `PagePermissionGuard` with `pageName="configuration"`, `operation="update"`, and `fallback={null}` (button hidden if not authorised).
+40. C-PA-02 — On click of "Save": form values are validated via the BA01 validation contract in §6.6 (implemented through pace-core form patterns). If invalid: a destructive toast appears with title "Validation Error" and the formatted validation error as the body; submission aborts; field-level errors are surfaced inline beneath the failing fields. If valid: the values are written to `core_events` via BA01 mutation hooks/services that encapsulate `useSecureSupabase()` per §6.9. While the write is in flight, the button label becomes "Saving…" and the button is disabled.
 41. C-PA-03 — On successful save: a success-variant toast appears with title "Success" and body "Event saved successfully!". The form values remain populated with the saved data; the page does not reload event data from the database.
 42. C-PA-04 — On save error: call `HandleMutationError(error, 'event-configuration-save', toast)` which normalises the error and fires a destructive-variant toast automatically. The form remains editable; the user can retry.
 43. C-PA-05 — On logo upload via the `FileUpload` control: `onUploadSuccess` fires with `FileUploadResult`; set state `setLogoRef(result.file_reference)` — `FileDisplay` re-renders with the new `FileReference` immediately, no `key` re-mount required. A success-variant toast "Logo uploaded successfully!" appears. `onUploadError` fires with an `Error` object on failure; show a destructive toast "Failed to upload logo: {error.message}"; the previously-displayed logo (existing `logoRef` state) remains unchanged.
@@ -168,7 +168,7 @@ The card's content body contains the following fields, in the order listed, grou
 45. C-PR-01 — The page is wrapped in `PagePermissionGuard` with `pageName="configuration"`, `operation="read"`, and `scope={{ organisationId, eventId, appId }}`. If denied, renders `<AccessDenied />` and no form content.
 46. C-PR-02 — The form fields section is wrapped in `PagePermissionGuard` with `pageName="configuration"`, `operation="update"`, and `scope={{ organisationId, eventId, appId }}`:
     - `children` renders all form fields in their editable state.
-    - `fallback` renders all form fields with `disabled={true}` on each input and the "Save Changes" button absent.
+    - `fallback` renders all form fields with `disabled={true}` on each input and the "Save" button absent.
     When update permission is denied, the fallback also ensures the `FileUpload` control is hidden (per C-PR-03) and the `FileDisplay` remains visible.
 47. C-PR-03 — The `FileUpload` control is wrapped in `PagePermissionGuard` with `pageName="configuration"`, `operation="update"`, and `fallback={null}`.
 
@@ -272,7 +272,7 @@ Select renders these as `SelectItem` rows in the order shown. The field is requi
 - **Note:** A `parseSafeJSON` utility does not currently exist in pace-core2. The JSON validation/parse step is implemented in BA01 feature form logic (not inline in page-route components).
 
 ### 6.9 Save flow
-- **Trigger:** user clicks "Save Changes".
+- **Trigger:** user clicks "Save".
 - **Steps:**
   1. Run Zod validation per §6.6. On failure, surface inline errors and "Validation Error" toast; abort.
   2. Run colours JSON validation per §6.8. On failure, abort.
@@ -475,7 +475,7 @@ The bounded context for this slice is § 2 of `BASE-architecture.md` (Event Work
 | Render `/event-dashboard` | `event-dashboard` / `read` | `{ organisationId, eventId, appId }` | Page renders `<AccessDenied />`. |
 | Render `/configuration` | `configuration` / `read` | `{ organisationId, eventId, appId }` | Page renders `<AccessDenied />`. |
 | Render configuration form fields in editable state | `configuration` / `update` | `{ organisationId, eventId, appId }` | `PagePermissionGuard` `fallback` renders all form fields with `disabled={true}`; save button absent. |
-| Render "Save Changes" button | `configuration` / `update` | as above | Button hidden (`fallback={null}`). |
+| Render "Save" button | `configuration` / `update` | as above | Button hidden (`fallback={null}`). |
 | Render logo `FileUpload` control | `configuration` / `update` | as above | Upload control hidden (`fallback={null}`). |
 | Render logo `FileDisplay` | `configuration` / `read` | as above | n/a (page denied at read level). With read but not update, `FileDisplay` renders. |
 
@@ -492,10 +492,10 @@ Each criterion traces to one or more Functional Specification items. Do not pre-
 - [ ] Given a permitted user, when a count fetch fails for any nav card, then that card's count slot shows `—` and the rest of the dashboard remains usable. (D-ER-01)
 - [ ] Given a non-permitted user (`read:page.event-dashboard` denied), when they navigate to `/event-dashboard`, then `<AccessDenied />` replaces the page content. (D-PR-01)
 - [ ] Given a permitted user with `read:page.configuration`, when they navigate to `/configuration`, then the form loads showing the event's current values. (C-PE-01, C-PC-02–C-PC-12)
-- [ ] Given a user with `read:page.configuration` but not `update:page.configuration`, when the form renders, then all fields are disabled, the "Save Changes" button is hidden, and the logo upload control is hidden; the logo display remains visible. (C-PR-02, C-PR-03, §10)
-- [ ] Given a user with `read` and `update` permissions, when they edit fields and click "Save Changes" with valid input, then a success toast "Event saved successfully!" appears and the database row is updated with the submitted values; the form does not reload from the database. (C-PA-02, C-PA-03, §6.9)
-- [ ] Given a user with both permissions, when they click "Save Changes" with `event_name` empty, then a "Validation Error" toast appears, an inline error appears beneath the Event Name field, and no database write occurs. (C-PA-02, §6.6)
-- [ ] Given a user with both permissions, when they click "Save Changes" without selecting a Registration Scope, then a validation error appears beneath the Select and submission aborts. (§6.6, §6.7)
+- [ ] Given a user with `read:page.configuration` but not `update:page.configuration`, when the form renders, then all fields are disabled, the "Save" button is hidden, and the logo upload control is hidden; the logo display remains visible. (C-PR-02, C-PR-03, §10)
+- [ ] Given a user with `read` and `update` permissions, when they edit fields and click "Save" with valid input, then a success toast "Event saved successfully!" appears and the database row is updated with the submitted values; the form does not reload from the database. (C-PA-02, C-PA-03, §6.9)
+- [ ] Given a user with both permissions, when they click "Save" with `event_name` empty, then a "Validation Error" toast appears, an inline error appears beneath the Event Name field, and no database write occurs. (C-PA-02, §6.6)
+- [ ] Given a user with both permissions, when they click "Save" without selecting a Registration Scope, then a validation error appears beneath the Select and submission aborts. (§6.6, §6.7)
 - [ ] Given a user with both permissions, when they enter invalid JSON in the Event Colours field and save, then a destructive toast "Invalid JSON in Event Colours field: …" appears and submission aborts. (§6.8)
 - [ ] Given a user with both permissions, when they upload a valid image under 5MB via the logo control, then a success toast appears and the displayed logo updates to the new image. (C-PA-05, §6.4)
 - [ ] Given a user with both permissions, when they attempt to upload a file over 5MB or a non-image MIME type, then the upload is rejected before any mutation and a destructive toast "Failed to upload logo: …" appears; the previously-displayed logo is unchanged. (§6.4)

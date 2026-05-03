@@ -10,6 +10,8 @@ import { AuthenticatedShell } from './components/layout/AuthenticatedShell';
 import { BaseNotFoundPage } from './pages/shell/BaseNotFoundPage';
 import { FeaturePlaceholderPanel } from '@/components/shell/FeaturePlaceholderPanel';
 import { ScanRuntimePlaceholderPage } from './pages/shell/ScanRuntimePlaceholderPage';
+import { EventDashboardPage } from './pages/eventConfiguration/EventDashboardPage';
+import { EventConfigurationRoute } from './pages/eventConfiguration/EventConfigurationRoute';
 import {
   getShellProtectedRoutes,
 } from './config/baseRouteRegistry';
@@ -29,16 +31,12 @@ function LoginRoute() {
 }
 
 function App() {
+  const { selectedOrganisationId, selectedEventId, appId } = useUnifiedAuth();
+
   return (
     <SessionRestorationLoader message="Restoring session…">
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
-
-        <Route
-          element={<ProtectedRoute loginPath="/login" requireEvent={false} />}
-        >
-          <Route path="/scanning/:scanPointId" element={<ScanRuntimePlaceholderPage />} />
-        </Route>
 
         <Route
           element={<ProtectedRoute loginPath="/login" requireEvent={false} />}
@@ -56,12 +54,25 @@ function App() {
                     <PagePermissionGuard
                       pageName={route.pageName}
                       operation="read"
+                      scope={{
+                        organisationId: selectedOrganisationId,
+                        eventId: selectedEventId,
+                        appId: appId ?? undefined,
+                      }}
                       fallback={<AccessDenied />}
                     >
-                      <FeaturePlaceholderPanel
-                        title={route.label}
-                        description={`This route is owned by ${route.sliceId} and is scaffolded under the BASE shell boundary.`}
-                      />
+                      {route.path === '/event-dashboard' ? (
+                        <EventDashboardPage />
+                      ) : route.path === '/configuration' ? (
+                        <EventConfigurationRoute />
+                      ) : route.path === '/scanning/:scanPointId' ? (
+                        <ScanRuntimePlaceholderPage />
+                      ) : (
+                        <FeaturePlaceholderPanel
+                          title={route.label}
+                          description={`This route is owned by ${route.sliceId} and is scaffolded under the BASE shell boundary.`}
+                        />
+                      )}
                     </PagePermissionGuard>
                   }
                 />

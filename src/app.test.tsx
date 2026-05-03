@@ -11,6 +11,10 @@ const authState = vi.hoisted(() => ({
   isLoading: false,
 }));
 
+const permissionState = vi.hoisted(() => ({
+  allowRead: true,
+}));
+
 vi.mock('@solvera/pace-core/hooks', () => ({
   useUnifiedAuth: () => authState,
 }));
@@ -32,11 +36,24 @@ vi.mock('@solvera/pace-core/components', () => ({
 
 vi.mock('@solvera/pace-core/rbac', () => ({
   AccessDenied: () => <main>Access Denied</main>,
-  PagePermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  PagePermissionGuard: ({
+    operation,
+    fallback,
+    children,
+  }: {
+    operation?: 'read' | 'update';
+    fallback?: React.ReactNode;
+    children: React.ReactNode;
+  }) => (operation === 'read' && !permissionState.allowRead ? <>{fallback}</> : <>{children}</>),
 }));
 
 vi.mock('./components/layout/AuthenticatedShell', () => ({
-  AuthenticatedShell: () => <Outlet />,
+  AuthenticatedShell: () => (
+    <main>
+      Shell Layout
+      <Outlet />
+    </main>
+  ),
 }));
 
 vi.mock('@/components/shell/FeaturePlaceholderPanel', () => ({
@@ -45,6 +62,14 @@ vi.mock('@/components/shell/FeaturePlaceholderPanel', () => ({
 
 vi.mock('./pages/shell/ScanRuntimePlaceholderPage', () => ({
   ScanRuntimePlaceholderPage: () => <main>Scan Runtime</main>,
+}));
+
+vi.mock('./pages/eventConfiguration/EventDashboardPage', () => ({
+  EventDashboardPage: () => <main>Event Dashboard Page</main>,
+}));
+
+vi.mock('./pages/eventConfiguration/EventConfigurationRoute', () => ({
+  EventConfigurationRoute: () => <main>Event Configuration Page</main>,
 }));
 
 function renderAt(path: string) {
@@ -96,6 +121,7 @@ describe('BA00 route behavior', () => {
   beforeEach(() => {
     authState.isAuthenticated = false;
     authState.isLoading = false;
+    permissionState.allowRead = true;
   });
 
   it('redirects unauthenticated root users to /login', async () => {
@@ -106,13 +132,25 @@ describe('BA00 route behavior', () => {
   it('redirects authenticated root users to /event-dashboard', async () => {
     authState.isAuthenticated = true;
     renderAt('/');
-    expect(await screen.findByText('Feature: Event Dashboard')).toBeTruthy();
+    expect(await screen.findByText('Event Dashboard Page')).toBeTruthy();
   });
 
   it('redirects authenticated /login visits back through root to event dashboard', async () => {
     authState.isAuthenticated = true;
     renderAt('/login');
-    expect(await screen.findByText('Feature: Event Dashboard')).toBeTruthy();
+    expect(await screen.findByText('Event Dashboard Page')).toBeTruthy();
+  });
+
+  it('renders scanning runtime route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/scanning/scan-point-1');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Scan Runtime')).toBeTruthy();
+  });
+
+  it('redirects unauthenticated scanning runtime route to login', async () => {
+    renderAt('/scanning/scan-point-1');
+    expect(await screen.findByText('Login Page BASE')).toBeTruthy();
   });
 
   it('renders in-shell 404 with a return link to event dashboard', async () => {
@@ -123,5 +161,21 @@ describe('BA00 route behavior', () => {
       name: 'Return to Event Dashboard',
     });
     expect(returnLink.getAttribute('href')).toBe('/event-dashboard');
+  });
+
+  it('shows access denied when route read permission is denied', async () => {
+    authState.isAuthenticated = true;
+    permissionState.allowRead = false;
+
+    renderAt('/event-dashboard');
+
+    expect(await screen.findByText('Access Denied')).toBeTruthy();
+  });
+
+  it('shows access denied for scanning runtime when read permission is denied', async () => {
+    authState.isAuthenticated = true;
+    permissionState.allowRead = false;
+    renderAt('/scanning/scan-point-1');
+    expect(await screen.findByText('Access Denied')).toBeTruthy();
   });
 });

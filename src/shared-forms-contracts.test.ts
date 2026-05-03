@@ -6,6 +6,7 @@ import {
   buildWorkflowPreviewTarget,
   buildWorkflowSubmissionPayload,
   validateWorkflowAuthoringState,
+  type WorkflowEntrypointState,
   type WorkflowAuthoringState,
 } from '@solvera/pace-core/forms';
 
@@ -38,6 +39,31 @@ function createValidState(): WorkflowAuthoringState {
   };
 }
 
+function resolveTimeWindowEntrypointState(params: {
+  isActive: boolean;
+  opensAt: string | null;
+  closesAt: string | null;
+  nowIsoUtc: string;
+}): WorkflowEntrypointState {
+  if (!params.isActive) {
+    return 'not_found';
+  }
+
+  const now = new Date(params.nowIsoUtc).getTime();
+  const opensAt = params.opensAt == null ? null : new Date(params.opensAt).getTime();
+  const closesAt = params.closesAt == null ? null : new Date(params.closesAt).getTime();
+
+  if (opensAt != null && opensAt > now) {
+    return 'not_yet_open';
+  }
+
+  if (closesAt != null && closesAt < now) {
+    return 'closed';
+  }
+
+  return 'ready';
+}
+
 describe('shared forms contracts', () => {
   it('resolves required CR21 exports from @solvera/pace-core/forms', () => {
     expect(WorkflowFormAuthoringShell).toBeTypeOf('function');
@@ -59,10 +85,8 @@ describe('shared forms contracts', () => {
     ).toBe(true);
   });
 
-  it('enforces duplicate fieldKey and activation-blocked contracts', () => {
+  it('enforces duplicate fieldKey contract', () => {
     const state = createValidState();
-    state.metadata.slug = 'Invalid Slug';
-    state.metadata.isActive = true;
     state.fields.push({
       id: 'field-2',
       fieldKey: 'person.first_name',
@@ -78,6 +102,16 @@ describe('shared forms contracts', () => {
     expect(result.errors.some((issue) => issue.code === 'duplicate_field_key')).toBe(
       true
     );
+  });
+
+  it('enforces activation-blocked contract when form is invalid and active', () => {
+    const state = createValidState();
+    state.metadata.name = '';
+    state.metadata.isActive = true;
+
+    const result = validateWorkflowAuthoringState(state);
+
+    expect(result.isValid).toBe(false);
     expect(result.errors.some((issue) => issue.code === 'activation_blocked')).toBe(
       true
     );
@@ -119,6 +153,28 @@ describe('shared forms contracts', () => {
 
     expect(target.path).toBe('/camp-alpha/application');
     expect(target.reason).toBe('base_primary_entrypoint');
+  });
+
+  it('resolves not_yet_open when opensAt is in the future', () => {
+    const state = resolveTimeWindowEntrypointState({
+      isActive: true,
+      opensAt: '2027-01-01T00:00:00.000Z',
+      closesAt: null,
+      nowIsoUtc: '2026-12-31T00:00:00.000Z',
+    });
+
+    expect(state).toBe('not_yet_open');
+  });
+
+  it('resolves closed when closesAt is in the past', () => {
+    const state = resolveTimeWindowEntrypointState({
+      isActive: true,
+      opensAt: null,
+      closesAt: '2026-01-01T00:00:00.000Z',
+      nowIsoUtc: '2026-02-01T00:00:00.000Z',
+    });
+
+    expect(state).toBe('closed');
   });
 
   it('builds fieldKey-keyed submission payload values', () => {
