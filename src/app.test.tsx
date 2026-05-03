@@ -80,6 +80,10 @@ vi.mock('./pages/forms/FormBuilderPage', () => ({
   FormBuilderPage: () => <main>Form Builder Page</main>,
 }));
 
+vi.mock('./pages/registrationTypes/RegistrationTypesPage', () => ({
+  RegistrationTypesPage: () => <main>Registration Types Page</main>,
+}));
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -199,5 +203,12 @@ describe('BA00 route behavior', () => {
     renderAt('/forms');
     expect(await screen.findByText('Shell Layout')).toBeTruthy();
     expect(await screen.findByText('Forms List Page')).toBeTruthy();
+  });
+
+  it('renders registration types route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/registration-types');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Registration Types Page')).toBeTruthy();
   });
 });

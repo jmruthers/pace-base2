@@ -19,6 +19,15 @@ import type {
   SaveFormParams,
 } from './types';
 
+type ApiError = {
+  code: string;
+  message: string;
+};
+
+type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: ApiError };
+
 type SupabaseLike = {
   from: (table: string) => {
     select: (columns: string) => SelectChain;
@@ -43,16 +52,24 @@ function asSupabaseClient(client: ReturnType<typeof useSecureSupabase>): Supabas
   return client as unknown as SupabaseLike;
 }
 
-function assertNoError(error: unknown, fallbackMessage: string): asserts error is null | undefined {
-  if (error != null) {
-    throw new Error(String(error || fallbackMessage));
-  }
+function apiSuccess<T>(data: T): ApiResult<T> {
+  return { ok: true, data };
+}
+
+function apiFailure(code: string, fallbackMessage: string, error: unknown): ApiResult<never> {
+  return {
+    ok: false,
+    error: {
+      code,
+      message: error != null ? String(error) : fallbackMessage,
+    },
+  };
 }
 
 async function fetchFormsList(
   supabase: SupabaseLike,
   eventId: string
-): Promise<CoreFormListRow[]> {
+): Promise<ApiResult<CoreFormListRow[]>> {
   const { data, error } = await supabase
     .from('core_forms')
     .select(
@@ -60,16 +77,18 @@ async function fetchFormsList(
     )
     .eq('event_id', eventId)
     .order('created_at', { ascending: false });
-  assertNoError(error, 'Failed to load forms');
-  return (data as CoreFormListRow[] | null) ?? [];
+  if (error != null) {
+    return apiFailure('forms-list-read-error', 'Failed to load forms', error);
+  }
+  return apiSuccess((data as CoreFormListRow[] | null) ?? []);
 }
 
 async function fetchFieldCountRows(
   supabase: SupabaseLike,
   formIds: string[]
-): Promise<Record<string, number>> {
+): Promise<ApiResult<Record<string, number>>> {
   if (formIds.length === 0) {
-    return {};
+    return apiSuccess({});
   }
   const { data, error } = await supabase
     .from('core_form_fields')
@@ -77,15 +96,17 @@ async function fetchFieldCountRows(
     .in('form_id', formIds)
     .eq('is_active', true)
     .order('form_id', { ascending: true });
-  assertNoError(error, 'Failed to load field counts');
-  return toFieldCountMap(((data as Array<{ form_id: string }> | null) ?? []));
+  if (error != null) {
+    return apiFailure('field-count-read-error', 'Failed to load field counts', error);
+  }
+  return apiSuccess(toFieldCountMap(((data as Array<{ form_id: string }> | null) ?? [])));
 }
 
 async function fetchFormDetail(
   supabase: SupabaseLike,
   eventId: string,
   formId: string
-): Promise<CoreFormDetailRow> {
+): Promise<ApiResult<CoreFormDetailRow>> {
   const { data, error } = await supabase
     .from('core_forms')
     .select(
@@ -94,50 +115,58 @@ async function fetchFormDetail(
     .eq('id', formId)
     .eq('event_id', eventId)
     .single();
-  assertNoError(error, 'Failed to load form');
-  return data as CoreFormDetailRow;
+  if (error != null) {
+    return apiFailure('form-detail-read-error', 'Failed to load form', error);
+  }
+  return apiSuccess(data as CoreFormDetailRow);
 }
 
 async function fetchFormFields(
   supabase: SupabaseLike,
   formId: string
-): Promise<CoreFormFieldRow[]> {
+): Promise<ApiResult<CoreFormFieldRow[]>> {
   const { data, error } = await supabase
     .from('core_form_fields')
     .select('id, form_id, field_key, field_label, is_required, is_active, sort_order, display_options')
     .eq('form_id', formId)
     .order('sort_order', { ascending: true });
-  assertNoError(error, 'Failed to load form fields');
-  return sortFieldRows(((data as CoreFormFieldRow[] | null) ?? []));
+  if (error != null) {
+    return apiFailure('form-fields-read-error', 'Failed to load form fields', error);
+  }
+  return apiSuccess(sortFieldRows(((data as CoreFormFieldRow[] | null) ?? [])));
 }
 
 async function fetchFormBindings(
   supabase: SupabaseLike,
   formId: string,
   eventId: string
-): Promise<FormRegistrationBindingRow[]> {
+): Promise<ApiResult<FormRegistrationBindingRow[]>> {
   const { data, error } = await supabase
     .from('base_form_registration_type')
     .select('registration_type_id, sort_order, is_default')
     .eq('form_id', formId)
     .eq('event_id', eventId)
     .order('sort_order', { ascending: true });
-  assertNoError(error, 'Failed to load registration bindings');
-  return ((data as FormRegistrationBindingRow[] | null) ?? []);
+  if (error != null) {
+    return apiFailure('form-bindings-read-error', 'Failed to load registration bindings', error);
+  }
+  return apiSuccess((data as FormRegistrationBindingRow[] | null) ?? []);
 }
 
 async function fetchRegistrationTypes(
   supabase: SupabaseLike,
   eventId: string
-): Promise<RegistrationTypeRow[]> {
+): Promise<ApiResult<RegistrationTypeRow[]>> {
   const { data, error } = await supabase
     .from('base_registration_type')
     .select('id, name, description, is_active')
     .eq('event_id', eventId)
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
-  assertNoError(error, 'Failed to load registration types');
-  return ((data as RegistrationTypeRow[] | null) ?? []);
+  if (error != null) {
+    return apiFailure('registration-types-read-error', 'Failed to load registration types', error);
+  }
+  return apiSuccess((data as RegistrationTypeRow[] | null) ?? []);
 }
 
 async function saveBindings(params: {
@@ -147,17 +176,19 @@ async function saveBindings(params: {
   eventId: string;
   organisationId: string;
   userId: string | null;
-}) {
+}): Promise<ApiResult<null>> {
   const { error: deleteError } = await params.supabase
     .from('base_form_registration_type')
     .delete()
     .eq('form_id', params.resolvedFormId)
     .eq('event_id', params.eventId);
-  assertNoError(deleteError, 'Failed to clear registration bindings');
+  if (deleteError != null) {
+    return apiFailure('registration-bindings-clear-error', 'Failed to clear registration bindings', deleteError);
+  }
 
   const checkedBindings = params.bindings.filter((binding) => binding.checked);
   if (checkedBindings.length === 0) {
-    return;
+    return apiSuccess(null);
   }
 
   const rows = checkedBindings.map((binding, index) => ({
@@ -174,13 +205,16 @@ async function saveBindings(params: {
   const { error: insertError } = await params.supabase
     .from('base_form_registration_type')
     .insert(rows);
-  assertNoError(insertError, 'Failed to save registration bindings');
+  if (insertError != null) {
+    return apiFailure('registration-bindings-save-error', 'Failed to save registration bindings', insertError);
+  }
+  return apiSuccess(null);
 }
 
 async function saveWorkflowForm(
   supabase: SupabaseLike,
   params: SaveFormParams
-): Promise<{ formId: string }> {
+): Promise<ApiResult<{ formId: string }>> {
   const definitionPayload = buildDefinitionPayload(params.state);
   const { data: upsertData, error: upsertError } = await supabase.rpc('app_base_form_upsert', {
     p_event_id: params.eventId,
@@ -188,10 +222,12 @@ async function saveWorkflowForm(
     p_form_id: params.state.metadata.id ?? null,
     p_definition: definitionPayload,
   });
-  assertNoError(upsertError, 'Failed to save form definition');
+  if (upsertError != null) {
+    return apiFailure('form-save-definition-error', 'Failed to save form definition', upsertError);
+  }
   const resolvedFormId = (upsertData as Array<{ form_id: string }> | null)?.[0]?.form_id;
   if (resolvedFormId == null) {
-    throw new Error('Form save returned no form ID');
+    return apiFailure('form-save-missing-id', 'Form save returned no form ID', null);
   }
 
   const fieldsPayload = buildFieldsRpcPayload(params.state.fields);
@@ -199,10 +235,12 @@ async function saveWorkflowForm(
     p_form_id: resolvedFormId,
     p_fields: fieldsPayload,
   });
-  assertNoError(fieldsError, 'Failed to save form fields');
+  if (fieldsError != null) {
+    return apiFailure('form-save-fields-error', 'Failed to save form fields', fieldsError);
+  }
 
   if (params.state.metadata.workflowType === 'base_registration') {
-    await saveBindings({
+    const saveBindingsResult = await saveBindings({
       supabase,
       resolvedFormId,
       bindings: params.bindings,
@@ -210,26 +248,31 @@ async function saveWorkflowForm(
       organisationId: params.organisationId,
       userId: params.userId,
     });
+    if (!saveBindingsResult.ok) {
+      return saveBindingsResult;
+    }
   }
 
-  return { formId: resolvedFormId };
+  return apiSuccess({ formId: resolvedFormId });
 }
 
 async function deleteForm(
   supabase: SupabaseLike,
   eventId: string,
   formId: string
-): Promise<DeleteFormRpcResult> {
+): Promise<ApiResult<DeleteFormRpcResult>> {
   const { data, error } = await supabase.rpc('app_base_form_delete', {
     p_event_id: eventId,
     p_form_id: formId,
   });
-  assertNoError(error, 'Failed to delete form');
-  return ((data as DeleteFormRpcResult[] | null) ?? [])[0] ?? {
+  if (error != null) {
+    return apiFailure('form-delete-error', 'Failed to delete form', error);
+  }
+  return apiSuccess(((data as DeleteFormRpcResult[] | null) ?? [])[0] ?? {
     deleted: false,
     response_count: 0,
     registration_binding_count: 0,
-  };
+  });
 }
 
 export function useFormsList(eventId: string | null) {
@@ -240,7 +283,11 @@ export function useFormsList(eventId: string | null) {
     enabled: eventId != null && secureSupabase != null,
     queryFn: async () => {
       const supabase = asSupabaseClient(secureSupabase);
-      return fetchFormsList(supabase, eventId as string);
+      const result = await fetchFormsList(supabase, eventId as string);
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
     },
   });
 }
@@ -253,10 +300,14 @@ export function useFormFieldCounts(eventId: string | null, forms: CoreFormListRo
     enabled: eventId != null && secureSupabase != null && (forms?.length ?? 0) > 0,
     queryFn: async () => {
       const supabase = asSupabaseClient(secureSupabase);
-      return fetchFieldCountRows(
+      const result = await fetchFieldCountRows(
         supabase,
         (forms ?? []).map((form) => form.id)
       );
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
     },
   });
 }
@@ -269,15 +320,27 @@ export function useFormBuilderRecord(eventId: string | null, formId: string | nu
     enabled: eventId != null && formId != null && secureSupabase != null,
     queryFn: async (): Promise<FormBuilderRecord> => {
       const supabase = asSupabaseClient(secureSupabase);
-      const [form, fields] = await Promise.all([
+      const [formResult, fieldsResult] = await Promise.all([
         fetchFormDetail(supabase, eventId as string, formId as string),
         fetchFormFields(supabase, formId as string),
       ]);
+      if (!formResult.ok) {
+        throw new Error(formResult.error.message);
+      }
+      if (!fieldsResult.ok) {
+        throw new Error(fieldsResult.error.message);
+      }
+      const form = formResult.data;
+      const fields = fieldsResult.data;
 
-      const bindings =
-        form.workflow_type === 'base_registration'
-          ? await fetchFormBindings(supabase, formId as string, eventId as string)
-          : [];
+      let bindings: FormRegistrationBindingRow[] = [];
+      if (form.workflow_type === 'base_registration') {
+        const bindingsResult = await fetchFormBindings(supabase, formId as string, eventId as string);
+        if (!bindingsResult.ok) {
+          throw new Error(bindingsResult.error.message);
+        }
+        bindings = bindingsResult.data;
+      }
 
       return { form, fields, bindings };
     },
@@ -292,7 +355,11 @@ export function useRegistrationTypes(eventId: string | null, enabled = true) {
     enabled: enabled && eventId != null && secureSupabase != null,
     queryFn: async () => {
       const supabase = asSupabaseClient(secureSupabase);
-      return fetchRegistrationTypes(supabase, eventId as string);
+      const result = await fetchRegistrationTypes(supabase, eventId as string);
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
     },
   });
 }
@@ -306,7 +373,11 @@ export function useSaveWorkflowFormMutation() {
         throw new Error('Supabase client unavailable');
       }
       const supabase = asSupabaseClient(secureSupabase);
-      return saveWorkflowForm(supabase, params);
+      const result = await saveWorkflowForm(supabase, params);
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
     },
   });
 }
@@ -320,7 +391,11 @@ export function useDeleteFormMutation() {
         throw new Error('Supabase client unavailable');
       }
       const supabase = asSupabaseClient(secureSupabase);
-      return deleteForm(supabase, params.eventId, params.formId);
+      const result = await deleteForm(supabase, params.eventId, params.formId);
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
     },
   });
 }
