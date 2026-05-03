@@ -15,6 +15,7 @@ import { EventConfigurationRoute } from './pages/eventConfiguration/EventConfigu
 import { FormsListPage } from './pages/forms/FormsListPage';
 import { FormBuilderPage } from './pages/forms/FormBuilderPage';
 import { RegistrationTypesPage } from './pages/registrationTypes/RegistrationTypesPage';
+import { ApplicationsPage } from './pages/applications/ApplicationsPage';
 import {
   getShellProtectedRoutes,
 } from './config/baseRouteRegistry';
@@ -74,6 +75,8 @@ function App() {
                         <FormBuilderPage />
                       ) : route.path === '/registration-types' ? (
                         <RegistrationTypesPage />
+                      ) : route.path === '/applications' ? (
+                        <ApplicationsPage />
                       ) : route.path === '/scanning/:scanPointId' ? (
                         <ScanRuntimePlaceholderPage />
                       ) : (

@@ -2,10 +2,21 @@
 
 ## 1. Slice metadata
 
+- Slice ID: BA17
+- Name: Communications and System Notifications
 - Status: Draft
 - Depends on: BA01 (Event Workspace and Configuration), BA04 (Registration Setup and Policy — registration types feed the recipient-pool filter dropdown), BA05a.contract (Registration Entry and Application Submission — system notification call points SN-01..SN-04), BA06.contract (Applications Admin and Review — system notification call points SN-05 / SN-06), BA08.contract (Units and Group Coordination — `base_units` table contract feeds the unit filter dropdown; table verified present in dev-db 2026-05-01 per BA17 audit) _(BA00 shell is transitively required via BA01; not restated here, matching architecture's slice overview)_
 - Backend impact: Read contract only (all pump_* schema, system_key rows, and `rbac_app_pages` prerequisites verified — see §8)
 - Frontend impact: Both (UI for `/communications`; utility export for system notification call points in BA05a / BA06)
+- Routes owned: `/communications`
+- Safe for unattended execution: Backend-ready only
+- Execution owner: BASE consuming app queue
+- Execution lane: BASE overnight (after CR23 readiness gates clear)
+- Backend-ready evidence required: All implementation gates in §8 confirmed PASSED before frontend execution begins (re-verify if regressions suspected)
+- QA pack: `docs/delivery/test-packs/BA17-qa-pack.md`
+- Seed data dependency: Recommended (BA18) for non-empty registration type and unit filter verification
+
+---
 
 ## 2. Overview
 
@@ -44,7 +55,6 @@ This slice owns the event-scoped communications surface at `/communications` and
 - Page access is gated by `PagePermissionGuard` from `@solvera/pace-core/rbac` using `pageName="communications"`.
 - All Supabase reads go through the authenticated boundary provided by `useSecureSupabase()` (used internally by `useCommSendAdapter`).
 - RLS is enforced on all pump_* tables; direct queries from the page are not used for pump tables.
-- Import policy is root-first for consuming apps: use `@solvera/pace-core` by default. Scoped entrypoints (`/comms`, `/rbac`, `/components`) are exception paths used when root does not expose the required symbol or a documented advanced/performance/migration case applies.
 
 ### 3.2 System notification utility
 
@@ -225,9 +235,146 @@ If a future wave adds notifications for any of these types, a new `base.*` syste
 
 ## 5. Visual specification
 
-- Visual scope is `/communications` compose/filter/recipient-preview states.
-- Keep this section to layout and UI states; send/system-notification contracts remain in §4/§7.
-- Filter/composer visuals reflect adapter and permission outputs without redefining backend behaviour.
+### 5.1 Layout
+
+The `/communications` page uses the BA00 app shell (header, nav sidebar, authenticated wrapper). The page content area is a single-column layout with the following top-to-bottom order:
+
+1. **Page heading row** — `<h1>` "Communications", no subtitle.
+2. **Filter bar** — a horizontal row of three `Select` (multi-select) components.
+3. **CommComposer card** — full-width single-column compose form.
+4. **RecipientPoolPreview** — rendered below the CommComposer card (CommComposer-internal; no separate page element required).
+
+**Desktop:** single column, max-width constrained to the app shell's content width. CommComposer card occupies the full content width.
+
+**Mobile (below 640 px / Tailwind `sm` breakpoint):** single column. Filter bar dropdowns stack vertically (one per row). CommComposer card is full width. Sticky footer is not used; the CommComposer footer scrolls with the content.
+
+### 5.2 Components
+
+#### Filter bar
+
+Three `MultiSelect` components from `@solvera/pace-core/components`, arranged horizontally in a row (flex row, even spacing). Each `MultiSelect` allows multiple concurrent selections within its dimension; selecting zero values in a dimension applies no constraint for that dimension.
+
+| Control | Label | Options source | Value format | Default |
+|---|---|---|---|---|
+| Registration type | "Registration type" | `base_registration_type` for selected event | `{ value: id, label: name }` | Empty (no filter) |
+| Status | "Status" | Static list (see below) | `{ value: status_key, label: display_label }` | Empty (no filter) |
+| Unit | "Unit" | `base_units` for selected event | `{ value: id, label: name }` | Empty (no filter) |
+
+Status options (in order):
+
+| Display label | Value |
+|---|---|
+| Submitted | `submitted` |
+| Under review | `under_review` |
+| Approved | `approved` |
+| Rejected | `rejected` |
+| Withdrawn | `withdrawn` |
+
+A "Clear filters" link appears at the right end of the filter bar when any filter is active. On click, all three dropdowns are reset to empty.
+
+When all three dropdowns are empty, no filter constraints are applied — the pool includes all event participants.
+
+#### CommComposer (from `@solvera/pace-core/comms`)
+
+`CommComposer` renders a single `<section>` containing the following elements in order:
+
+**1. Alert banners (conditional, rendered at top of section)**
+
+- Unresolved token banner: shown when `blockSendOnUnresolvedTokens={true}` and draft body or subject contains at least one unresolved token. Copy: "Resolve all tokens before sending."
+- Read-only banner: shown when `rbac.canCompose = false`. Copy: "You have view-only access to this surface."
+- Template validation banner: shown when the selected template has `require_merge_field_validation: true`. Copy: "All merge tokens must resolve for this template."
+
+**2. Card (full width)**
+
+*Card header:* "Compose communication"
+
+*Card content (single column, stacked vertically from top):*
+
+- **Channel selector:** A fieldset with two toggle buttons: "Email" and "SMS". The active channel is visually highlighted. Switching channel clears channel-specific draft fields (subject, body_html, sender_email cleared on switch to SMS; sender_phone cleared on switch to email).
+- **Template selector:** A dropdown list of available templates filtered to the current channel. Placeholder: "Select a template (optional)". When no templates are available: "No templates available". Selecting a template pre-populates subject and body fields with the template's content.
+- **Sender name input:** Label "Sender name". Required. Placeholder "e.g. PACE Events Team".
+- *(Email channel only)* **Sender email input:** Label "From email". Required. Placeholder "noreply@org.example". **Subject input:** Label "Subject". Required. Placeholder "e.g. Important update for {{first_name}}".
+- *(SMS channel only)* **Sender phone input:** Label "From phone". Required. Placeholder "+61400000000".
+- **Field validation note:** `CommComposer` manages required-field validation internally. The "Send now" button is disabled until all required fields for the active channel are populated. Field-level error messages (empty required field, invalid email format, invalid phone format) are rendered by `CommComposer` — no custom error copy is required from the consuming page.
+- **Preview / Edit toggle button:** Single button. Label "Preview" when in edit mode (clicking switches to preview). Label "Edit" when in preview mode (clicking switches to edit).
+- *(Edit mode)* **Body editors:**
+  - Email channel: HTML body `<textarea>` (label "Message body (HTML)") followed by plain text `<textarea>` (label "Message body (plain text)").
+  - SMS channel: Plain text `<textarea>` only (label "Message body").
+  - `MergeFieldToolbar` rendered below the body editors: a row of clickable chip buttons, one per available merge field (e.g. "First name — {{first_name}}"). Clicking a chip inserts `{{token}}` at the cursor position in the focused body textarea.
+- *(Preview mode)* **MessagePreview component:** renders the draft body with merge tokens substituted using sample values.
+
+*Card footer (bottom of card, stacked vertically):*
+
+- If `rbac.canSend = false`: callout text "You do not have permission to send."
+- If `rbac.canSend = true` (in order left to right):
+  - "Send test" button (secondary variant) — sends draft to the signed-in user's email.
+  - "Schedule" button (secondary variant) — disabled when `rbac.canSchedule = false`; when clicked opens a datetime picker popover.
+  - "Cancel" button (tertiary variant) — rendered only if `onCancel` prop is provided.
+  - "Send now" button (primary variant) — disabled when `blockSendOnUnresolvedTokens=true` and unresolved tokens are present.
+
+**3. RecipientPoolPreview (below card, inside `<section>`)**
+
+Rendered automatically by `CommComposer`. Shows:
+- "Sending to N participants" (where N = `estimated_count` from `CommRecipientPreview`).
+- Up to 5 sample recipient names as a comma-separated list.
+- Warning callouts for each `CommPoolWarning` (e.g. "12 recipients have no email address — they will be skipped.").
+- While pool is re-fetching: inline spinner replaces the count/sample names row.
+- On resolve error: "Could not estimate recipient count. Try again." with a "Try again" link.
+
+### 5.3 States
+
+| State | Visual |
+|---|---|
+| Page loading | `LoadingSpinner` centred in main content area. No filter bar or CommComposer visible. |
+| No event selected | Page heading visible. Filter bar and CommComposer not rendered. Body copy: "Select an event to compose a communication." |
+| No permission | `AccessDenied` component fills main content area. |
+| Read-only (canCompose=false) | CommComposer shown with all inputs disabled and read-only banner. Footer shows "You do not have permission to send." callout; no buttons. |
+| Compose-only (canSend=false) | CommComposer fully editable. Footer shows callout "You do not have permission to send." No send buttons. |
+| Full access | CommComposer fully editable. Footer shows all buttons. |
+| Send in progress | "Send now" button shows loading indicator and is disabled. |
+| Send success | Toast (success variant): "Message sent to N participants." Draft resets. Filters clear. If `suppression_skipped > 0`, second toast (default variant): "N recipients were suppressed and skipped." |
+| Schedule in progress | "Schedule" button shows loading indicator and is disabled. |
+| Schedule success | Toast (success variant): "Message scheduled for [formatted datetime]." Draft resets. |
+| Send test in progress | "Send test" button shows loading indicator and is disabled. |
+| Send test success | Toast (success variant): "Test email sent to your email address." |
+| Error (send / schedule / test) | Toast (destructive variant) with `result.error.message` from the failed `ApiResult`. Draft not reset. |
+
+### 5.4 Interactions
+
+| Interaction | Behaviour |
+|---|---|
+| Filter dropdown change | Updates `EventParticipantsPool.filters`. Schedules a `RecipientPoolPreview` re-fetch (400 ms debounce). Filter bar and CommComposer remain interactive. |
+| Clear filters link | Resets all three dropdowns to empty. Triggers pool preview re-fetch with no filters. |
+| Channel toggle | Switches CommComposer channel. Clears channel-specific draft fields. Re-fetches templates and merge fields for new channel. |
+| Template select | Pre-populates subject and body. Channel is constrained to template's channel. |
+| Merge field chip click | Inserts `{{token}}` at cursor position in currently-focused body textarea. |
+| Preview toggle click | Switches between edit and preview mode. No data fetch. |
+| Send test click | Calls `adapter.sendTest()`. Button shows loading indicator. Toast on result. |
+| Schedule click | Opens datetime picker popover (CommComposer-internal). On confirm: calls `adapter.schedule()`. Button shows loading indicator. Toast on result. |
+| Send now click | Calls `adapter.send()`. Button shows loading indicator and disables. Toast on success (draft resets, filters clear) or failure (draft retained). |
+| Event context change (via BA00 picker) | Draft resets. Filters clear. All adapter calls re-run with new event context. |
+
+**Modal / popover: Schedule datetime picker**
+
+- Trigger: "Schedule" button click.
+- Contents: datetime input for selecting a future date and time.
+- Primary action: "Confirm" — submits selected datetime.
+- Secondary action: "Cancel" — dismisses popover without scheduling.
+- Close behaviour: clicking outside or pressing Escape dismisses the popover.
+- Focus management: focus moves to the datetime input on open; returns to "Schedule" button on close.
+
+### 5.5 Permission-conditional rendering
+
+| User state | `read` | `create` | `update` | Visible UI |
+|---|---|---|---|---|
+| No access | — | — | — | `AccessDenied` component only |
+| Read-only viewer | ✅ | — | — | CommComposer rendered with all inputs disabled; read-only banner; no send buttons |
+| Composer (no send) | ✅ | ✅ | — | CommComposer fully editable; footer shows "You do not have permission to send." callout only |
+| Full operator | ✅ | ✅ | ✅ | Full compose surface; all footer buttons (Send test, Schedule, Send now) visible and enabled |
+
+**Filter bar visibility:** The filter bar is rendered in all states where the page content area is visible (i.e., all states except No access and No event selected). The `MultiSelect` dropdowns are interactive regardless of `canCompose` or `canSend` — filtering the pool preview does not require compose or send permission.
+
+---
 
 ## 6. Business rules
 
@@ -525,23 +672,351 @@ AND page_name = 'communications';
 
 ## 9. pace-core2 imports
 
-### 9.1 Required symbols actually used in this slice
+### §9.1 Imports table
 
-| Symbol | Import policy | Why used in BA17 |
+| Item | Type | Import path | Purpose |
+|---|---|---|---|
+| `CommComposer` | component | `@solvera/pace-core/comms` | Main compose UI |
+| `useCommDraft` | hook | `@solvera/pace-core/comms` | External draft state management |
+| `useCommSendAdapter` | hook | `@solvera/pace-core/comms` | Concrete CommSendAdapter implementation |
+| `sendSystemNotification` | utility | `@solvera/pace-core/comms` | System notification dispatch (backend Edge Functions only) |
+| `getUnresolvedTokens` | utility | `@solvera/pace-core/comms` | Identify unresolved merge tokens in draft content |
+| `isEventParticipantsPool` | utility | `@solvera/pace-core/comms` | Type guard for EventParticipantsPool |
+| `CommDraft` | type | `@solvera/pace-core/comms` | Draft state shape |
+| `CommSendAdapter` | type | `@solvera/pace-core/comms` | Adapter interface |
+| `CommSendRequest` | type | `@solvera/pace-core/comms` | Send request shape |
+| `CommSendTestRequest` | type | `@solvera/pace-core/comms` | Test send request shape |
+| `CommScheduleRequest` | type | `@solvera/pace-core/comms` | Schedule request shape |
+| `CommSendResult` | type | `@solvera/pace-core/comms` | Send result shape |
+| `CommScheduleResult` | type | `@solvera/pace-core/comms` | Schedule result shape |
+| `CommRbacContext` | type | `@solvera/pace-core/comms` | RBAC context for CommComposer |
+| `CommTemplate` | type | `@solvera/pace-core/comms` | Template record shape |
+| `CommMergeField` | type | `@solvera/pace-core/comms` | Merge field record shape |
+| `CommRecipientPreview` | type | `@solvera/pace-core/comms` | Pool preview result |
+| `EventParticipantsPool` | type | `@solvera/pace-core/comms` | Pool descriptor type |
+| `EventParticipantsPoolFilters` | type | `@solvera/pace-core/comms` | Pool filters (status values pending Q-3 PR) |
+| `RecipientPoolDescriptor` | type | `@solvera/pace-core/comms` | Union of pool descriptor types |
+| `SystemNotificationRequest` | type | `@solvera/pace-core/comms` | System notification request shape |
+| `SystemNotificationRecipientDescriptor` | type | `@solvera/pace-core/comms` | Recipient descriptor union |
+| `PagePermissionGuard` | component | `@solvera/pace-core/rbac` | Page-level RBAC guard |
+| `AccessDenied` | component | `@solvera/pace-core/rbac` | Permission-denied fallback component |
+| `useResourcePermissions` | hook | `@solvera/pace-core/rbac` | Derive per-operation permission booleans |
+| `toPagePermission` | utility | `@solvera/pace-core/rbac` | Compose a `'op:page.name'` permission string (used internally by guards; not called directly in BA17) |
+| `LoadingSpinner` | component | `@solvera/pace-core/components` | Full-page loading indicator |
+| `MultiSelect` | component | `@solvera/pace-core/components` | Multi-select dropdown for filter bar |
+| `MultiSelectOption` | type | `@solvera/pace-core/components` | Option shape for MultiSelect |
+| `toast` | function | `@solvera/pace-core/components` | Dispatch toast notifications (requires ToastProvider in tree) |
+| `ToastPropsOptions` | type | `@solvera/pace-core/components` | Props shape for `toast()` |
+| `useEvents` | hook | `@solvera/pace-core/hooks` | Active event context |
+| `useSecureSupabase` | hook | `@solvera/pace-core/rbac` | Authenticated Supabase client for filter data reads |
+| `ApiResult` | type | `@solvera/pace-core/types` | Discriminated union for API call outcomes |
+| `ApiError` | type | `@solvera/pace-core/types` | Error shape within `ApiResult` |
+
+### §9.2 Usage details
+
+#### CommComposer
+
+**Export name:** `CommComposer`
+
+**Props (`CommComposerProps`):**
+
+| Prop | Type | Required | Notes |
+|---|---|---|---|
+| `adapter` | `CommSendAdapter` | Yes | Pass the object returned by `useCommSendAdapter(...)` |
+| `organisationId` | `string` | Yes | Active organisation UUID |
+| `sourceApp` | `string` | Yes | Pass `'base'` |
+| `recipientPool` | `RecipientPoolDescriptor` | Yes | `EventParticipantsPool` descriptor constructed by the page from filter state |
+| `rbac` | `CommRbacContext` | Yes | Derived from `useResourcePermissions('communications')` per BR-14 |
+| `draft` | `CommDraft` | Yes | Controlled value from `useCommDraft` |
+| `onDraftChange` | `(draft: CommDraft) => void` | Yes | Pass `updateDraft` or `setDraft` from `useCommDraft` |
+| `blockSendOnUnresolvedTokens` | `boolean` | No | Default `false`. BASE **must** pass `true`. |
+| `onCancel` | `() => void` | No | If provided, renders a "Cancel" button in the card footer |
+| `onSendComplete` | `(result: CommSendResult) => void` | No | Called after successful send — use to reset draft and clear filters |
+| `onSendError` | `(message: string) => void` | No | Called on send failure — use to show toast |
+| `onScheduleComplete` | `(messageId: string) => void` | No | Called after successful schedule |
+| `templates` | `CommTemplate[]` | No | Pre-loaded templates; if omitted CommComposer loads via `adapter.loadTemplates` internally |
+| `mergeFields` | `CommMergeField[]` | No | Pre-loaded merge fields; if omitted CommComposer loads via `adapter.loadMergeFields` internally |
+| `recipientPreview` | `CommRecipientPreview \| null` | No | Pre-resolved pool preview; if omitted CommComposer resolves via `adapter.resolvePool` internally |
+
+**Actual rendered layout (single-column):**
+
+CommComposer renders a `<section>`. Within it, in order:
+1. Up to 3 conditional alert banners (unresolved tokens, read-only mode, template validation).
+2. A `Card` with header "Compose communication", single-column card content (channel selector → template selector → sender fields → body editors + `MergeFieldToolbar` or `MessagePreview`), and a card footer with action buttons.
+3. `RecipientPoolPreview` (below the card, always rendered).
+
+For full structural detail see §5.2.
+
+**Non-obvious behaviour:**
+- `CommComposer` manages its own internal state for template selection, preview/edit mode, and pool re-fetch debouncing. The consuming page manages only `CommDraft` state and the pool descriptor.
+- `onSendComplete` fires after the adapter call resolves successfully and CommComposer has reset its internal template selection. The page should reset `useCommDraft` and clear filter state in this callback.
+- When `recipientPool` prop changes (e.g. filter update), CommComposer automatically calls `adapter.resolvePool` internally if `recipientPreview` prop is not provided.
+
+---
+
+#### useCommDraft
+
+**Export name:** `useCommDraft`
+
+**Signature:** `useCommDraft(initialDraft: CommDraft): CommDraftHookResult`
+
+**Arguments:**
+- `initialDraft`: The starting draft value. Pass `{ channel: 'email' }` for the BA17 page initial state.
+
+**Return shape:**
+
+| Field | Type | Notes |
 |---|---|---|
-| `CommComposer` / `useCommDraft` | Scoped `@solvera/pace-core/comms` exception path | Draft and send UI workflow |
-| `useCommSendAdapter` | Scoped `@solvera/pace-core/comms` exception path | Canonical send adapter integration |
-| `PagePermissionGuard` / `useResourcePermissions` | Default root import where available; scoped `@solvera/pace-core/rbac` allowed as exception path | Read/update gating |
-| `MultiSelect` | Default root import; allow scoped exception if required by export location | Recipient filter controls |
-| `sendSystemNotification` types | Scoped `@solvera/pace-core/comms` exception path | Backend call contract for BA05a/BA06 integrations |
+| `draft` | `CommDraft` | Current draft state |
+| `setDraft` | `(draft: CommDraft) => void` | Replace the entire draft |
+| `updateDraft` | `(patch: Partial<CommDraft>) => void` | Patch specific draft fields |
+| `setChannel` | `(channel: CommChannel) => void` | Switch channel and clear channel-specific fields |
+| `resetDraft` | `() => void` | Reset to the `initialDraft` value |
+| `commitDraft` | `(nextDraft?: CommDraft) => void` | Set a new baseline (resets `isDirty` to false) |
+| `isDirty` | `boolean` | True when draft differs from the current baseline |
 
-### 9.2 Slice-specific caveats only
+**Non-obvious behaviour:**
+- `setChannel` clears channel-specific fields: switching email → SMS clears `subject`, `body_html`, `sender_email`, `reply_to`; switching SMS → email clears `sender_phone`.
+- `commitDraft()` sets the current draft as the new baseline. Call this after a successful send to prevent false `isDirty` signals.
+- Pass `updateDraft` (not `setDraft`) as `onDraftChange` to `CommComposer` — this preserves fields that CommComposer does not manage (e.g. `extra_merge_context`).
 
-- `sendSystemNotification` is backend/Edge only; do not call from route React code.
-- Keep unresolved-token send blocking enabled for compose actions.
-- Event-context changes reset draft and filters before re-resolving pool estimates.
-- Route guard uses `pageName="communications"` with event scope values.
-- Import style in this slice follows root-first policy; scoped imports are exception-only.
+---
+
+#### useCommSendAdapter
+
+**Export name:** `useCommSendAdapter`
+
+**Import path:** `@solvera/pace-core/comms`
+
+**Signature:**
+```typescript
+useCommSendAdapter(options: {
+  organisationId: string;
+  sourceApp: string;
+  sourceContextType?: string;
+  sourceContextId?: string;
+}): CommSendAdapter
+```
+
+**Arguments:**
+- `organisationId`: Active organisation UUID.
+- `sourceApp`: Pass `'base'`.
+- `sourceContextType`: Pass `'event'` for `/communications`.
+- `sourceContextId`: Pass `eventId`.
+
+**Return shape:** A stable `CommSendAdapter` object with all 7 methods wired to PUMP Edge Functions via `useSecureSupabase()`. The `saveDraft` method stores draft state in-memory (no PUMP call).
+
+**Non-obvious behaviour:**
+- The returned adapter object is referentially stable across renders (memoised). Safe to pass as a prop to `CommComposer` without triggering unnecessary re-renders.
+- All adapter methods use the authenticated Supabase client from `useSecureSupabase()` internally. No credentials need to be passed by the consumer.
+- If called outside an authenticated context, adapter methods return `ApiResult.error` with an authentication error — they do not throw.
+
+---
+
+#### useResourcePermissions (for CommRbacContext derivation)
+
+**Export name:** `useResourcePermissions`
+
+**Import path:** `@solvera/pace-core/rbac`
+
+**Signature:**
+```typescript
+useResourcePermissions(
+  resource: string,
+  operations?: readonly Operation[] | null,
+  scopeOverride?: Scope | null
+): ResourcePermissionsResult
+```
+
+**Usage in BA17:**
+```typescript
+const { canRead, canCreate, canUpdate, isLoading } = useResourcePermissions(
+  'communications',
+  ['read', 'create', 'update'],
+  { organisationId, eventId, appId }
+);
+
+const rbac: CommRbacContext = {
+  canCompose: canCreate,
+  canSend: canUpdate,
+  canSchedule: canUpdate,
+  scopeType: 'event',
+  scopeId: eventId,
+};
+```
+
+**Return shape (relevant fields):**
+
+| Field | Type | Notes |
+|---|---|---|
+| `canRead` | `boolean` | True when `read:page.communications` is granted |
+| `canCreate` | `boolean` | True when `create:page.communications` is granted |
+| `canUpdate` | `boolean` | True when `update:page.communications` is granted |
+| `isLoading` | `boolean` | True while permission resolution is in flight |
+
+**Non-obvious behaviour:**
+- Returns `{ canRead: false, canCreate: false, canUpdate: false }` while loading (before the check resolves). Guard must handle this gracefully (show spinner, not AccessDenied).
+- Also returns `canDelete`, `canExport`, `resilienceStatus`, `resilienceErrors`, `sourceOutcomes` — only `canRead`, `canCreate`, `canUpdate`, and `isLoading` are used by BA17.
+
+---
+
+#### PagePermissionGuard
+
+**Export name:** `PagePermissionGuard`
+
+**Import path:** `@solvera/pace-core/rbac`
+
+**Props:**
+
+| Prop | Type | Required | Notes |
+|---|---|---|---|
+| `pageName` | `string` | Yes | Pass `'communications'` — resolved directly by `toPagePermission` internally; no constant import required |
+| `operation` | `'read' \| 'create' \| 'update' \| 'delete'` | Yes | Pass `'read'` for page-level access guard |
+| `scope` | `{ organisationId?: string; eventId?: string; appId?: string }` | No | Pass full scope object including `eventId`; guard evaluates against org scope if `eventId` is absent |
+| `fallback` | `ReactNode` | No | Rendered when access is denied; defaults to `<AccessDenied />` |
+| `children` | `ReactNode` | Yes | Rendered when access is granted |
+| `loading` | `ReactNode` | No | Rendered while permission is loading; if omitted the guard renders `null` during loading |
+| `strictMode` | `boolean` | No | Default `false`. If `true`, renders fallback (not null) during loading. Do not use `strictMode` for the BA17 page guard. |
+
+**Usage in BA17:**
+```tsx
+<PagePermissionGuard
+  pageName="communications"
+  operation="read"
+  scope={{ organisationId, eventId, appId }}
+  fallback={<AccessDenied />}
+  loading={<LoadingSpinner />}
+>
+  {/* compose surface */}
+</PagePermissionGuard>
+```
+
+---
+
+#### sendSystemNotification
+
+**Export name:** `sendSystemNotification`
+
+**Import path:** `@solvera/pace-core/comms`
+
+**Signature:**
+```typescript
+sendSystemNotification(
+  adapter: Pick<CommSendAdapter, 'send'>,
+  request: SystemNotificationRequest
+): Promise<ApiResult<CommSendResult>>
+```
+
+**Arguments:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `adapter` | `Pick<CommSendAdapter, 'send'>` | Yes | Pass the full `CommSendAdapter` from `useCommSendAdapter` — `Pick` means any object with a `send` method is accepted |
+| `request.systemKey` | `string` | Yes | One of `BASE_SYSTEM_KEYS` values (e.g. `BASE_SYSTEM_KEYS.APPLICATION_APPROVED`) |
+| `request.recipient` | `SystemNotificationRecipientDescriptor` | Yes | `{ type: 'canonical_parent_contact', member_id }` or `{ type: 'member_context', member_id }` |
+| `request.organisationId` | `string` | Yes | Organisation UUID |
+| `request.sourceApp` | `string` | Yes | Pass `'base'` |
+| `request.sourceContextType` | `string` | No | Pass `'event'` |
+| `request.sourceContextId` | `string` | No | Pass `eventId` |
+| `request.extraMergeContext` | `Record<string, string>` | No | Additional merge data if the system template uses custom tokens |
+
+**Non-obvious behaviour:**
+- Internally sets `bypass_suppression: true` — this is hardcoded and cannot be overridden by the caller.
+- Calls `adapter.send()` internally. The caller receives the `ApiResult<CommSendResult>` from that call.
+- Must only be called from server-side Edge Function code. Must not be called from React components or browser-executed code.
+
+---
+
+#### toast (function)
+
+**Export name:** `toast`
+
+**Import path:** `@solvera/pace-core/components`
+
+**Signature:** `toast(props: ToastPropsOptions): string`
+
+**`ToastPropsOptions` fields:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `title` | `string` | No | Primary message line |
+| `description` | `string` | No | Secondary line below title |
+| `variant` | `'default' \| 'success' \| 'destructive'` | No | Default: `'default'`. Use `'success'` for send/schedule/test success; `'destructive'` for errors. |
+| `action` | `ToastActionProps` | No | Optional action button inside the toast |
+| `duration` | `number` | No | Auto-dismiss delay in ms. Default: 5 000. |
+
+**Usage in BA17 callbacks:**
+```typescript
+// Send success (in onSendComplete)
+toast({ title: `Message sent to ${result.total_recipients} participants.`, variant: 'success' });
+
+// Error (in onSendError, using result.error.message upstream)
+toast({ description: message, variant: 'destructive' });
+```
+
+**Non-obvious behaviour:**
+- `toast()` throws if called outside a `ToastProvider` tree. `ToastProvider` must be mounted by the BA00 app shell.
+- Returns a toast ID string that can be passed to `dismiss(id)` for programmatic dismissal (not required for BA17).
+- Toasts auto-dismiss after `duration` ms (default 5 s). Duration `0` prevents auto-dismiss.
+
+---
+
+#### ApiResult / ApiError
+
+**Export names:** `ApiResult` (type), `ApiError` (type)
+
+**Import path:** `@solvera/pace-core/types`
+
+**Shape:**
+```typescript
+type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
+type ApiError   = { code: string; message: string; details?: object };
+```
+
+**Usage in BA17:** Every adapter method (`adapter.send`, `adapter.schedule`, `adapter.sendTest`, `adapter.resolvePool`, `adapter.loadTemplates`, `adapter.loadMergeFields`) returns `ApiResult<T>`. Pattern:
+```typescript
+const result = await adapter.send(request);
+if (!result.ok) {
+  toast({ description: result.error.message, variant: 'destructive' });
+  return;
+}
+// result.data is CommSendResult
+```
+
+**Non-obvious behaviour:**
+- The `ok` discriminant must be checked before accessing `result.data` or `result.error`. TypeScript will enforce this if types are correctly imported.
+- `result.error.message` is always a human-readable string suitable for display. `result.error.code` is a machine-readable error code for logging.
+- Never cast `result` to bypass the discriminant check.
+
+---
+
+#### MultiSelect
+
+**Export name:** `MultiSelect`
+
+**Import path:** `@solvera/pace-core/components`
+
+**Props (`MultiSelectProps`):**
+
+| Prop | Type | Required | Notes |
+|---|---|---|---|
+| `value` | `string[]` | No | Controlled selected values |
+| `defaultValue` | `string[]` | No | Uncontrolled initial selection |
+| `onValueChange` | `(values: string[]) => void` | No | Fires when selection changes after user commits toggles in the dropdown |
+| `options` | `MultiSelectOption[]` | Yes | Each option: `{ value: string; label: string; disabled?: boolean }` |
+| `placeholder` | `string` | No | Shown in trigger when no values selected |
+| `disabled` | `boolean` | No | Disables the entire control |
+| `clearable` | `boolean` | No | When true, trigger shows a clear affordance to remove all selections |
+| `positionMode` | `'auto' \| 'absolute' \| 'fixed'` | No | Passed through to internal listbox positioning (matches `Select` behaviour) |
+| `className` | `string` | No | Optional wrapper class on the root |
+
+**Usage in BA17:** Three instances — registration type filter, status filter, unit filter — each bound to local state arrays mapped to `EventParticipantsPool.filters` per BR-02 and SA-01.
+
+**Non-obvious behaviour:**
+- Checkbox rows inside the dropdown toggle membership in `value`; closing the popover commits the current set.
+- BA17 applies a 400 ms debounce on pool re-fetch after filter changes (SA-01); debounce is page-level, not inside `MultiSelect`.
+
+---
 
 ## 10. Permission and access rules
 
@@ -646,56 +1121,188 @@ BASE does not directly read or write `pump_message` or `pump_message_recipient` 
 
 ## 12. Verification
 
-- Verify compose flows: send now, schedule, and send test for valid drafts.
-- Verify unresolved-token and sender validation blocks send actions.
-- Verify read-denied and update-denied route states.
-- Verify no-event and zero-pool states.
-- Verify filter updates and clear-filters behaviour in pool resolution calls.
-- Verify MCP checks for system template keys and communications page registration.
+**Scenario 1 — Full send flow**
+1. Log in as an event admin for an event with at least 3 participants in "approved" status.
+2. Navigate to `/communications`.
+3. Confirm the filter bar, CommComposer card, and RecipientPoolPreview all render.
+4. Set Status filter to "Approved". Confirm pool preview count updates.
+5. Select channel "Email". Enter sender name, sender email, subject, and body. Use the merge field toolbar to insert `{{first_name}}`.
+6. Confirm "Send now" is disabled (unresolved token). Navigate merge fields to verify `{{first_name}}` is in the list.
+7. Click "Send now". Confirm toast "Message sent to N participants." Confirm draft resets.
+
+**Scenario 2 — Schedule flow**
+1. Log in as event admin.
+2. Navigate to `/communications`. Complete a valid draft.
+3. Click "Schedule". Confirm datetime picker appears.
+4. Select a future datetime and confirm.
+5. Confirm toast "Message scheduled for [datetime]."
+
+**Scenario 3 — Send test**
+1. Log in as event admin.
+2. Navigate to `/communications`. Enter sender name, email, subject, and body.
+3. Click "Send test". Confirm toast "Test email sent to your email address."
+
+**Scenario 4 — Permission denied**
+1. Log in as a user without `read:page.communications`.
+2. Navigate to `/communications`.
+3. Confirm `AccessDenied` component renders. No compose surface visible.
+
+**Scenario 5 — System notification (manual verification via logs)**
+1. Trigger a guardian check issuance in BA05a for an application with a known parent contact.
+2. Confirm via `pump_message` and `pump_message_recipient` dev-db tables that a `base.guardian_request_issued` row was created and the recipient was resolved.
+
+**MCP verification:**
+```sql
+-- Verify system keys are present and active
+SELECT system_key, is_active FROM pump_system_templates
+WHERE system_key LIKE 'base.%' ORDER BY system_key;
+-- Expected: 6 rows, all is_active = true
+
+-- Verify communications page is registered for BASE
+SELECT page_name, scope_type FROM rbac_app_pages
+WHERE app_id = '25aaa04e-b230-4132-9984-f27ded97f861'
+AND page_name = 'communications';
+-- Expected: 1 row, scope_type = 'event'
+```
+
+---
 
 ## 13. Testing requirements
 
-- Render tests for compose + filter surface with adapter mocks.
-- Validation tests for unresolved tokens and required sender fields.
-- Permission tests for read deny and update action suppression.
-- Adapter tests for pool-resolution args, channel reset, and send-complete reset.
-- Notification-contract tests for success/failure return handling.
+**Minimum automated coverage:**
+
+- Happy path: render `/communications` with mocked adapter returning templates and merge fields; verify CommComposer renders, filter bar shows three dropdowns, pool preview shows estimated count.
+- Validation failure: draft with unresolved token; assert "Send now" button is disabled and alert banner is visible.
+- Auth / permission failure: render with `canRead = false`; assert `AccessDenied` is rendered and compose surface is not mounted.
+
+**Additional coverage:**
+
+- Filter change triggers `adapter.resolvePool` with updated filter values.
+- Channel switch clears draft channel-specific fields.
+- `onSendComplete` is called after successful send; draft resets.
+- `sendSystemNotification` called with correct system_key and recipient type returns `ApiResult.ok = true` when adapter mock succeeds.
+- `sendSystemNotification` failure does not throw; returns `ApiResult.ok = false`.
+- Empty event context renders no-event empty state.
+
+**Required quality gates:** `lint`, `type-check`, `tests`, `validate`
+
+---
 
 ## 14. Build execution rules
 
-- Scope is `/communications` and this slice’s constants/contracts only.
-- No schema/RPC/RLS changes from BA17.
-- Do not implement BA05a/BA06 Edge logic in this route slice.
-- Stop and report on comms export/DB readiness gate regressions.
+- No schema, RPC, or RLS contract changes are permitted by this slice. If the build agent discovers a missing schema object, stop and flag — do not create migrations.
+- This slice owns only the `/communications` route. Do not touch routes owned by other slices.
+- Do not implement BA05a or BA06 Edge Functions in this slice. BA17's system notification responsibility is limited to: defining `BASE_SYSTEM_KEYS` constants, documenting the `sendSystemNotification()` call contract, and verifying the system keys are present.
+- Do not implement `CommSendAdapter` locally. Use `useCommSendAdapter` from `@solvera/pace-core/comms`.
+- Do not use `useCan` — it is retired. Use `PagePermissionGuard` and `useResourcePermissions` exclusively.
+- All §8 implementation gates are ✅ PASSED as of 2026-05-01. If a gate regresses (missing export, missing DB row), stop and flag — do not implement workarounds or stubs.
+- Stop on blockers: missing RBAC permissions, missing pace-core2 exports, failing validation. Do not substitute stubs.
+- Respect backend freeze: pump_* tables and their RLS policies are owned by PUMP — do not alter them.
+
+---
 
 ## 15. Done criteria
 
-- Compose/filter/pool behaviours in §4 are demonstrable.
-- §12 verification scenarios are completed with evidence for key states.
-- §13 tests pass for adapter, validation, and permission contracts.
-- System-notification prerequisites remain verified for dependent slices.
+A slice is Done only when:
+
+- All acceptance criteria (AC-01 through AC-18) pass and are verified (not pre-ticked).
+- All Functional Specification items (PE-01 through SN-08) are implemented and demonstrable.
+- All quality gates pass (`lint`, `type-check`, `tests`, `validate`).
+- Manual QA pack run with evidence captured.
+- Visual evidence (screenshots) covers: full compose surface (no filters), filtered pool (status = approved), AccessDenied state, read-only mode (canSend=false), loading state, send success toast, empty state (no event), pool estimate zero.
+- Build queue row updated with `execution_status` and `evidence`.
+
+---
 
 ## 16. Do not
 
-- Do not build custom editor/messaging UIs outside `CommComposer`.
-- Do not query PUMP delivery tables directly from UI code.
-- Do not call `sendSystemNotification` from browser route code.
-- Do not implement template CRUD or sender-management UI here.
-- Do not use retired `useCan` route gating.
+- Do not add behaviour not present in this document.
+- Do not expand scope outside the `/communications` route.
+- Do not implement BA05a or BA06 Edge Functions in this slice.
+- Do not implement a custom email editor, rich-text component, or bespoke messaging tool — use `CommComposer` exclusively.
+- Do not query `pump_message`, `pump_message_recipient`, `pump_delivery_event`, or `pump_suppression` directly from the UI — these tables are written by PUMP Edge Functions only.
+- Do not call `sendSystemNotification()` from React components or page-level browser code — it is a backend Edge Function call only.
+- Do not implement template CRUD — BASE consumes `pump_organisation_templates` read-only.
+- Do not implement sender identity management, gateway configuration, or suppression management UI.
+- Do not use `useCan` — it is retired.
+- Do not substitute stubs if any §8 implementation gate regresses — stop and flag instead.
+- Do not pre-tick acceptance criteria.
+- Do not introduce undocumented exports, props, or routes.
+
+---
 
 ## 17. References
 
-- `docs/requirements/base/BASE-project-brief.md`
-- `docs/requirements/base/BASE-architecture.md`
-- `docs/requirements/base/BA00-app-shell-and-access-requirements.md`
-- `docs/requirements/base/BA01-event-workspace-and-configuration-requirements.md`
-- `docs/requirements/base/BA04-registration-setup-and-policy-requirements.md`
-- `docs/requirements/base/BA05a-registration-entry-and-application-submission-requirements.md`
-- `docs/requirements/base/BA06-applications-admin-and-review-requirements.md`
-- `packages/core/docs/requirements/CR23-comms-platform.md`
-- `docs/database/domains/base.md`
+- `/rebuild/slices/BASE-project-brief.md`
+- `/rebuild/slices/BASE-architecture.md` — §BA17 row in slice overview table; route ownership registry `/communications`; execution lane (BASE overnight, after CR23 readiness)
+- BA00 — App Shell and Access (provides authenticated shell, navigation, event context)
+- BA01 — Event Workspace and Configuration (owns `/event-dashboard` nav card linking to `/communications`)
+- BA04 — Registration Setup and Policy (owns `base_registration_type` — filter data source)
+- BA05a — Registration Entry and Application Submission (system notification call points: guardian + referee)
+- BA06 — Applications Admin and Review (system notification call points: application approved/rejected)
+- BA08 — Units and Group Coordination (owns `base_units` — filter data source)
+- `pace-core2/packages/core/docs/requirements/CR23-comms-platform.md` — canonical comms architecture authority
+- `docs/database/domains/base.md` — BASE domain schema reference
+- `rebuild/_authoring/parity-audit/BA17.md` — Phase 1 parity audit with full resolution log
+
+---
 
 ## 18. Implementing Agent Instructions
 
-- Implement only BA17 route composition and constants owned by this slice.
-- Re-check comms package/database readiness gates and stop on drift.
+**Implementation scope**
+
+Your scope is the `/communications` route and the `BASE_SYSTEM_KEYS` constants export. Do not absorb scope from adjacent slices. Do not touch BA05a, BA06, or any PUMP-owned code.
+
+**Sources of truth**
+
+This document is the only source of functional and visual truth for this slice. The architecture document and project brief govern cross-cutting decisions. pace-core2 standards govern shared patterns. Do not consult any legacy code. If something appears to be missing from this document, that is a documentation defect to report — not an excuse to infer from legacy code or make assumptions.
+
+**Pre-implementation gate check**
+
+Before writing any code, re-verify §8 gates have not regressed (spot-check against dev-db MCP queries and pace-core2 package exports):
+
+1. `BA17.template.system_keys.base_v1` — 6 active `base.*` rows in `pump_system_templates`.
+2. `BA17.RBAC.communications_page` — `communications` row in `rbac_app_pages` for BASE app (`scope_type` = `event`).
+3. `BA17.adapter.useCommSendAdapter` — `useCommSendAdapter` exported from `@solvera/pace-core/comms`.
+4. `BA17.pool.status_alignment` — `EventParticipantsPoolFilters.status` accepts BASE vocabulary in pace-core2 `comms/types.ts`.
+5. `BA17.component.MultiSelect` — `MultiSelect` exported from `@solvera/pace-core/components`.
+
+If any check fails, **stop and flag** — do not proceed with stubs or workarounds.
+
+**Quality gates before marking Done**
+
+- [ ] All Functional Specification items implemented and functional.
+- [ ] All acceptance criteria verified (not pre-ticked).
+- [ ] `lint`, `type-check`, `tests`, `validate` all pass.
+- [ ] Visual evidence captured for all required states (see §15).
+- [ ] QA pack scenarios run with evidence captured.
+- [ ] Build queue row updated with `execution_status` and `evidence`.
+
+---
+
+## 19. Self-containment audit
+
+The author confirms the following (run literally — not interpretively — using grep/search for keyword checks):
+
+- [x] No legacy file paths anywhere in this document.
+- [x] No legacy hook, component, utility, service, or route names anywhere in this document.
+- [x] No language of the form "preserve / retain / keep / as today / the existing / the original" — verified by literal search. Zero matches outside this checklist.
+- [x] "The current X" usages reviewed: all occurrences are runtime-state references (the current user, the current event, the current channel, the currently-selected template, the currently-focused textarea, the current filters). No legacy-capability references found.
+- [x] Every property of the new app is stated as a positive declaration, not as a delta against an unstated baseline.
+- [x] Every business rule referenced in §4 and §5 is defined explicitly in §6.
+- [x] Cross-slice references (BA05a, BA06, BA01, BA04, BA08) are about contracts (route handoff, data shape, exported constants) — not about behaviour delegation.
+- [x] A UI designer with no other context can mock up the `/communications` surface from §5 alone. §5 restates all repeated element details inline (filter bar controls, CommComposer card structure, footer buttons, permission table).
+- [x] A QA tester with no code access can verify all 18 acceptance criteria.
+- [x] Every non-trivial pace-core2 item in §9.1 has full prop/argument/return-shape detail in §9.2 (`CommComposer`, `useCommDraft`, `useCommSendAdapter`, `useResourcePermissions`, `PagePermissionGuard`, `sendSystemNotification`, `toast`, `ApiResult`/`ApiError`, `MultiSelect`). Primitive items (`LoadingSpinner`, `AccessDenied`, type-only imports except `MultiSelectOption` paired with `MultiSelect`) are table-only.
+- [x] No "equivalent to X" or "similar to legacy Y" hedging language anywhere in this document. Every behaviour is named with an actual pace-core2 export and documented, or defined as an explicit business rule in §6.
+- [x] §3 specifies evaluation order for the page guard + no-event state: guard fires first (before event context check); scope object fields documented for absent eventId; guard behaviour during loading documented.
+- [x] §5 ↔ §16 cross-consistency checked: no feature described in §5 is prohibited by any "Do not" rule in §16. CommComposer is allowed; `sendSystemNotification` from React is correctly prohibited in §16 and not described in §5 as a UI action.
+- [x] §6 → §9 propagation: `getUnresolvedTokens` (cited in BR-01), `EventParticipantsPool` / `EventParticipantsPoolFilters` (cited in BR-02, BR-10), `CommRbacContext` (cited in BR-14), `SystemNotificationRequest` (cited in BR-06, BR-07, BR-08), `ApiResult`/`ApiError` (cited in BR-05 and throughout §7) all appear in §9.1.
+- [x] Cross-section consistency sweep after final gate clearance (2026-05-01): all §8 gates ✅ PASSED; `MultiSelect` and `rbac_app_pages` `communications` row verified against pace-core2 source and dev-db; §14 / §18 / §20 updated for regression-check wording; §9.2 `MultiSelect` props aligned to shipped component.
+- [x] Visual rendering verified against pace-core2 source: CommComposer is documented as single-column per the actual `components.tsx` source (not the CR23 two-column spec). This matches the source observation recorded in the parity audit.
+
+---
+
+## 20. Open questions
+
+No open questions. All Phase 1 questions resolved before Phase 2 commenced. All §8 implementation gates ✅ PASSED as of 2026-05-01 (final verification: dev-db `communications` `rbac_app_pages` row; pace-core2 `MultiSelect` export).

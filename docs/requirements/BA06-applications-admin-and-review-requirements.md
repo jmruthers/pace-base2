@@ -4,7 +4,7 @@
 
 - Status: Draft
 - Depends on: BA04 (registration policy and requirement chains), BA05a.contract (application creation and `workflow_subject` linking), BA17.contract (system notification keys **SN-05** `base.application_approved` and **SN-06** `base.application_rejected` — keys must exist in `pump_system_templates` for BA06 status-transition Edge Functions to dispatch; verified present in dev-db 2026-05-01 per BA17 audit) _(BA00 shell is transitively required via BA04 → BA01; not restated here, matching architecture's slice overview)_
-- Backend impact: Read + write contracts; **`app_base_application_check_set_status` confirmed absent from dev-db — confirmed build blocker for `event_approval` actions (see §14 and §20)**
+- Backend impact: Read + write contracts; **all three organiser RPCs verified present on dev-db (`app_base_application_set_status`, `app_base_application_check_set_status`, `app_base_application_check_reissue_token`)**. SN-05/SN-06 server-side dispatch wiring is implemented in backend and must remain contract-compatible with this slice.
 - Frontend impact: UI
 
 ## 2. Overview
@@ -102,15 +102,15 @@ Prefix legend: **`PQ`** page and queue, **`PD`** detail dialog, **`PR`** review-
 14. **PD-PC-03 —** Body includes **Registration type** label + resolved type name.
 15. **PD-PC-04 —** Body includes **Evidence** section with heading "Form evidence". Each linked **`core_form_responses`** row per **BR-EVIDENCE-FILTER** is rendered as a separate **`Card`**. The Card header shows the **form name** (from joined **`core_forms`**) and the **submitted** timestamp formatted with **`formatDateTime`** (`@solvera/pace-core/utils`). The Card body lists field rows from **`core_form_response_values`** as key–value pairs: show human label from joined **`core_form_fields`** when **`form_field_id`** resolves, otherwise fall back to **`field_key`**; render **`value_text`** directly; render **`value_json`** per **BR-JSON-RENDER**. While the evidence query is resolving after dialog open, show a centred **`LoadingSpinner`** in the Evidence section body. If the evidence query fails, show a compact **`Alert variant="destructive"`** with **`NormalizeSupabaseError(error).message`** and a **Retry** control inside the Evidence section; the rest of the dialog remains visible. Empty evidence (zero matching rows): show neutral copy "No linked form responses were found for this application."
 16. **PD-PC-05 —** Body includes **Checks overview**: concise list or summary of **`base_application_check`** rows for this application (same ordering rule as **PR** — **BR-STEP-ORDER**), showing **`check_type`** label (**BR-TYPELABEL**), **`status`** badge/checkmark styling, and for token types when **pending**: **`token_expires_at`** when present (for operator context). **Never** display **`token_hash`**. Checks overview uses data already loaded in the queue row (no second fetch); sort client-side by `requirement.sort_order` ascending, nulls last.
-17. **PD-PC-06 —** **`event_approval`** row with **`pending`** status shows organiser actions **Satisfy check** and **Reject check** when **BR-EVENT-ACTIONS** permits. **These actions are only available after `app_base_application_check_set_status` is confirmed present on dev-db per §14 and §20 Q1.**
+17. **PD-PC-06 —** **`event_approval`** row with **`pending`** status shows organiser actions **Satisfy check** and **Reject check** when **BR-EVENT-ACTIONS** permits.
 18. **PD-PC-07 —** For **`guardian_approval`** or **`referee`** with **`pending`** status, show **Reissue link** when **BR-REISSUE** permits.
 19. **PD-PC-08 —** Footer **`DialogClose`** "Close" dismisses the dialog and returns focus appropriately.
 
 ### Primary actions — application-level
 
-20. **PD-PA-01 —** **Approve application** and **Reject application** buttons appear when **BR-OVERRIDE** permits (submitted / under_review → approved / rejected). Each opens a **`ConfirmationDialog`** per **§5 Confirmation dialog copy**. **Reject** does **not** require a free-text note (no **`Textarea`** on application reject).
-21. **PD-PA-02 —** Confirm **Approve** calls **`app_base_application_set_status`** with **`p_application_id`** and **`p_target_status: 'approved'`** (omit `p_actor` — server resolves from session). Success: toast "Application approved", close dialog, invalidate list. If the RPC raises an error whose message contains "status transition is not allowed", show: "This application's status has already been updated — close this dialog and refresh the queue to see the current state." and close the confirmation dialog. All other errors: **`HandleMutationError`**; dialog remains open.
-22. **PD-PA-03 —** Confirm **Reject** calls **`app_base_application_set_status`** with **`p_target_status: 'rejected'`** (omit `p_actor`). Success: toast "Application rejected", close dialog, invalidate list. Same concurrency and error handling as **PD-PA-02**. **Unresolved checks stay pending** after override — **BR-UNRESOLVED-VISIBLE**.
+20. **PD-PA-01 —** **Approve application** and **Reject application** buttons appear when **BR-OVERRIDE** permits (submitted / under_review → approved / rejected). Each opens a **`ConfirmationDialog`** per **§5 Confirmation dialog copy**. **Reject** requires a notes **`Textarea`** because current RPC contract rejects empty notes.
+21. **PD-PA-02 —** Confirm **Approve** calls **`app_base_application_set_status`** with **`p_application_id`** and **`p_target_status: 'approved'`** (omit `p_actor` — server resolves from session). Success: toast "Application approved", close dialog, invalidate list. If the RPC raises **`validation_error.application_status_transition_invalid`** (or an equivalent transition-invalid message), show: "This application's status has already been updated — close this dialog and refresh the queue to see the current state." and close the confirmation dialog. All other errors: **`HandleMutationError`**; dialog remains open.
+22. **PD-PA-03 —** Confirm **Reject** calls **`app_base_application_set_status`** with **`p_target_status: 'rejected'`** and required **`p_notes`** from the reject dialog textarea (omit `p_actor`). Success: toast "Application rejected", close dialog, invalidate list. Same concurrency and error handling as **PD-PA-02**. **Unresolved checks stay pending** after override — **BR-UNRESOLVED-VISIBLE**.
 
 ### Primary actions — `event_approval` check
 
@@ -137,7 +137,7 @@ Prefix legend: **`PQ`** page and queue, **`PD`** detail dialog, **`PR`** review-
 
 32. **PM-PR-01 —** Page **`read`** guard: denied ⇒ **`AccessDenied`**; no queue.
 33. **PM-PR-02 —** **Approve / Reject application** visible only with **`update`** (or the catalogue permission mapped to organiser override for `applications`) — exact token in §10.
-34. **PM-PR-03 —** **`event_approval`** actions visible only when **`check_type === 'event_approval'`**, check **`pending`**, and caller has permission to call **`app_base_application_check_set_status`** for this context (**§10**). Additionally, these actions must not be rendered until **`app_base_application_check_set_status`** is confirmed present on dev-db per §20 Q1.
+34. **PM-PR-03 —** **`event_approval`** actions visible only when **`check_type === 'event_approval'`**, check **`pending`**, and caller has permission to call **`app_base_application_check_set_status`** for this context (**§10**).
 35. **PM-PR-04 —** **Reissue token** visible only for permitted operators and when **BR-REISSUE** true.
 
 ### Navigation
@@ -146,7 +146,7 @@ Prefix legend: **`PQ`** page and queue, **`PD`** detail dialog, **`PR`** review-
 
 ### Edge cases and constraints
 
-37. **PM-EC-01 —** If **`app_base_application_check_set_status`** is absent on the linked Supabase project, **stop** implementation of **`event_approval`** actions and raise a backend blocker (**§14**). This condition is currently active — the RPC is confirmed absent from dev-db as of the authoring date of this document.
+37. **PM-EC-01 —** If **`app_base_application_check_set_status`** is absent on the linked Supabase project, **stop** implementation of **`event_approval`** actions and raise a backend blocker (**§14**). This is an environment parity check, not active for the current dev-db baseline.
 38. **PM-EC-02 —** Applicant name empty after **BR-NAME** → show **"Unknown applicant"** (or email-only fallback) rather than blank headings.
 39. **PM-EC-03 —** Notification dispatch (**SN-05**, **SN-06**) is a **contract**: backend or Edge must fire on transition to **`approved`** / **`rejected`**; BA06 UI must not fake notifications client-side only.
 
@@ -326,11 +326,12 @@ _Adjust relationship names (`field:core_form_fields`) to match generated PostgRE
 .rpc('app_base_application_set_status', {
   p_application_id: uuid,
   p_target_status: 'approved' | 'rejected',
+  p_notes: string | null, // required when target is 'rejected' in current RPC contract
   // p_actor: omit — server resolves from auth.uid()
 })
 ```
 
-_Verified present on dev-db (`rkytnffgmwnnmewevqgp`). Server permission: `is_super_admin OR check_user_event_access`. Raises exception with message containing "status transition is not allowed from" when source status is not `submitted` or `under_review` — handle per **PD-PA-02** concurrency rule._
+_Verified present on dev-db (`rkytnffgmwnnmewevqgp`). Current signature includes optional `p_actor` and optional `p_notes`, with function logic requiring notes when target is `rejected` (`validation_error.reject_notes_required`). Server permission: `is_super_admin OR check_user_event_access`. Transition conflicts raise `validation_error.application_status_transition_invalid` — handle per **PD-PA-02** concurrency rule._
 
 **Check status (`event_approval` and other consumers of this RPC)**
 
@@ -339,11 +340,11 @@ _Verified present on dev-db (`rkytnffgmwnnmewevqgp`). Server permission: `is_sup
   p_check_id: uuid,
   p_status: 'satisfied' | 'failed' | 'waived',
   p_notes: string | null,
-  // p_actor: include or omit pending RPC signature confirmation (see §20 Q1)
+  // p_actor: omit — server resolves from auth.uid()
 })
 ```
 
-_**⚠ BLOCKED** — `app_base_application_check_set_status` is confirmed absent from dev-db. Do not implement `event_approval` actions until this RPC is deployed and its full signature confirmed (see §14 and §20 Q1)._
+_Verified present on dev-db (`rkytnffgmwnnmewevqgp`). Function is `SECURITY DEFINER`, enforces event access, and advances workflow server-side._
 
 **Token reissue**
 
@@ -363,7 +364,7 @@ _Verified present on dev-db (`rkytnffgmwnnmewevqgp`). Server permission: `is_sup
 
 - RPCs enforce contextual permissions via `check_user_event_access(event_id)` (or `is_super_admin`) at the database level; client **must not** bypass with direct table updates on `base_application` or `base_application_check`.
 - The page-level RBAC guard (`update:page.applications`) controls UI visibility. The RPC enforces the actual permission. Both must be satisfied.
-- **`app_base_application_check_set_status`** is expected to be **`SECURITY DEFINER`** per architecture; client **`pageName`** / permission resources must align with DB expectations once the RPC is deployed (**§10**, **§20 Q1**).
+- **`app_base_application_check_set_status`** is **`SECURITY DEFINER`** per architecture on current dev-db; client **`pageName`** / permission resources must align with DB expectations (**§10**).
 
 ### 7.4 Cross-slice hand-offs
 
@@ -398,7 +399,7 @@ No hard-coded demo applications in production paths; use BA18 seeds for QA.
 
 1. ✅ **`app_base_application_set_status(p_application_id, p_target_status)`** — present; `p_actor` omitted by client (server default); signature confirmed.
 2. ✅ **`app_base_application_check_reissue_token(p_check_id)`** — present; `p_actor` and `p_expiry_interval` omitted by client (server defaults); signature confirmed.
-3. ❌ **`app_base_application_check_set_status`** — **ABSENT**. Backend blocker active. Full signature unknown. Build of `event_approval` actions must not proceed until this is resolved (§20 Q1).
+3. ✅ **`app_base_application_check_set_status(p_check_id, p_status, p_notes)`** — present; `p_actor` not required by client (server resolves from auth.uid()).
 4. RLS spot-check for `base_application` + checks + evidence pattern as organiser test session — pending (recommend confirming before QA).
 
 Domain/decision docs: honour `docs/database/domains/*.md` where they overlap RLS narration.
@@ -421,7 +422,7 @@ Domain/decision docs: honour `docs/database/domains/*.md` where they overlap RLS
 
 - Keep `DataTable` feature configuration restricted (no export/grouping enablement here).
 - Evidence views must exclude secret fields (`token_hash` and similar).
-- `event_approval` actions stay blocked until check-status RPC contract exists.
+- Keep `event_approval` actions gated by permission + pending state checks.
 - Import style in this slice follows root-first policy; scoped imports are exception-only.
 
 ## 10. Permission and access rules
@@ -430,7 +431,7 @@ Domain/decision docs: honour `docs/database/domains/*.md` where they overlap RLS
 | --- | --- | --- |
 | View `/applications` | `read:page.applications` (via **`pageName="applications"`**) | `PagePermissionGuard` + RLS |
 | Approve / reject application | `update:page.applications` (or project equivalent for organiser mutations) | Guard wrappers + RPC (`check_user_event_access` enforced server-side) |
-| `event_approval` RPC | Pending confirmation of `app_base_application_check_set_status` signature (§20 Q1); expected to use same `check_user_event_access` pattern as other organiser RPCs | Guard + RPC (blocked) |
+| `event_approval` RPC | `app_base_application_check_set_status(p_check_id, p_status, p_notes)` | Guard + RPC (`check_user_event_access` enforced server-side) |
 | Reissue token | `update:page.applications` | Guard + RPC (`check_user_event_access` enforced server-side) |
 
 _Row-level_: only applications for **`event_id`** in scope are visible; RLS enforces tenant boundaries.
@@ -451,11 +452,11 @@ _Note_: server-side permission enforcement for the two verified RPCs uses `is_su
 - Given **`event_approval`** pending, permitted user, and RPC present: **Satisfy** / **Reject check** succeed and refresh shows updated check status.
 - Given **`guardian_approval`** pending, **Reissue** succeeds and shows success toast.
 - Given application **under review**, **Approve** transitions status to **approved** (RPC success, list badge updates).
-- Given application **reject** confirm without notes, RPC succeeds (**no** required notes field).
+- Given application **reject** confirm without notes, RPC returns **`validation_error.reject_notes_required`** and the dialog remains open.
 - Given an application already approved by another session, calling Approve/Reject shows the concurrency message "This application's status has already been updated — close this dialog and refresh the queue to see the current state."
 - Given list fetch error, destructive alert with **Retry** refetches successfully.
 - Given an application with zero checks, **View review steps** does not appear in the row actions.
-- Given backend missing **`app_base_application_check_set_status`**, `event_approval` actions are not rendered and build is stopped per **§14**.
+- Given backend environment missing **`app_base_application_check_set_status`**, `event_approval` actions are not rendered and a backend blocker is raised per **§14**.
 
 ---
 
@@ -494,7 +495,7 @@ _Note_: server-side permission enforcement for the two verified RPCs uses `is_su
 - Do not expose sensitive fields (including token hashes) in organiser views.
 - Do not broaden evidence query scope beyond documented filters.
 - Do not bypass RPCs with direct table updates.
-- Do not implement blocked `event_approval` actions before backend readiness.
+- Do not implement `event_approval` actions against environments where organiser RPC contracts are missing or divergent.
 
 ## 17. References
 

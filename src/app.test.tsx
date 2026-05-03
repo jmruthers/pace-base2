@@ -84,6 +84,10 @@ vi.mock('./pages/registrationTypes/RegistrationTypesPage', () => ({
   RegistrationTypesPage: () => <main>Registration Types Page</main>,
 }));
 
+vi.mock('./pages/applications/ApplicationsPage', () => ({
+  ApplicationsPage: () => <main>Applications Page</main>,
+}));
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -191,6 +195,13 @@ describe('BA00 route behavior', () => {
     expect(await screen.findByText('Access Denied')).toBeTruthy();
   });
 
+  it('shows access denied for applications when read permission is denied', async () => {
+    authState.isAuthenticated = true;
+    permissionState.allowRead = false;
+    renderAt('/applications');
+    expect(await screen.findByText('Access Denied')).toBeTruthy();
+  });
+
   it('renders form builder route inside shell when authenticated', async () => {
     authState.isAuthenticated = true;
     renderAt('/form-builder');
@@ -210,5 +221,12 @@ describe('BA00 route behavior', () => {
     renderAt('/registration-types');
     expect(await screen.findByText('Shell Layout')).toBeTruthy();
     expect(await screen.findByText('Registration Types Page')).toBeTruthy();
+  });
+
+  it('renders applications route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/applications');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Applications Page')).toBeTruthy();
   });
 });
