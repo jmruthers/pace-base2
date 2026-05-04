@@ -18,7 +18,7 @@ import {
 } from '@solvera/pace-core/components';
 import { WorkflowFormAuthoringShell, type WorkflowAuthoringState } from '@solvera/pace-core/forms';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
-import { PagePermissionGuard } from '@solvera/pace-core/rbac';
+import { PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage } from '@solvera/pace-core/utils';
 import {
   isPublishedForm,
@@ -333,7 +333,8 @@ function FormBuilderEditor({
 export function FormBuilderPage() {
   const [searchParams] = useSearchParams();
   const { selectedEvent } = useEvents();
-  const { selectedEventId, selectedOrganisationId, appId } = useUnifiedAuth();
+  const { selectedEventId, selectedOrganisationId } = useUnifiedAuth();
+  const { organisationId, eventId, appId } = useResolvedScope();
 
   const formId = searchParams.get('formId');
   const isEditMode = formId != null;
@@ -341,8 +342,8 @@ export function FormBuilderPage() {
   const registrationTypeState = useRegistrationTypes(selectedEventId, selectedEventId != null);
 
   const scope = {
-    organisationId: selectedOrganisationId,
-    eventId: selectedEventId ?? null,
+    organisationId: organisationId ?? selectedOrganisationId,
+    eventId: eventId ?? selectedEventId ?? null,
     appId: appId ?? undefined,
   };
 

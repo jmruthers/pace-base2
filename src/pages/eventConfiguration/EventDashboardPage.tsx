@@ -11,7 +11,7 @@ import {
 } from '@solvera/pace-core/components';
 import { useEvents, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { Calendar } from '@solvera/pace-core/icons';
-import { PagePermissionGuard, useSecureSupabase } from '@solvera/pace-core/rbac';
+import { PagePermissionGuard, useResolvedScope, useStorageCapableClient } from '@solvera/pace-core/rbac';
 import { formatDate } from '@solvera/pace-core/utils';
 import { useDashboardCounts } from '@/features/eventConfiguration/dashboard';
 import { computeEventEndDate, formatEventLogoFallback } from '@/features/eventConfiguration/shared';
@@ -210,8 +210,9 @@ function eventNumberField(selectedEvent: EventLike | null, fieldName: keyof Even
 
 export function EventDashboardPage() {
   const { selectedEvent } = useEvents();
-  const { selectedEventId, selectedOrganisationId, appId } = useUnifiedAuth();
-  const secureSupabase = useSecureSupabase();
+  const { selectedEventId } = useUnifiedAuth();
+  const { organisationId, eventId, appId } = useResolvedScope();
+  const storageSupabase = useStorageCapableClient();
   const counts = useDashboardCounts(selectedEventId);
   const { data: logoRef } = useEventLogoReference(selectedEventId);
 
@@ -237,8 +238,8 @@ export function EventDashboardPage() {
       pageName="event-dashboard"
       operation="read"
       scope={{
-        organisationId: selectedOrganisationId,
-        eventId: selectedEventId,
+        organisationId,
+        eventId,
         appId: appId ?? undefined,
       }}
       fallback={null}
@@ -270,7 +271,8 @@ export function EventDashboardPage() {
             {logoRef != null ? (
               <FileDisplay
                 fileReference={logoRef}
-                supabase={secureSupabase as never}
+                supabase={storageSupabase}
+                bucket="public-files"
                 variant="inline"
                 className="h-48 w-full object-contain"
                 label="Event logo"

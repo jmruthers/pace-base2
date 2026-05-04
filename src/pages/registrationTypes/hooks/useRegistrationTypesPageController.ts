@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { PointerSensor, type DragEndEvent, useSensor, useSensors } from '@dnd-kit/core';
 import { useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
+import { useResolvedScope } from '@solvera/pace-core/rbac';
 import { HandleMutationError, ShowSuccessMessage } from '@solvera/pace-core/utils';
 import {
   useMembershipTypesForEvent,
@@ -38,13 +39,13 @@ import type {
 export type DialogStep = 'edit' | 'confirm';
 
 function registrationScope(scope: {
-  selectedOrganisationId: string | null;
-  selectedEventId: string | null;
+  organisationId: string | null;
+  eventId: string | null;
   appId: string | null;
 }) {
   return {
-    organisationId: scope.selectedOrganisationId,
-    eventId: scope.selectedEventId ?? null,
+    organisationId: scope.organisationId,
+    eventId: scope.eventId ?? null,
     appId: scope.appId ?? undefined,
   };
 }
@@ -52,8 +53,13 @@ function registrationScope(scope: {
 export function useRegistrationTypesPageController() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { selectedOrganisationId, selectedEventId, appId } = useUnifiedAuth();
-  const scope = registrationScope({ selectedOrganisationId, selectedEventId, appId });
+  const { selectedOrganisationId, selectedEventId } = useUnifiedAuth();
+  const { organisationId, eventId, appId } = useResolvedScope();
+  const scope = registrationScope({
+    organisationId: organisationId ?? selectedOrganisationId,
+    eventId: eventId ?? selectedEventId,
+    appId,
+  });
 
   const listQuery = useRegistrationTypesList(selectedEventId);
   const upsertMutation = useRegistrationTypeUpsertMutation();

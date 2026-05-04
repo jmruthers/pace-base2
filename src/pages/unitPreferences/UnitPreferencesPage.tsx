@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@solvera/pace-core/components';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
-import { PagePermissionGuard, useSecureSupabase } from '@solvera/pace-core/rbac';
+import { PagePermissionGuard, useResolvedScope, useSecureSupabase } from '@solvera/pace-core/rbac';
 import { HandleMutationError, ShowSuccessMessage, formatDateTime } from '@solvera/pace-core/utils';
 import {
   useActivitySessions,
@@ -59,16 +59,17 @@ export function UnitPreferencesPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const secureSupabase = useSecureSupabase();
-  const { selectedEvent, selectedEventId, selectedOrganisationId, appId } = useUnifiedAuth();
+  const { selectedEvent, selectedEventId, selectedOrganisationId } = useUnifiedAuth();
+  const { organisationId, eventId, appId } = useResolvedScope();
   const { selectedEvent: selectedEventFromService } = useEvents();
 
   const scope = useMemo(
     () => ({
-      organisationId: selectedOrganisationId,
-      eventId: selectedEventId ?? null,
+      organisationId: organisationId ?? selectedOrganisationId,
+      eventId: eventId ?? selectedEventId ?? null,
       appId: appId ?? undefined,
     }),
-    [appId, selectedEventId, selectedOrganisationId]
+    [appId, eventId, organisationId, selectedEventId, selectedOrganisationId]
   );
 
   const unitsQuery = useUnitsList(selectedEventId);

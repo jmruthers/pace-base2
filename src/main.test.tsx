@@ -16,7 +16,7 @@ const captured = vi.hoisted(
 vi.mock('./App', () => ({
   __esModule: true,
   default: () => <main>Mock App</main>,
-  APP_NAME: 'BASE',
+  APP_NAME: 'base',
 }));
 
 vi.mock('./lib/supabase', () => ({
@@ -82,12 +82,15 @@ describe('main bootstrap wiring', () => {
     document.body.innerHTML = '';
   });
 
-  it('calls setupRBAC with appName BASE before app bootstraps', async () => {
+  it('calls setupRBAC with appName base and app resolver before app bootstraps', async () => {
     await bootstrapMain();
     expect(setupRBACMock).toHaveBeenCalledTimes(1);
     expect(setupRBACMock).toHaveBeenCalledWith(
       { tag: 'mock-supabase-client' },
-      { appName: 'BASE' }
+      expect.objectContaining({
+        appName: 'base',
+        getAppId: expect.any(Function),
+      })
     );
   });
 

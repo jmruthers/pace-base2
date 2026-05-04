@@ -54,6 +54,12 @@ vi.mock('@solvera/pace-core/hooks', () => ({
 }));
 
 vi.mock('@solvera/pace-core/rbac', () => ({
+  useResolvedScope: () => ({
+    organisationId: authState.selectedOrganisationId,
+    eventId: authState.selectedEventId,
+    appId: authState.appId,
+    isLoading: false,
+  }),
   PagePermissionGuard: ({ children, fallback }: { children: React.ReactNode; fallback?: React.ReactNode }) =>
     children ?? fallback ?? null,
   useSecureSupabase: () => secureSupabaseState.client,

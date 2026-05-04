@@ -3,6 +3,7 @@ import type { FileReference } from '@solvera/pace-core/types';
 
 export interface EventConfigurationRecord {
   event_id: string;
+  logo_id: string | null;
   event_name: string;
   event_code: string | null;
   event_email: string | null;

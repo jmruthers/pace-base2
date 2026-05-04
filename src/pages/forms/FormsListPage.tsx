@@ -24,7 +24,7 @@ import {
 } from '@solvera/pace-core/components';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { buildWorkflowPreviewTarget } from '@solvera/pace-core/forms';
-import { AccessDenied, PagePermissionGuard } from '@solvera/pace-core/rbac';
+import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage, formatDate } from '@solvera/pace-core/utils';
 import { useDeleteFormMutation, useFormFieldCounts, useFormsList } from '@/features/formsAuthoring/configuration';
 import { buildDeleteBlockedMessage, resolveEventSlug } from '@/features/formsAuthoring/shared';
@@ -115,7 +115,8 @@ export function FormsListPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { selectedEvent } = useEvents();
-  const { selectedEventId, selectedOrganisationId, appId } = useUnifiedAuth();
+  const { selectedEventId, selectedOrganisationId } = useUnifiedAuth();
+  const { organisationId, eventId, appId } = useResolvedScope();
   const formsQuery = useFormsList(selectedEventId);
   const fieldCountsQuery = useFormFieldCounts(selectedEventId, formsQuery.data);
   const deleteMutation = useDeleteFormMutation();
@@ -127,8 +128,8 @@ export function FormsListPage() {
   const eventSlug = useMemo(() => resolveEventSlug(selectedEvent), [selectedEvent]);
 
   const scope = {
-    organisationId: selectedOrganisationId,
-    eventId: selectedEventId ?? null,
+    organisationId: organisationId ?? selectedOrganisationId,
+    eventId: eventId ?? selectedEventId ?? null,
     appId: appId ?? undefined,
   };
 

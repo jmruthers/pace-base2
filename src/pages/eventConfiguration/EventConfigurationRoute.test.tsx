@@ -16,13 +16,21 @@ type SaveMutationState = {
   isPending: boolean;
 };
 
+type SaveLogoPointerMutationState = {
+  mutateAsync: (values?: unknown) => Promise<void>;
+  isPending: boolean;
+};
+
 let submitForm: (() => void) | null = null;
 
 const routeState = vi.hoisted(() => ({
   selectedEventId: 'event-1' as string | null,
   selectedOrganisationId: 'org-1' as string | null,
   appId: 'base' as string | null,
+  isScopeLoading: false,
   allowUpdate: true,
+  logoRef: null as Record<string, unknown> | null,
+  fileDisplayProps: null as Record<string, unknown> | null,
   eventQuery: {
     isLoading: false,
     error: null as unknown,
@@ -51,6 +59,10 @@ const routeState = vi.hoisted(() => ({
     mutateAsync: vi.fn(async () => undefined),
     isPending: false,
   } as SaveMutationState,
+  saveLogoPointerMutation: {
+    mutateAsync: vi.fn(async () => undefined),
+    isPending: false,
+  } as SaveLogoPointerMutationState,
   toast: vi.fn(),
   handleMutationError: vi.fn(),
   showSuccessMessage: vi.fn(),
@@ -108,14 +120,43 @@ vi.mock('@solvera/pace-core/components', () => ({
       onChange={() => onChange(value)}
     />
   ),
-  FileDisplay: () => <p>Logo Preview</p>,
+  FileDisplay: (props: Record<string, unknown>) => {
+    routeState.fileDisplayProps = props;
+    return <p>Logo Preview</p>;
+  },
   FileUpload: ({
     label,
+    organisation_id,
+    event_id,
+    app_id,
+    onUploadSuccess,
     onUploadError,
   }: {
     label: string;
+    organisation_id: string;
+    event_id: string;
+    app_id: string;
+    onUploadSuccess: (result: { file_reference: { id: string; is_public: boolean } }) => void;
     onUploadError: (error: Error) => void;
-  }) => <button onClick={() => onUploadError(new Error('upload failed'))}>{label}</button>,
+  }) => (
+    <>
+      <button
+        data-organisation-id={organisation_id}
+        data-event-id={event_id}
+        data-app-id={app_id}
+        onClick={() => onUploadError(new Error('upload failed'))}
+      >
+        {label}
+      </button>
+      <button
+        onClick={() =>
+          onUploadSuccess({ file_reference: { id: 'logo-ref-1', is_public: true } })
+        }
+      >
+        Upload logo success
+      </button>
+    </>
+  ),
   Form: ({
     children,
     defaultValues,
@@ -235,12 +276,17 @@ vi.mock('@solvera/pace-core/hooks', () => ({
     selectedEventId: routeState.selectedEventId,
     selectedOrganisationId: routeState.selectedOrganisationId,
     user: { id: 'user-1' },
-    appId: routeState.appId,
   }),
 }));
 
 vi.mock('@solvera/pace-core/rbac', () => ({
-  useSecureSupabase: () => ({}),
+  useStorageCapableClient: () => ({}),
+  useResolvedScope: () => ({
+    organisationId: routeState.selectedOrganisationId,
+    eventId: routeState.selectedEventId,
+    appId: routeState.appId,
+    isLoading: routeState.isScopeLoading,
+  }),
   PagePermissionGuard: ({
     operation,
     fallback,
@@ -265,10 +311,11 @@ vi.mock('@solvera/pace-core/utils', async (importOriginal) => {
 vi.mock('@/features/eventConfiguration/configuration', () => ({
   useEventConfigurationRecord: () => routeState.eventQuery,
   useSaveEventConfiguration: () => routeState.saveMutation,
+  useSaveEventLogoPointer: () => routeState.saveLogoPointerMutation,
 }));
 
 vi.mock('@/features/eventConfiguration/useEventLogoReference', () => ({
-  useEventLogoReference: () => ({ data: null, refetch: vi.fn() }),
+  useEventLogoReference: () => ({ data: routeState.logoRef, refetch: vi.fn() }),
 }));
 
 describe('EventConfigurationRoute', () => {
@@ -277,7 +324,10 @@ describe('EventConfigurationRoute', () => {
     routeState.selectedEventId = 'event-1';
     routeState.selectedOrganisationId = 'org-1';
     routeState.appId = 'base';
+    routeState.isScopeLoading = false;
     routeState.allowUpdate = true;
+    routeState.logoRef = null;
+    routeState.fileDisplayProps = null;
     routeState.eventQuery = {
       isLoading: false,
       error: null,
@@ -303,6 +353,10 @@ describe('EventConfigurationRoute', () => {
       },
     };
     routeState.saveMutation = {
+      mutateAsync: vi.fn(async () => undefined),
+      isPending: false,
+    };
+    routeState.saveLogoPointerMutation = {
       mutateAsync: vi.fn(async () => undefined),
       isPending: false,
     };
@@ -401,5 +455,41 @@ describe('EventConfigurationRoute', () => {
       'event-logo-upload',
       routeState.toast
     );
+  });
+
+  it('persists core_events.logo_id before applying uploaded local logo reference', async () => {
+    render(<EventConfigurationRoute />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload logo success' }));
+
+    await waitFor(() => {
+      expect(routeState.saveLogoPointerMutation.mutateAsync).toHaveBeenCalledWith({
+        eventId: 'event-1',
+        logoId: 'logo-ref-1',
+        userId: 'user-1',
+      });
+      expect(routeState.fileDisplayProps).toMatchObject({
+        fileReference: { id: 'logo-ref-1', is_public: true },
+      });
+    });
+  });
+
+  it('passes FileDisplay bucket and label when a logo reference exists', () => {
+    routeState.logoRef = {
+      id: 'ref-1',
+      file_metadata: { bucket: 'public-files', fileName: 'logo.png' },
+      is_public: true,
+      file_path: 'configuration/event_logos/logo.png',
+    };
+
+    render(<EventConfigurationRoute />);
+
+    expect(screen.getByText('Logo Preview')).toBeTruthy();
+    expect(routeState.fileDisplayProps).toMatchObject({
+      bucket: 'public-files',
+      label: 'Event logo',
+      variant: 'inline',
+    });
+    expect(routeState.fileDisplayProps?.supabase).toBeTruthy();
   });
 });

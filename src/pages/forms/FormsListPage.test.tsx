@@ -39,18 +39,25 @@ const state = vi.hoisted(() => ({
   clipboardWriteText: vi.fn(async () => undefined),
 }));
 
+const resolvedScopeState = vi.hoisted(() => ({
+  organisationId: 'org-1' as string | null,
+  eventId: 'event-1' as string | null,
+  appId: 'base-app' as string | null,
+  isLoading: false,
+}));
+
 vi.mock('@solvera/pace-core/hooks', () => ({
   useEvents: () => ({ selectedEvent: state.selectedEvent }),
   useUnifiedAuth: () => ({
     selectedEventId: state.selectedEventId,
     selectedOrganisationId: state.selectedOrganisationId,
-    appId: state.appId,
   }),
   useToast: () => ({ toast: state.toastMock }),
 }));
 
 vi.mock('@solvera/pace-core/rbac', () => ({
   AccessDenied: () => <main>Access Denied</main>,
+  useResolvedScope: () => resolvedScopeState,
   PagePermissionGuard: ({
     operation,
     fallback,
@@ -171,6 +178,9 @@ describe('FormsListPage', () => {
     state.selectedEventId = 'event-1';
     state.selectedOrganisationId = 'org-1';
     state.appId = 'base-app';
+    resolvedScopeState.organisationId = 'org-1';
+    resolvedScopeState.eventId = 'event-1';
+    resolvedScopeState.appId = 'base-app';
     state.allowRead = true;
     state.allowCreate = true;
     state.allowUpdate = true;

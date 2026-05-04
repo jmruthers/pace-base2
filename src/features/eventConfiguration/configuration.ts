@@ -40,7 +40,7 @@ async function fetchEventConfigurationRecord(
   const result = await (secureSupabase as unknown as SupabaseQueryClient)
     .from('core_events')
     .select(
-      'event_id, event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, event_colours, is_visible, organisation_id, description, registration_scope, created_at, created_by, updated_at, updated_by'
+      'event_id, logo_id, event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, event_colours, is_visible, organisation_id, description, registration_scope, created_at, created_by, updated_at, updated_by'
     )
     .eq('event_id', eventId)
     .single();
@@ -56,6 +56,12 @@ interface SaveConfigurationParams {
   eventId: string;
   userId: string | null;
   values: EventConfigurationFormValues;
+}
+
+interface SaveEventLogoPointerParams {
+  eventId: string;
+  logoId: string;
+  userId: string | null;
 }
 
 export function buildEventConfigurationUpdatePayload(params: SaveConfigurationParams) {
@@ -103,6 +109,35 @@ async function saveEventConfigurationRecord(
   return { ok: true, data: (result.data as Record<string, unknown> | null) ?? null };
 }
 
+async function saveEventLogoPointer(
+  secureSupabase: ReturnType<typeof useSecureSupabase>,
+  params: SaveEventLogoPointerParams
+): Promise<ApiResult<Record<string, unknown> | null>> {
+  if (secureSupabase == null) {
+    return {
+      ok: false,
+      error: { code: 'configuration-logo-pointer-client-missing', message: 'Supabase client is not available' },
+    };
+  }
+
+  const result = await (secureSupabase as unknown as SupabaseQueryClient)
+    .from('core_events')
+    .update({
+      logo_id: params.logoId,
+      updated_at: new Date().toISOString(),
+      updated_by: params.userId,
+    })
+    .eq('event_id', params.eventId)
+    .select('event_id, logo_id, updated_at, updated_by')
+    .single();
+
+  if (result.error != null) {
+    return { ok: false, error: { code: 'configuration-logo-pointer-save-error', message: String(result.error) } };
+  }
+
+  return { ok: true, data: (result.data as Record<string, unknown> | null) ?? null };
+}
+
 export function useEventConfigurationRecord(eventId: string | null) {
   const secureSupabase = useSecureSupabase();
 
@@ -125,6 +160,20 @@ export function useSaveEventConfiguration() {
   return useMutation({
     mutationFn: async (params: SaveConfigurationParams) => {
       const result = await saveEventConfigurationRecord(secureSupabase, params);
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
+    },
+  });
+}
+
+export function useSaveEventLogoPointer() {
+  const secureSupabase = useSecureSupabase();
+
+  return useMutation({
+    mutationFn: async (params: SaveEventLogoPointerParams) => {
+      const result = await saveEventLogoPointer(secureSupabase, params);
       if (!result.ok) {
         throw new Error(result.error.message);
       }

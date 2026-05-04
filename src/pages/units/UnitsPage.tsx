@@ -27,7 +27,7 @@ import {
   type ImportSummary,
 } from '@solvera/pace-core/components';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
-import { PagePermissionGuard, useSecureSupabase } from '@solvera/pace-core/rbac';
+import { PagePermissionGuard, useResolvedScope, useSecureSupabase } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage } from '@solvera/pace-core/utils';
 import {
   useApprovedApplications,
@@ -90,7 +90,8 @@ export function UnitsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const secureSupabase = useSecureSupabase();
-  const { selectedEvent, selectedEventId, selectedOrganisationId, appId } = useUnifiedAuth();
+  const { selectedEvent, selectedEventId, selectedOrganisationId } = useUnifiedAuth();
+  const { organisationId, eventId, appId } = useResolvedScope();
   const { selectedEvent: eventFromService } = useEvents();
 
   const unitsQuery = useUnitsList(selectedEventId);
@@ -121,11 +122,11 @@ export function UnitsPage() {
   const eventName = eventNameFromSelection(selectedEvent ?? eventFromService);
   const scope = useMemo(
     () => ({
-      organisationId: selectedOrganisationId,
-      eventId: selectedEventId ?? null,
+      organisationId: organisationId ?? selectedOrganisationId,
+      eventId: eventId ?? selectedEventId ?? null,
       appId: appId ?? undefined,
     }),
-    [appId, selectedEventId, selectedOrganisationId]
+    [appId, eventId, organisationId, selectedEventId, selectedOrganisationId]
   );
 
   const retryUnitsQuery = useRetryRefetchHandler(unitsQuery);

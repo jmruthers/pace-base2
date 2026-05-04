@@ -54,7 +54,15 @@ vi.mock('@solvera/pace-core/hooks', () => ({
   useUnifiedAuth: () => ({
     selectedOrganisationId: 'org-1',
     selectedEventId: 'event-1',
+  }),
+}));
+
+vi.mock('@solvera/pace-core/rbac', () => ({
+  useResolvedScope: () => ({
+    organisationId: 'org-1',
+    eventId: 'event-1',
     appId: 'base-app',
+    isLoading: false,
   }),
 }));
 

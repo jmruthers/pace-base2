@@ -4,7 +4,7 @@ import {
   ProtectedRoute,
   SessionRestorationLoader,
 } from '@solvera/pace-core/components';
-import { AccessDenied, PagePermissionGuard } from '@solvera/pace-core/rbac';
+import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AuthenticatedShell } from './components/layout/AuthenticatedShell';
 import { BaseNotFoundPage } from './pages/shell/BaseNotFoundPage';
@@ -33,11 +33,17 @@ function LoginRoute() {
     return <Navigate to="/" replace />;
   }
 
-  return <PaceLoginPage appName={APP_NAME} onSuccessRedirectPath="/" requireAppAccess={false} />;
+  return (
+    <PaceLoginPage
+      appName={APP_NAME}
+      onSuccessRedirectPath="/"
+      requireAppAccess={false}
+    />
+  );
 }
 
 function App() {
-  const { selectedOrganisationId, selectedEventId, appId } = useUnifiedAuth();
+  const { organisationId, eventId, appId } = useResolvedScope();
 
   return (
     <SessionRestorationLoader message="Restoring session…">
@@ -61,8 +67,8 @@ function App() {
                       pageName={route.pageName}
                       operation="read"
                       scope={{
-                        organisationId: selectedOrganisationId,
-                        eventId: selectedEventId,
+                        organisationId,
+                        eventId,
                         appId: appId ?? undefined,
                       }}
                       fallback={<AccessDenied />}

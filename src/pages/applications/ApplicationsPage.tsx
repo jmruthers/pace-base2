@@ -25,7 +25,7 @@ import {
   Textarea,
 } from '@solvera/pace-core/components';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
-import { PagePermissionGuard, useSecureSupabase } from '@solvera/pace-core/rbac';
+import { PagePermissionGuard, useResolvedScope, useSecureSupabase } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage, formatDateTime } from '@solvera/pace-core/utils';
 import {
   useApplicationEvidence,
@@ -105,7 +105,8 @@ export function ApplicationsPage() {
   const secureSupabase = useSecureSupabase();
   const { toast } = useToast();
   const { selectedEvent } = useEvents();
-  const { selectedEventId, selectedOrganisationId, appId } = useUnifiedAuth();
+  const { selectedEventId, selectedOrganisationId } = useUnifiedAuth();
+  const { organisationId, eventId, appId } = useResolvedScope();
   const queueQuery = useApplicationsQueue(selectedEventId);
   const setApplicationStatusMutation = useSetApplicationStatusMutation();
   const setCheckStatusMutation = useSetCheckStatusMutation();
@@ -123,8 +124,8 @@ export function ApplicationsPage() {
   const [activeCheckId, setActiveCheckId] = useState<string | null>(null);
 
   const scope = {
-    organisationId: selectedOrganisationId,
-    eventId: selectedEventId ?? null,
+    organisationId: organisationId ?? selectedOrganisationId,
+    eventId: eventId ?? selectedEventId ?? null,
     appId: appId ?? undefined,
   };
 

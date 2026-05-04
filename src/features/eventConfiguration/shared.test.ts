@@ -73,6 +73,7 @@ describe('event configuration shared helpers', () => {
   it('hydrates venue text into formattedAddress for form defaults', () => {
     const values = mapRecordToFormValues({
       event_id: 'event-1',
+      logo_id: null,
       event_name: 'Camp',
       event_code: null,
       event_email: null,

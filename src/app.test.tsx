@@ -16,6 +16,13 @@ const permissionState = vi.hoisted(() => ({
   allowRead: true,
 }));
 
+const resolvedScopeState = vi.hoisted(() => ({
+  organisationId: 'org-1' as string | null,
+  eventId: 'event-1' as string | null,
+  appId: 'base-app' as string | null,
+  isLoading: false,
+}));
+
 vi.mock('@solvera/pace-core/hooks', () => ({
   useUnifiedAuth: () => authState,
 }));
@@ -43,6 +50,7 @@ vi.mock('@solvera/pace-core/components', () => ({
 
 vi.mock('@solvera/pace-core/rbac', () => ({
   AccessDenied: () => <main>Access Denied</main>,
+  useResolvedScope: () => resolvedScopeState,
   PagePermissionGuard: ({
     operation,
     fallback,

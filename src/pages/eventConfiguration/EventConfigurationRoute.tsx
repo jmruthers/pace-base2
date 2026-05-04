@@ -33,9 +33,13 @@ import {
   type UseFormReturn,
 } from '@solvera/pace-core/forms';
 import { useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
-import { PagePermissionGuard, useSecureSupabase } from '@solvera/pace-core/rbac';
+import { PagePermissionGuard, useResolvedScope, useStorageCapableClient } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage } from '@solvera/pace-core/utils';
-import { useEventConfigurationRecord, useSaveEventConfiguration } from '@/features/eventConfiguration/configuration';
+import {
+  useEventConfigurationRecord,
+  useSaveEventConfiguration,
+  useSaveEventLogoPointer,
+} from '@/features/eventConfiguration/configuration';
 import {
   eventConfigurationSchema,
   formatEventLogoFallback,
@@ -45,6 +49,11 @@ import type { EventConfigurationFormValues } from '@/features/eventConfiguration
 import { useEventLogoReference } from '@/features/eventConfiguration/useEventLogoReference';
 
 interface ConfigurationFieldsProps {
+  methods: UseFormReturn<EventConfigurationFormValues>;
+  readOnly: boolean;
+}
+
+interface EventStylingFieldsProps {
   methods: UseFormReturn<EventConfigurationFormValues>;
   readOnly: boolean;
 }
@@ -69,17 +78,6 @@ function toValidationSummary(errors: Record<string, unknown>): string {
 }
 
 function ConfigurationFields({ methods, readOnly }: ConfigurationFieldsProps) {
-  const errors = methods.formState.errors as Record<string, unknown>;
-  const registrationScopeValue = (methods.watch('registration_scope') as string | null) ?? null;
-  const registrationScopeLabel =
-    registrationScopeValue === 'org_only'
-      ? 'Org only'
-      : registrationScopeValue === 'hierarchy'
-        ? 'Hierarchy'
-        : registrationScopeValue === 'open'
-          ? 'Open'
-          : '';
-
   return (
     <section className="grid gap-3">
       <fieldset className="grid grid-cols-1 gap-3 border-0 p-0 md:grid-cols-2">
@@ -116,7 +114,7 @@ function ConfigurationFields({ methods, readOnly }: ConfigurationFieldsProps) {
         </article>
         <FormField<EventConfigurationFormValues>
           name="event_days"
-          label="Event Days"
+          label="Event Duration"
           render={({ field }) => (
             <Input
               id="event_days"
@@ -205,7 +203,24 @@ function ConfigurationFields({ methods, readOnly }: ConfigurationFieldsProps) {
           />
         )}
       />
+    </section>
+  );
+}
 
+function EventStylingFields({ methods, readOnly }: EventStylingFieldsProps) {
+  const errors = methods.formState.errors as Record<string, unknown>;
+  const registrationScopeValue = (methods.watch('registration_scope') as string | null) ?? null;
+  const registrationScopeLabel =
+    registrationScopeValue === 'org_only'
+      ? 'Org only'
+      : registrationScopeValue === 'hierarchy'
+        ? 'Hierarchy'
+        : registrationScopeValue === 'open'
+          ? 'Open'
+          : '';
+
+  return (
+    <section className="grid gap-3">
       <fieldset className="grid grid-cols-1 gap-3 border-0 p-0 md:grid-cols-2">
         <article className="grid gap-1">
           <Label htmlFor="registration_scope">Registration Scope</Label>
@@ -271,15 +286,17 @@ function ConfigurationFields({ methods, readOnly }: ConfigurationFieldsProps) {
 
 export function EventConfigurationRoute() {
   const { toast } = useToast();
-  const secureSupabase = useSecureSupabase();
-  const { selectedEventId, selectedOrganisationId, user, appId } = useUnifiedAuth();
+  const storageSupabase = useStorageCapableClient();
+  const { selectedEventId, user } = useUnifiedAuth();
+  const { organisationId, eventId, appId, isLoading: isScopeLoading } = useResolvedScope();
   const eventQuery = useEventConfigurationRecord(selectedEventId);
   const { data: logoRefFromQuery, refetch: refetchLogo } = useEventLogoReference(selectedEventId);
   const saveMutation = useSaveEventConfiguration();
+  const saveLogoPointerMutation = useSaveEventLogoPointer();
   const [uploadedLogoRef, setUploadedLogoRef] = useState<typeof logoRefFromQuery>(null);
   const updateScope = {
-    organisationId: selectedOrganisationId,
-    eventId: selectedEventId,
+    organisationId,
+    eventId,
     appId: appId ?? undefined,
   };
 
@@ -324,19 +341,10 @@ export function EventConfigurationRoute() {
 
   const logoRef = uploadedLogoRef ?? logoRefFromQuery;
   const logoFallback = formatEventLogoFallback(eventName);
+  const uploadOrganisationId = String(eventQuery.data.organisation_id ?? organisationId ?? '');
 
   return (
     <main className="grid gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
-            <Calendar className="size-4" />
-            Event Configuration
-          </CardTitle>
-          <CardDescription>Editing: {eventName}</CardDescription>
-        </CardHeader>
-      </Card>
-
       <Form<EventConfigurationFormValues>
         key={`${selectedEventId}-${eventQuery.data.updated_at ?? 'form'}`}
         schema={eventConfigurationSchema}
@@ -363,84 +371,128 @@ export function EventConfigurationRoute() {
         className="grid gap-4"
       >
         {(methods) => (
-          <Card>
-            <CardHeader>
-              <CardTitle>Event Configuration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PagePermissionGuard
-                pageName="configuration"
-                operation="update"
-                scope={updateScope}
-                fallback={<ConfigurationFields methods={methods} readOnly />}
-              >
-                <ConfigurationFields methods={methods} readOnly={false} />
-              </PagePermissionGuard>
-            </CardContent>
-            <CardFooter className="text-right">
-              <PagePermissionGuard pageName="configuration" operation="update" scope={updateScope} fallback={null}>
-                <Button type="submit" disabled={saveMutation.isPending} className="min-w-32">
-                  {saveMutation.isPending ? 'Saving…' : 'Save'}
-                </Button>
-              </PagePermissionGuard>
-            </CardFooter>
-          </Card>
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Event Configuration</CardTitle>
+                <CardDescription>Editing: {eventName}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PagePermissionGuard
+                  pageName="configuration"
+                  operation="update"
+                  scope={updateScope}
+                  fallback={<ConfigurationFields methods={methods} readOnly />}
+                >
+                  <ConfigurationFields methods={methods} readOnly={false} />
+                </PagePermissionGuard>
+              </CardContent>
+              <CardFooter className="text-right">
+                <PagePermissionGuard pageName="configuration" operation="update" scope={updateScope} fallback={null}>
+                  <Button type="submit" disabled={saveMutation.isPending} className="min-w-32">
+                    {saveMutation.isPending ? 'Saving…' : 'Save'}
+                  </Button>
+                </PagePermissionGuard>
+              </CardFooter>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Event Styling</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <PagePermissionGuard
+                  pageName="configuration"
+                  operation="update"
+                  scope={updateScope}
+                  fallback={<EventStylingFields methods={methods} readOnly />}
+                >
+                  <EventStylingFields methods={methods} readOnly={false} />
+                </PagePermissionGuard>
+                <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <article className="grid h-48 place-items-center rounded-md border border-dashed">
+                    {logoRef != null ? (
+                      <FileDisplay
+                        fileReference={logoRef}
+                        supabase={storageSupabase}
+                        bucket="public-files"
+                        variant="inline"
+                        className="h-48 w-full object-contain"
+                        label="Event logo"
+                      />
+                    ) : (
+                      <p>{logoFallback}</p>
+                    )}
+                  </article>
+                  <article className="grid gap-2">
+                    <PagePermissionGuard pageName="configuration" operation="update" scope={updateScope} fallback={null}>
+                      {isScopeLoading ? (
+                        <p>Loading app configuration…</p>
+                      ) : appId == null ? (
+                        <p>App configuration unavailable.</p>
+                      ) : storageSupabase == null ? (
+                        <p>Storage client unavailable.</p>
+                      ) : (
+                        <FileUpload
+                          supabase={storageSupabase}
+                          bucket="public-files"
+                          table_name="core_events"
+                          record_id={selectedEventId}
+                          organisation_id={uploadOrganisationId}
+                          app_id={appId}
+                          category="event_logos"
+                          folder="event_logos"
+                          pageContext="configuration"
+                          event_id={selectedEventId}
+                          is_public
+                          accept="image/*"
+                          maxSize={5 * 1024 * 1024}
+                          onUploadSuccess={(result) => {
+                            const logoId = result.file_reference?.id ?? null;
+                            const isPublic = result.file_reference?.is_public === true;
+
+                            if (logoId == null || !isPublic) {
+                              HandleMutationError(
+                                new Error('Uploaded logo reference is invalid or not public.'),
+                                'event-logo-pointer-save',
+                                toast
+                              );
+                              return;
+                            }
+
+                            void saveLogoPointerMutation
+                              .mutateAsync({
+                                eventId: selectedEventId,
+                                logoId,
+                                userId: user?.id ?? null,
+                              })
+                              .then(() => {
+                                setUploadedLogoRef(result.file_reference);
+                                toast({
+                                  title: 'Success',
+                                  description: 'Logo uploaded successfully!',
+                                  variant: 'success',
+                                });
+                                return refetchLogo();
+                              })
+                              .catch((error) => {
+                                HandleMutationError(error, 'event-logo-pointer-save', toast);
+                              });
+                          }}
+                          onUploadError={(error) => {
+                            HandleMutationError(error, 'event-logo-upload', toast);
+                          }}
+                          label="Upload logo"
+                        />
+                      )}
+                    </PagePermissionGuard>
+                  </article>
+                </section>
+              </CardContent>
+            </Card>
+          </>
         )}
       </Form>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Event Styling</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <article className="grid h-48 place-items-center rounded-md border border-dashed">
-            {logoRef != null ? (
-              <FileDisplay
-                fileReference={logoRef}
-                supabase={secureSupabase as never}
-                variant="inline"
-                className="h-48 w-full object-contain"
-                label="Event logo"
-              />
-            ) : (
-              <p>{logoFallback}</p>
-            )}
-          </article>
-          <article className="grid gap-2">
-            <PagePermissionGuard pageName="configuration" operation="update" scope={updateScope} fallback={null}>
-              {appId == null ? (
-                <p>Loading app configuration…</p>
-              ) : (
-                <FileUpload
-                  supabase={secureSupabase as never}
-                  table_name="core_events"
-                  record_id={selectedEventId}
-                  app_id={appId}
-                  category="event_logos"
-                  folder="event_logos"
-                  pageContext="configuration"
-                  is_public
-                  accept="image/*"
-                  maxSize={5 * 1024 * 1024}
-                  onUploadSuccess={(result) => {
-                    setUploadedLogoRef(result.file_reference);
-                    toast({
-                      title: 'Success',
-                      description: 'Logo uploaded successfully!',
-                      variant: 'success',
-                    });
-                    void refetchLogo();
-                  }}
-                  onUploadError={(error) => {
-                    HandleMutationError(error, 'event-logo-upload', toast);
-                  }}
-                  label="Upload logo"
-                />
-              )}
-            </PagePermissionGuard>
-          </article>
-        </CardContent>
-      </Card>
     </main>
   );
 }

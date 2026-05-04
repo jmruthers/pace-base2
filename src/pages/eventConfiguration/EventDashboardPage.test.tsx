@@ -18,6 +18,15 @@ const dashboardState = vi.hoisted(() => ({
     registrationTypes: 3 as number | null,
     isLoading: false,
   },
+  logoRef: null as Record<string, unknown> | null,
+  fileDisplayProps: null as Record<string, unknown> | null,
+}));
+
+const resolvedScopeState = vi.hoisted(() => ({
+  organisationId: 'org-1' as string | null,
+  eventId: 'event-1' as string | null,
+  appId: 'base-app' as string | null,
+  isLoading: false,
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -38,7 +47,10 @@ vi.mock('@solvera/pace-core/components', () => ({
   CardDescription: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
   CardTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  FileDisplay: () => <p>Logo</p>,
+  FileDisplay: (props: Record<string, unknown>) => {
+    dashboardState.fileDisplayProps = props;
+    return <p>Logo</p>;
+  },
 }));
 
 vi.mock('@solvera/pace-core/hooks', () => ({
@@ -47,7 +59,8 @@ vi.mock('@solvera/pace-core/hooks', () => ({
 }));
 
 vi.mock('@solvera/pace-core/rbac', () => ({
-  useSecureSupabase: () => ({}),
+  useStorageCapableClient: () => ({}),
+  useResolvedScope: () => resolvedScopeState,
   PagePermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -64,13 +77,14 @@ vi.mock('@/features/eventConfiguration/dashboard', () => ({
 }));
 
 vi.mock('@/features/eventConfiguration/useEventLogoReference', () => ({
-  useEventLogoReference: () => ({ data: null }),
+  useEventLogoReference: () => ({ data: dashboardState.logoRef }),
 }));
 
 describe('EventDashboardPage', () => {
   afterEach(() => {
     cleanup();
     dashboardState.selectedEventId = 'event-1';
+    resolvedScopeState.eventId = 'event-1';
     dashboardState.selectedEvent = {
       event_name: 'Summer Event',
       event_date: '2026-08-20T00:00:00.000Z',
@@ -83,6 +97,8 @@ describe('EventDashboardPage', () => {
       registrationTypes: 3,
       isLoading: false,
     };
+    dashboardState.logoRef = null;
+    dashboardState.fileDisplayProps = null;
   });
 
   it('shows no-event guidance when no event is selected', () => {
@@ -118,5 +134,24 @@ describe('EventDashboardPage', () => {
     render(<EventDashboardPage />);
 
     expect(screen.getAllByText('—')).toHaveLength(3);
+  });
+
+  it('passes FileDisplay bucket and label when a logo reference exists', () => {
+    dashboardState.logoRef = {
+      id: 'ref-1',
+      file_metadata: { bucket: 'public-files', fileName: 'logo.png' },
+      is_public: true,
+      file_path: 'configuration/event_logos/logo.png',
+    };
+
+    render(<EventDashboardPage />);
+
+    expect(screen.getByText('Logo')).toBeTruthy();
+    expect(dashboardState.fileDisplayProps).toMatchObject({
+      bucket: 'public-files',
+      label: 'Event logo',
+      variant: 'inline',
+    });
+    expect(dashboardState.fileDisplayProps?.supabase).toBeTruthy();
   });
 });

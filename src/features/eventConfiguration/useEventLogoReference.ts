@@ -6,18 +6,22 @@ type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: { code: string; message: string } };
 
-type SupabaseLogoClient = {
+type SupabaseEventLogoPointerClient = {
+  from: (table: string) => {
+    select: (...args: unknown[]) => {
+      eq: (...args: unknown[]) => {
+        single: () => Promise<{ data: unknown; error: unknown }>;
+      };
+    };
+  };
+};
+
+type SupabaseFileReferenceClient = {
   from: (table: string) => {
     select: (...args: unknown[]) => {
       eq: (...args: unknown[]) => {
         eq: (...args: unknown[]) => {
-          like: (...args: unknown[]) => {
-            order: (...args: unknown[]) => {
-              limit: (...args: unknown[]) => {
-                maybeSingle: () => Promise<{ data: unknown; error: unknown }>;
-              };
-            };
-          };
+          maybeSingle: () => Promise<{ data: unknown; error: unknown }>;
         };
       };
     };
@@ -32,21 +36,40 @@ async function fetchEventLogoReference(
     return { ok: true, data: null };
   }
 
-  const result = await (secureSupabase as unknown as SupabaseLogoClient)
-    .from('core_file_references')
-    .select('*')
-    .eq('table_name', 'core_events')
-    .eq('record_id', eventId)
-    .like('file_path', '%/event_logos/%')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const result = await (secureSupabase as unknown as SupabaseEventLogoPointerClient)
+    .from('core_events')
+    .select('logo_id')
+    .eq('event_id', eventId)
+    .single();
 
   if (result.error != null) {
-    return { ok: false, error: { code: 'logo-reference-read-error', message: String(result.error) } };
+    return { ok: false, error: { code: 'logo-pointer-read-error', message: String(result.error) } };
   }
 
-  return { ok: true, data: (result.data as EventLogoReference) ?? null };
+  const logoId =
+    result.data != null &&
+    typeof result.data === 'object' &&
+    'logo_id' in result.data &&
+    typeof (result.data as { logo_id?: unknown }).logo_id === 'string'
+      ? ((result.data as { logo_id: string }).logo_id ?? null)
+      : null;
+
+  if (logoId == null || logoId.trim().length === 0) {
+    return { ok: true, data: null };
+  }
+
+  const logoReferenceResult = await (secureSupabase as unknown as SupabaseFileReferenceClient)
+    .from('core_file_references')
+    .select('*')
+    .eq('id', logoId)
+    .eq('is_public', true)
+    .maybeSingle();
+
+  if (logoReferenceResult.error != null) {
+    return { ok: false, error: { code: 'logo-reference-read-error', message: String(logoReferenceResult.error) } };
+  }
+
+  return { ok: true, data: (logoReferenceResult.data as EventLogoReference) ?? null };
 }
 
 export function useEventLogoReference(eventId: string | null) {

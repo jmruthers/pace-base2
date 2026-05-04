@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useEventConfigurationRecord, useSaveEventConfiguration } from './configuration';
+import {
+  useEventConfigurationRecord,
+  useSaveEventConfiguration,
+  useSaveEventLogoPointer,
+} from './configuration';
 import type { EventConfigurationFormValues } from './types';
 
 const mocks = vi.hoisted(() => {
@@ -172,6 +176,51 @@ describe('eventConfiguration configuration hooks', () => {
     ).resolves.toEqual({
       event_name: 'Saved Event',
       updated_by: 'user-1',
+    });
+  });
+
+  it('logo pointer mutation throws when secure supabase is unavailable', async () => {
+    const mutation = useSaveEventLogoPointer() as { mutateAsync: (params: unknown) => Promise<unknown> };
+    await expect(
+      mutation.mutateAsync({
+        eventId: 'event-1',
+        logoId: 'logo-ref-1',
+        userId: 'user-1',
+      })
+    ).rejects.toThrow('Supabase client is not available');
+  });
+
+  it('logo pointer mutation updates core_events.logo_id when supabase update succeeds', async () => {
+    mocks.secureSupabaseState.client = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: async () => ({ data: null, error: null }),
+          }),
+        }),
+        update: () => ({
+          eq: () => ({
+            select: () => ({
+              single: async () => ({
+                data: { event_id: 'event-1', logo_id: 'logo-ref-1' },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+
+    const mutation = useSaveEventLogoPointer() as { mutateAsync: (params: unknown) => Promise<unknown> };
+    await expect(
+      mutation.mutateAsync({
+        eventId: 'event-1',
+        logoId: 'logo-ref-1',
+        userId: 'user-1',
+      })
+    ).resolves.toEqual({
+      event_id: 'event-1',
+      logo_id: 'logo-ref-1',
     });
   });
 });

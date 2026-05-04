@@ -38,13 +38,18 @@ vi.mock('@solvera/pace-core/hooks', () => ({
   useUnifiedAuth: () => ({
     selectedEventId: state.selectedEventId,
     selectedOrganisationId: state.selectedOrganisationId,
-    appId: state.appId,
   }),
   useToast: () => ({ toast: vi.fn() }),
 }));
 
 vi.mock('@solvera/pace-core/rbac', () => ({
   AccessDenied: () => <main>Access Denied</main>,
+  useResolvedScope: () => ({
+    organisationId: state.selectedOrganisationId,
+    eventId: state.selectedEventId,
+    appId: state.appId,
+    isLoading: false,
+  }),
   PagePermissionGuard: ({
     operation,
     fallback,
