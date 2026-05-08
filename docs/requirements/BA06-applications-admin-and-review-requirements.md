@@ -91,7 +91,7 @@ Prefix legend: **`PQ`** page and queue, **`PD`** detail dialog, **`PR`** review-
 
 ### Primary content — queue (`DataTable`)
 
-9. **PQ-PC-01 —** Queue is hosted in a **`Card`** with icon **`ClipboardList`**, title "Application queue", and a description line showing **application count** and the **selected event name** when loaded.
+9. **PQ-PC-01 —** Queue header is rendered in a **`Card`** with a list icon (pace-core `ClipboardList` or equivalent), title "Application queue", and a description line showing **application count** and the **selected event name** when loaded. The queue **`DataTable`** is rendered in the same queue section directly beneath this header card.
 10. **PQ-PC-02 —** **`DataTable`** lists one row per application. Columns (in order): **Applicant** (full name per **BR-NAME**), **Email** (from person), **Registration type** (type name), **Status** (**`Badge`** per **BR-APP-STATUS**), **Submitted** (per **BR-SUBMITTED**), **Checks** (priority badge per **BR-CHECK-SUMMARY**).
 11. **PQ-PC-03 —** Row actions (via **`DataTable`** **`actions`**): **View** opens **`PD`**. **View review steps** opens **`PR`** — this action is only rendered when the application's **`checks`** array has at least one entry; it is hidden entirely for applications with zero checks.
 
@@ -110,7 +110,7 @@ Prefix legend: **`PQ`** page and queue, **`PD`** detail dialog, **`PR`** review-
 
 20. **PD-PA-01 —** **Approve application** and **Reject application** buttons appear when **BR-OVERRIDE** permits (submitted / under_review → approved / rejected). Each opens a **`ConfirmationDialog`** per **§5 Confirmation dialog copy**. **Reject** requires a notes **`Textarea`** because current RPC contract rejects empty notes.
 21. **PD-PA-02 —** Confirm **Approve** calls **`app_base_application_set_status`** with **`p_application_id`** and **`p_target_status: 'approved'`** (omit `p_actor` — server resolves from session). Success: toast "Application approved", close dialog, invalidate list. If the RPC raises **`validation_error.application_status_transition_invalid`** (or an equivalent transition-invalid message), show: "This application's status has already been updated — close this dialog and refresh the queue to see the current state." and close the confirmation dialog. All other errors: **`HandleMutationError`**; dialog remains open.
-22. **PD-PA-03 —** Confirm **Reject** calls **`app_base_application_set_status`** with **`p_target_status: 'rejected'`** and required **`p_notes`** from the reject dialog textarea (omit `p_actor`). Success: toast "Application rejected", close dialog, invalidate list. Same concurrency and error handling as **PD-PA-02**. **Unresolved checks stay pending** after override — **BR-UNRESOLVED-VISIBLE**.
+22. **PD-PA-03 —** Confirm **Reject** requires notes from the reject dialog textarea before mutation. When notes are present, call **`app_base_application_set_status`** with **`p_target_status: 'rejected'`** and **`p_notes`** (omit `p_actor`). Success: toast "Application rejected", close dialog, invalidate list. Same concurrency and error handling as **PD-PA-02**. **Unresolved checks stay pending** after override — **BR-UNRESOLVED-VISIBLE**.
 
 ### Primary actions — `event_approval` check
 
@@ -452,7 +452,7 @@ _Note_: server-side permission enforcement for the two verified RPCs uses `is_su
 - Given **`event_approval`** pending, permitted user, and RPC present: **Satisfy** / **Reject check** succeed and refresh shows updated check status.
 - Given **`guardian_approval`** pending, **Reissue** succeeds and shows success toast.
 - Given application **under review**, **Approve** transitions status to **approved** (RPC success, list badge updates).
-- Given application **reject** confirm without notes, RPC returns **`validation_error.reject_notes_required`** and the dialog remains open.
+- Given application **reject** confirm without notes, client validation blocks mutation, shows the rejection-notes-required feedback, and keeps the dialog open.
 - Given an application already approved by another session, calling Approve/Reject shows the concurrency message "This application's status has already been updated — close this dialog and refresh the queue to see the current state."
 - Given list fetch error, destructive alert with **Retry** refetches successfully.
 - Given an application with zero checks, **View review steps** does not appear in the row actions.

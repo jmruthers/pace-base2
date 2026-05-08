@@ -19,18 +19,37 @@ const queryClient = new QueryClient();
 const IDLE_TIMEOUT_MS = 1_800_000;
 const WARN_BEFORE_MS = 300_000;
 
-async function resolveAppId(appName: string): Promise<string | null> {
+type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: { code: string; message: string } };
+
+async function fetchAppsList(): Promise<ApiResult<unknown[]>> {
   if (typeof supabaseClient.rpc !== 'function') {
-    return null;
+    return { ok: false, error: { code: 'rbac-app-list-unavailable', message: 'RPC client unavailable' } };
   }
 
-  const normalized = appName.trim().toLowerCase();
   const { data, error } = await supabaseClient.rpc('data_rbac_apps_list');
   if (error != null || !Array.isArray(data)) {
+    return {
+      ok: false,
+      error: {
+        code: 'rbac-app-list-read-failed',
+        message: error != null ? String(error) : 'Apps list response was not an array',
+      },
+    };
+  }
+
+  return { ok: true, data };
+}
+
+async function resolveAppId(appName: string): Promise<string | null> {
+  const normalized = appName.trim().toLowerCase();
+  const appsResult = await fetchAppsList();
+  if (!appsResult.ok) {
     return null;
   }
 
-  const match = data.find((row) => {
+  const match = appsResult.data.find((row) => {
     if (row == null || typeof row !== 'object') {
       return false;
     }

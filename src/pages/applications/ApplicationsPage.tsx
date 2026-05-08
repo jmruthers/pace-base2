@@ -30,6 +30,7 @@ import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage, format
 import {
   useApplicationEvidence,
   useApplicationsQueue,
+  useCheckStatusRpcAvailability,
   useReissueCheckTokenMutation,
   useSetApplicationStatusMutation,
   useSetCheckStatusMutation,
@@ -108,6 +109,7 @@ export function ApplicationsPage() {
   const { selectedEventId, selectedOrganisationId } = useUnifiedAuth();
   const { organisationId, eventId, appId } = useResolvedScope();
   const queueQuery = useApplicationsQueue(selectedEventId);
+  const checkStatusRpcAvailabilityQuery = useCheckStatusRpcAvailability(selectedEventId);
   const setApplicationStatusMutation = useSetApplicationStatusMutation();
   const setCheckStatusMutation = useSetCheckStatusMutation();
   const reissueTokenMutation = useReissueCheckTokenMutation();
@@ -402,6 +404,16 @@ export function ApplicationsPage() {
         </Alert>
       ) : null}
 
+      {selectedEventId != null && secureSupabase != null && checkStatusRpcAvailabilityQuery.data === false ? (
+        <Alert variant="destructive">
+          <AlertTitle>Backend blocker</AlertTitle>
+          <AlertDescription>
+            Event approval actions are unavailable because `app_base_application_check_set_status` is missing in this
+            environment.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {selectedEventId == null ? (
         <Card>
           <CardContent>
@@ -547,7 +559,10 @@ export function ApplicationsPage() {
                   <section className="grid gap-2">
                     {sortedDetailChecks.map((check) => {
                       const checkType = check.requirement?.check_type;
-                      const showEventActions = checkType === 'event_approval' && check.status === 'pending';
+                      const showEventActions =
+                        checkType === 'event_approval' &&
+                        check.status === 'pending' &&
+                        checkStatusRpcAvailabilityQuery.data !== false;
                       return (
                         <article key={check.id} className="grid gap-1 border rounded-md p-2">
                           <section className="grid grid-cols-1 gap-1 md:grid-cols-[1fr_auto] md:items-center">

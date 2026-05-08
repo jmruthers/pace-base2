@@ -18,6 +18,7 @@ import { RegistrationTypesPage } from './pages/registrationTypes/RegistrationTyp
 import { ApplicationsPage } from './pages/applications/ApplicationsPage';
 import { UnitsPage } from './pages/units/UnitsPage';
 import { UnitPreferencesPage } from './pages/unitPreferences/UnitPreferencesPage';
+import { CommunicationsPage } from './pages/communications/CommunicationsPage';
 import {
   getShellProtectedRoutes,
 } from './config/baseRouteRegistry';
@@ -53,9 +54,9 @@ function App() {
         <Route
           element={<ProtectedRoute loginPath="/login" requireEvent={false} />}
         >
-          <Route element={<AuthenticatedShell />}>
-            <Route index element={<Navigate to="/event-dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/event-dashboard" replace />} />
 
+          <Route element={<AuthenticatedShell />}>
             {shellProtectedRoutes
               .filter((route) => route.path !== '/' && route.path !== '*')
               .map((route) => (
@@ -85,6 +86,8 @@ function App() {
                         <RegistrationTypesPage />
                       ) : route.path === '/applications' ? (
                         <ApplicationsPage />
+                      ) : route.path === '/communications' ? (
+                        <CommunicationsPage />
                       ) : route.path === '/units' ? (
                         <UnitsPage />
                       ) : route.path === '/unit-preferences' ? (

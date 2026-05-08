@@ -18,7 +18,7 @@ import {
 } from '@solvera/pace-core/components';
 import { WorkflowFormAuthoringShell, type WorkflowAuthoringState } from '@solvera/pace-core/forms';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
-import { PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
+import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage } from '@solvera/pace-core/utils';
 import {
   isPublishedForm,
@@ -342,8 +342,8 @@ export function FormBuilderPage() {
   const registrationTypeState = useRegistrationTypes(selectedEventId, selectedEventId != null);
 
   const scope = {
-    organisationId: organisationId ?? selectedOrganisationId,
-    eventId: eventId ?? selectedEventId ?? null,
+    organisationId,
+    eventId,
     appId: appId ?? undefined,
   };
 
@@ -381,7 +381,12 @@ export function FormBuilderPage() {
   }, [builderQuery.data?.form.id, formId, isEditMode, selectedEventId, selectedOrganisationId]);
 
   return (
-    <PagePermissionGuard pageName="form-builder" operation="read" scope={scope}>
+    <PagePermissionGuard
+      pageName="form-builder"
+      operation="read"
+      scope={scope}
+      fallback={<AccessDenied />}
+    >
       <main className="grid gap-4">
         {selectedEventId == null || selectedEvent == null ? (
           <Card>

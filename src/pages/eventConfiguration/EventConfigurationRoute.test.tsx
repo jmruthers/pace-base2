@@ -133,7 +133,7 @@ vi.mock('@solvera/pace-core/components', () => ({
     onUploadError,
   }: {
     label: string;
-    organisation_id: string;
+    organisation_id?: string;
     event_id: string;
     app_id: string;
     onUploadSuccess: (result: { file_reference: { id: string; is_public: boolean } }) => void;
@@ -445,16 +445,38 @@ describe('EventConfigurationRoute', () => {
     });
   });
 
+  it('shows required JSON validation toast copy for event colours parse failures', async () => {
+    routeState.saveMutation = {
+      mutateAsync: vi.fn(async () => {
+        throw new Error('Invalid JSON in Event Colours field: Unexpected token i in JSON at position 1');
+      }),
+      isPending: false,
+    };
+
+    render(<EventConfigurationRoute />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(routeState.toast).toHaveBeenCalledWith({
+        title: 'Error',
+        description: 'Invalid JSON in Event Colours field: Unexpected token i in JSON at position 1',
+        variant: 'destructive',
+      });
+    });
+    expect(routeState.handleMutationError).not.toHaveBeenCalled();
+  });
+
   it('routes upload failures through the mutation error helper', () => {
     render(<EventConfigurationRoute />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload logo' }));
 
-    expect(routeState.handleMutationError).toHaveBeenCalledWith(
-      expect.any(Error),
-      'event-logo-upload',
-      routeState.toast
-    );
+    expect(routeState.toast).toHaveBeenCalledWith({
+      title: 'Error',
+      description: 'Failed to upload logo: upload failed',
+      variant: 'destructive',
+    });
   });
 
   it('persists core_events.logo_id before applying uploaded local logo reference', async () => {
@@ -474,10 +496,25 @@ describe('EventConfigurationRoute', () => {
     });
   });
 
+  it('keeps logo upload available when organisation id is unresolved', () => {
+    routeState.selectedOrganisationId = null;
+    routeState.eventQuery = {
+      ...routeState.eventQuery,
+      data: {
+        ...(routeState.eventQuery.data ?? {}),
+        organisation_id: null,
+      },
+    };
+
+    render(<EventConfigurationRoute />);
+
+    expect(screen.getByRole('button', { name: 'Upload logo' })).toBeTruthy();
+  });
+
   it('passes FileDisplay bucket and label when a logo reference exists', () => {
     routeState.logoRef = {
       id: 'ref-1',
-      file_metadata: { bucket: 'public-files', fileName: 'logo.png' },
+      file_metadata: { bucket: 'files', fileName: 'logo.png' },
       is_public: true,
       file_path: 'configuration/event_logos/logo.png',
     };
@@ -486,7 +523,7 @@ describe('EventConfigurationRoute', () => {
 
     expect(screen.getByText('Logo Preview')).toBeTruthy();
     expect(routeState.fileDisplayProps).toMatchObject({
-      bucket: 'public-files',
+      bucket: 'files',
       label: 'Event logo',
       variant: 'inline',
     });

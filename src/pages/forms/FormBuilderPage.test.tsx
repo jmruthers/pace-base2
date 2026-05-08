@@ -40,6 +40,7 @@ vi.mock('@solvera/pace-core/hooks', () => ({
 }));
 
 vi.mock('@solvera/pace-core/rbac', () => ({
+  AccessDenied: () => <main>Access Denied</main>,
   useResolvedScope: () => resolvedScopeState,
   PagePermissionGuard: ({
     operation,
@@ -208,11 +209,10 @@ describe('FormBuilderPage', () => {
     expect(screen.getByText('Shell Enabled')).toBeTruthy();
   });
 
-  it('renders nothing when read permission is denied', () => {
+  it('renders access denied when read permission is denied', () => {
     state.allowRead = false;
     renderAt('/form-builder');
-    expect(screen.queryByText('Create Form')).toBeNull();
-    expect(screen.queryByText('Shell Enabled')).toBeNull();
+    expect(screen.getByText('Access Denied')).toBeTruthy();
   });
 
   it('renders disabled shell when update permission is denied', () => {

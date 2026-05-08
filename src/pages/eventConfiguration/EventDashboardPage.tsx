@@ -11,7 +11,12 @@ import {
 } from '@solvera/pace-core/components';
 import { useEvents, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { Calendar } from '@solvera/pace-core/icons';
-import { PagePermissionGuard, useResolvedScope, useStorageCapableClient } from '@solvera/pace-core/rbac';
+import {
+  AccessDenied,
+  PagePermissionGuard,
+  useResolvedScope,
+  useStorageCapableClient,
+} from '@solvera/pace-core/rbac';
 import { formatDate } from '@solvera/pace-core/utils';
 import { useDashboardCounts } from '@/features/eventConfiguration/dashboard';
 import { computeEventEndDate, formatEventLogoFallback } from '@/features/eventConfiguration/shared';
@@ -215,16 +220,8 @@ export function EventDashboardPage() {
   const storageSupabase = useStorageCapableClient();
   const counts = useDashboardCounts(selectedEventId);
   const { data: logoRef } = useEventLogoReference(selectedEventId);
-
-  if (selectedEvent == null || selectedEventId == null) {
-    return (
-      <main className="grid min-h-[40vh] place-items-center">
-        <p>Select an event from the header to begin.</p>
-      </main>
-    );
-  }
-
-  const selectedEventLike = selectedEvent as EventLike;
+  const hasSelectedEvent = selectedEvent != null && selectedEventId != null;
+  const selectedEventLike = selectedEvent as EventLike | null;
   const eventName = eventField(selectedEventLike, 'event_name') ?? 'Event';
   const eventDate = eventField(selectedEventLike, 'event_date');
   const eventDays = eventNumberField(selectedEventLike, 'event_days') ?? 1;
@@ -242,79 +239,85 @@ export function EventDashboardPage() {
         eventId,
         appId: appId ?? undefined,
       }}
-      fallback={null}
+      fallback={<AccessDenied />}
     >
-    <main className="grid gap-4">
-      <section className="grid gap-1">
-        <h1>Event Dashboard</h1>
-        <p>Manage this event&apos;s settings, forms, applications, and reporting.</p>
-      </section>
-
-      <Card>
-        <CardHeader className="grid gap-3 lg:grid-cols-[1fr_auto]">
-          <section className="grid gap-2">
-            <CardTitle>{eventName}</CardTitle>
-            <CardDescription className="grid gap-2">
-              <p className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
-                <Calendar className="size-4" />
-                {eventDate != null ? formatDate(eventDate) : 'No date set'}
-              </p>
-              {showEndDate ? <p>Ends: {formatDate(eventEndDate?.toISOString() ?? '')}</p> : null}
-              <p className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
-                <MapPinIcon className="size-4" />
-                {eventVenue ?? 'No venue set'}
-              </p>
-            </CardDescription>
+      {!hasSelectedEvent ? (
+        <main className="grid min-h-[40vh] place-items-center">
+          <p>Select an event from the header to begin.</p>
+        </main>
+      ) : (
+        <main className="grid gap-4">
+          <section className="grid gap-1">
+            <h1>Event Dashboard</h1>
+            <p>Manage this event&apos;s settings, forms, applications, and reporting.</p>
           </section>
 
-          <section className="grid w-full place-items-center lg:w-64">
-            {logoRef != null ? (
-              <FileDisplay
-                fileReference={logoRef}
-                supabase={storageSupabase}
-                bucket="public-files"
-                variant="inline"
-                className="h-48 w-full object-contain"
-                label="Event logo"
-              />
-            ) : (
-              <section className="grid h-48 w-full place-items-center rounded-md border border-dashed">
-                <Badge>{logoFallback}</Badge>
+          <Card>
+            <CardHeader className="grid gap-3 lg:grid-cols-[1fr_auto]">
+              <section className="grid gap-2">
+                <CardTitle>{eventName}</CardTitle>
+                <CardDescription className="grid gap-2">
+                  <p className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
+                    <Calendar className="size-4" />
+                    {eventDate != null ? formatDate(eventDate) : 'No date set'}
+                  </p>
+                  {showEndDate ? <p>Ends: {formatDate(eventEndDate?.toISOString() ?? '')}</p> : null}
+                  <p className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
+                    <MapPinIcon className="size-4" />
+                    {eventVenue ?? 'No venue set'}
+                  </p>
+                </CardDescription>
               </section>
-            )}
-          </section>
-        </CardHeader>
-      </Card>
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {NAV_CARDS.map((card) => {
-          const Icon = card.icon;
-          const count = getCardCount(card.countKind, counts);
-          return (
-            <Link
-              key={card.key}
-              to={card.to}
-              className="grid rounded-md border border-transparent transition-colors hover:border-main-400 focus-visible:outline-none"
-            >
-              <Card>
-                <CardHeader>
-                  <CardTitle className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
-                    <Icon className="size-4" />
-                    {card.title}
-                  </CardTitle>
-                  <CardDescription>{card.description}</CardDescription>
-                </CardHeader>
-                {count != null ? (
-                  <CardContent>
-                    <Badge variant="soft-acc-normal">{count}</Badge>
-                  </CardContent>
-                ) : null}
-              </Card>
-            </Link>
-          );
-        })}
-      </section>
-    </main>
+              <section className="grid w-full place-items-center lg:w-64">
+                {logoRef != null ? (
+                  <FileDisplay
+                    fileReference={logoRef}
+                    supabase={storageSupabase}
+                    bucket="files"
+                    variant="inline"
+                    className="h-48 w-full object-contain"
+                    label="Event logo"
+                  />
+                ) : (
+                  <section className="grid h-48 w-full place-items-center rounded-md border border-dashed">
+                    <Badge>{logoFallback}</Badge>
+                  </section>
+                )}
+              </section>
+            </CardHeader>
+          </Card>
+
+          <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {NAV_CARDS.map((card) => {
+              const Icon = card.icon;
+              const count = getCardCount(card.countKind, counts);
+              return (
+                <Link
+                  key={card.key}
+                  to={card.to}
+                  className="grid rounded-md border border-transparent transition-colors hover:border-main-400 focus-visible:outline-none"
+                >
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
+                        <Icon className="size-4" />
+                        {card.title}
+                      </CardTitle>
+                      <CardDescription>{card.description}</CardDescription>
+                    </CardHeader>
+                    {count != null ? (
+                      <CardContent>
+                        <Badge variant="soft-acc-normal">{count}</Badge>
+                      </CardContent>
+                    ) : null}
+                  </Card>
+                </Link>
+              );
+            })}
+          </section>
+        </main>
+      )}
     </PagePermissionGuard>
   );
 }

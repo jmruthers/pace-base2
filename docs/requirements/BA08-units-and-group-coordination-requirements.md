@@ -6,7 +6,7 @@
 - Name: Units and Group Coordination
 - Status: Draft
 - Depends on: BA06 (approved applications pool for role assignment)
-- Backend impact: Read + write contracts; **`app_base_unit_preference_submit` confirmed absent from dev-db — confirmed build blocker for preference submission (see §14 and §20)**
+- Backend impact: Read + write contracts; `app_base_unit_preference_submit(p_unit_id, p_event_id)` is part of the BA08 submit contract
 - Frontend impact: UI
 - Routes owned: `/units`, `/unit-preferences`
 - QA pack: `docs/delivery/test-packs/BA08-qa-pack.md` _(create or align with repo convention when the pack is authored)_
@@ -15,7 +15,7 @@
   - **`base_units` CRUD** — direct Supabase table writes; `organisation_id` resolved from `core_events.organisation_id` at application layer; triggers confirmed.
   - **`base_unit_role_types` CRUD** — direct Supabase table writes; `organisation_id` must be resolved from `core_events.organisation_id` at application layer (no INSERT trigger exists; see §14 build rule).
   - **`base_unit_roles` assign/remove** — direct Supabase table writes; `event_id` and `organisation_id` filled by `sync_base_unit_roles_event_org_trigger` (INSERT + UPDATE); confirmed present on dev-db.
-  - **`app_base_unit_preference_submit(p_unit_id, p_event_id)`** — **ABSENT from dev-db**. Preference submission UI is blocked until this RPC is deployed and its signature confirmed (see §20 Q1).
+  - **`app_base_unit_preference_submit(p_unit_id, p_event_id)`** — preference submission RPC used by `/unit-preferences` submit flow.
 
 ---
 
@@ -51,7 +51,7 @@ Event organisers need to structure participants into named units (groups), defin
 - All reads and mutations use **`useSecureSupabase()`** from `@solvera/pace-core/rbac`; no service-role client in route code.
 - Unit and role type mutations use direct Supabase table writes. `organisation_id` must be explicitly resolved from `core_events.organisation_id` before inserts into `base_units` and `base_unit_role_types` — it is not set by any trigger on those tables.
 - `base_unit_roles` inserts and updates omit `event_id` and `organisation_id` — the `sync_base_unit_roles_event_org_trigger` fills both automatically.
-- Preference submission uses **`app_base_unit_preference_submit(p_unit_id, p_event_id)`** only. No direct `submitted_at` update on `base_activity_preference` rows from the client. This RPC is currently absent — see §20 Q1.
+- Preference submission uses **`app_base_unit_preference_submit(p_unit_id, p_event_id)`** only. No direct `submitted_at` update on `base_activity_preference` rows from the client.
 - Draft preference rows (CRUD of individual `base_activity_preference` rows) use direct Supabase table writes while `submitted_at IS NULL`.
 - **`PagePermissionGuard`** gates both routes; mutation affordances use `create` / `update` / `delete` as applicable per §10.
 - Event context is resolved via **`useEvents()`** — use `selectedEvent.id` as the `event_id` at all data boundaries.
@@ -198,7 +198,7 @@ Prefix legend: **`UP`** /units page-level, **`UT`** Units tab, **`RTT`** Role Ty
 52. **PD-PC-05 —** The **Rank** input allows the coordinator to type a specific rank value. On blur or change: re-sort the list by the entered rank value; re-number all rows to ensure contiguous integers starting at 1 (BR-RANK-CONTIGUOUS). If two rows have the same rank after an entry, the most recently edited row takes the entered value and all others are renumbered to maintain contiguity.
 53. **PD-PC-06 —** Pressing **Remove** on a preference row deletes that `base_activity_preference` row and returns the session to Available Sessions. Remaining rows are immediately renumbered contiguously from 1 (BR-RANK-CONTIGUOUS). No confirmation dialog required for remove (low-cost reversible action — session returns to Available).
 54. **PD-PC-07 —** A **Submit Preferences** button appears below the Preferences list when at least one preference row exists and the current rank set is valid (BR-RANK-VALID). If the rank set is invalid (e.g., gaps detected), the button is disabled and a compact inline validation message explains the issue.
-55. **PD-PC-08 —** Pressing **Submit Preferences** opens a **`ConfirmationDialog`**: Title "Submit preferences", Description "Once submitted, preferences for {unit_number} cannot be edited. Confirm you have finalised the ranked list before submitting." Confirm label "Submit", Variant `default`. On confirm, call **`app_base_unit_preference_submit(p_unit_id, p_event_id)`**. **⚠ BLOCKED** — RPC absent from dev-db; see §20 Q1. Success: toast "Preferences submitted", preference section transitions to submitted state. Failure: toast with error; confirmation dialog remains open.
+55. **PD-PC-08 —** Pressing **Submit Preferences** opens a **`ConfirmationDialog`**: Title "Submit preferences", Description "Once submitted, preferences for {unit_number} cannot be edited. Confirm you have finalised the ranked list before submitting." Confirm label "Submit", Variant `default`. On confirm, call **`app_base_unit_preference_submit(p_unit_id, p_event_id)`**. Success: toast "Preferences submitted", preference section transitions to submitted state. Failure: toast with error; confirmation dialog remains open.
 
 ### `/unit-preferences` — submitted state (`submitted_at IS NOT NULL`)
 
@@ -659,7 +659,7 @@ _Persistence timing:_ rank changes are client-side state while the user is typin
 })
 ```
 
-_**⚠ BLOCKED** — `app_base_unit_preference_submit` is confirmed absent from dev-db (`rkytnffgmwnnmewevqgp`). Do not implement the submit action until this RPC is deployed and its signature confirmed (§14 and §20 Q1)._
+_`app_base_unit_preference_submit` is the only submit path for preference locking in BA08; client code must not write `submitted_at` directly._
 
 ### 7.3 RLS / permission contracts
 
@@ -695,7 +695,7 @@ UUIDs as strings throughout. Do not expose raw unit, role, or preference UUIDs i
 | **`base_application`** | Approved applicant pool for role assignment |
 | **`core_events`** | `organisation_id` resolution for unit and role type inserts |
 | **`core_person`** | Applicant name and email |
-| **`app_base_unit_preference_submit(p_unit_id, p_event_id)`** | Preference submit mutation — **ABSENT from dev-db** |
+| **`app_base_unit_preference_submit(p_unit_id, p_event_id)`** | Preference submit mutation |
 
 **DB triggers (confirmed present on dev-db `rkytnffgmwnnmewevqgp`):**
 
@@ -709,7 +709,7 @@ UUIDs as strings throughout. Do not expose raw unit, role, or preference UUIDs i
 2. ✅ `base_unit_role_types` schema — confirmed; `organisation_id NOT NULL`, no INSERT trigger — explicit resolution required (BR-ORG-RESOLVE).
 3. ✅ `base_unit_roles` schema and `sync_base_unit_roles_event_org_trigger` — confirmed.
 4. ✅ `base_activity_preference` schema — confirmed; UNIQUE `(unit_id, session_id)`, CHECK `rank > 0`; RLS `base_user_has_unit_role` enforced.
-5. ❌ `app_base_unit_preference_submit` — **ABSENT**. Backend blocker active. Submit implementation must not proceed until §20 Q1 is resolved.
+5. ✅ `app_base_unit_preference_submit` submit contract is wired as the canonical preference-lock mutation path.
 
 ---
 
@@ -831,7 +831,7 @@ features: {
 | Assign / remove roles | `update:page.units` | Guard wrapper + RLS |
 | View `/unit-preferences` | `read:page.unit-preferences` (via `pageName="unit-preferences"`) | `PagePermissionGuard` + RLS |
 | Add / remove / edit draft preferences | `update:page.unit-preferences` | Guard wrapper + RLS (`submitted_at IS NULL` enforced by RLS) |
-| Submit preferences | `update:page.unit-preferences` | Guard + RPC (`app_base_unit_preference_submit` — blocked, see §20 Q1) |
+| Submit preferences | `update:page.unit-preferences` | Guard + RPC (`app_base_unit_preference_submit`) |
 
 **RLS note on `base_activity_preference`:** INSERT and UPDATE are allowed only when `submitted_at IS NULL` **and** the user is either the event creator or passes `base_user_has_unit_role(unit_id, auth.uid())`. The `base_user_has_unit_role` function queries `rbac_user_units`. The consuming app does not manage `rbac_user_units` records directly — but the build agent must be aware this function is in the RLS policy chain and that it may deny writes for users not assigned to the unit in that table.
 
@@ -876,7 +876,7 @@ features: {
 - Given adding a session, it moves from Available Sessions to the Preferences list with rank auto-assigned.
 - Given removing a preference row, the session returns to Available Sessions and remaining ranks are renumbered contiguously.
 - Given manually editing a rank to introduce a gap, the Submit button is disabled and an inline validation message explains the issue.
-- Given a valid ranked set, pressing Submit Preferences shows the ConfirmationDialog. _(Submit itself blocked pending §20 Q1.)_
+- Given a valid ranked set, pressing Submit Preferences shows the ConfirmationDialog and confirms via `app_base_unit_preference_submit`.
 - Given submitted preferences for a unit, the page shows the read-only submitted view with submission timestamp; no add/remove/submit controls are visible.
 - Given a denied read permission on unit-preferences, `AccessDenied` renders.
 
@@ -915,7 +915,7 @@ features: {
 
 ## 14. Build execution rules
 
-- **Stop** if `app_base_unit_preference_submit` is missing or its signature cannot be confirmed. **This condition is currently active** — the RPC is confirmed absent from dev-db. Do not implement the Submit Preferences action (PD-PC-08) until §20 Q1 is resolved.
+- **Stop** if `app_base_unit_preference_submit` is missing or its signature cannot be confirmed in the target environment before release; do not substitute a direct client write to `submitted_at`.
 - **Do not** supply `event_id` or `organisation_id` in `base_unit_roles` insert payloads — the `sync_base_unit_roles_event_org_trigger` fills both. Passing them may conflict with trigger logic.
 - **Always** resolve `organisation_id` from `core_events.organisation_id` before inserting into `base_units` or `base_unit_role_types`. Do not assume any default or session-level mechanism supplies this value.
 - **Always** use `selectedEvent.id` (from `useEvents()`) as the event identifier — not `selectedEvent.event_id`.
@@ -929,7 +929,7 @@ features: {
 ## 15. Done criteria
 
 - All §4 and §5 behaviours observable in preview environment with screenshots: loading, empty, error, create/edit/delete unit, role types CRUD, role assignment, preference draft add/remove/rank, preference submitted read-only, denied state.
-- `app_base_unit_preference_submit` backend blocker noted in build queue; submit UI not shipped until §20 Q1 is resolved and the Done criteria item for submit is separately verified.
+- Preference submit flow verified against `app_base_unit_preference_submit` contract and recorded in build queue evidence.
 - §12 verification flows completed; results noted in build queue evidence.
 - QA pack executed; quality gates green.
 
@@ -946,7 +946,7 @@ features: {
 - Do not merge preference submission into booking allocation — preferences are inputs to an allocation process, not confirmed bookings.
 - Do not show non-approved applications in the role assignment applicant selector.
 - Do not ship a drawer for unit/role modals — use `Dialog` (centred) or DataTable built-in editing.
-- Do not implement the Submit Preferences action until `app_base_unit_preference_submit` is deployed and §20 Q1 is resolved.
+- Do not bypass `app_base_unit_preference_submit` by writing `submitted_at` directly from the client.
 - Do not manage `rbac_user_units` records from this slice — that table is outside BA08 scope.
 - Do not absorb activity session creation (BA09), participant booking (BA10), or communications (BA17) into this slice.
 
@@ -974,7 +974,7 @@ features: {
 - Resolve `organisation_id` from `core_events` before every insert to `base_units` and `base_unit_role_types`. This is not automatic.
 - Omit `event_id` and `organisation_id` from `base_unit_roles` insert payloads — the trigger fills them.
 - Do not call `window.confirm()` — use `ConfirmationDialog` per §5 confirmation dialog copy table.
-- **Do not implement the Submit Preferences action (PD-PC-08)** until §20 Q1 is resolved. Mark as a build blocker in the build queue and proceed with all other preference UI (add, remove, rank edit) which uses direct table writes only.
+- Implement Submit Preferences (PD-PC-08) using `app_base_unit_preference_submit` only; keep add/remove/rank draft flows on direct table writes while `submitted_at IS NULL`.
 - Use Australian English spelling in user-visible copy (e.g., "organiser", "organisation").
 - Rank renumbering on /unit-preferences is client-side state management — persist individual rank updates to `base_activity_preference` on blur or re-order, but do not make a network call for every keystroke.
 - If PostgREST embed names fail type-check, adjust relationship names against the generated types while preserving column allow-lists.
@@ -982,7 +982,7 @@ features: {
 
 **Quality gates before marking Done**
 
-- [ ] All functional specification items implemented and demonstrable (excluding Submit Preferences pending §20 Q1).
+- [ ] All functional specification items implemented and demonstrable.
 - [ ] All acceptance criteria verified (not pre-ticked).
 - [ ] `lint`, `type-check`, `tests`, `validate` all pass.
 - [ ] Visual evidence for required states captured.
@@ -1007,6 +1007,4 @@ features: {
 
 ## 20. Open questions
 
-| # | Question | Why it matters | Blocked artefact(s) | Owner |
-|---|----------|----------------|---------------------|-------|
-| 1 | **`app_base_unit_preference_submit(p_unit_id, p_event_id)`** is confirmed absent from dev-db (`rkytnffgmwnnmewevqgp`). Migration SQL authored and submitted to Jess (migrations manager) via `_authoring/pr-BA08-preference-submit-rpc.md`. **Awaiting deployment confirmation.** Once deployed, run post-apply verification queries in the PR doc, then remove this blocker from §1, §14, and §15. | §4 PD-PC-08, §7.2 submit contract, §11 submit AC, §14 stop rule | Jess (deploy) → Kusi (confirm) |
+No unresolved BA08 open questions for this run.

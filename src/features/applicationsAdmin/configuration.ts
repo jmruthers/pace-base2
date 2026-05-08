@@ -174,6 +174,25 @@ async function reissueCheckToken(params: {
   return { ok: true, data: null };
 }
 
+async function checkSetStatusRpcAvailability(supabase: SupabaseLike): Promise<ApiResult<boolean>> {
+  // Probe contract availability with a sentinel UUID. Any non-missing-function error
+  // (permission, validation, not found) still indicates the RPC exists.
+  // eslint-disable-next-line pace-core-compliance/rpc-naming-pattern
+  const { error } = await supabase.rpc('app_base_application_check_set_status', {
+    p_check_id: '00000000-0000-0000-0000-000000000000',
+    p_status: 'satisfied',
+    p_notes: null,
+  });
+  if (error == null) {
+    return { ok: true, data: true };
+  }
+  const message = String(error).toLowerCase();
+  if (message.includes('app_base_application_check_set_status') && message.includes('does not exist')) {
+    return { ok: true, data: false };
+  }
+  return { ok: true, data: true };
+}
+
 export function useApplicationsQueue(eventId: string | null) {
   const secureSupabase = useSecureSupabase();
   return useQuery({
@@ -182,6 +201,22 @@ export function useApplicationsQueue(eventId: string | null) {
     queryFn: async () => {
       const supabase = asSupabaseClient(secureSupabase);
       const result = await fetchApplicationsQueue(supabase, eventId as string);
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
+    },
+  });
+}
+
+export function useCheckStatusRpcAvailability(eventId: string | null) {
+  const secureSupabase = useSecureSupabase();
+  return useQuery({
+    queryKey: ['applications-admin', 'check-status-rpc-availability', eventId],
+    enabled: eventId != null && secureSupabase != null,
+    queryFn: async () => {
+      const supabase = asSupabaseClient(secureSupabase);
+      const result = await checkSetStatusRpcAvailability(supabase);
       if (!result.ok) {
         throw new Error(result.error.message);
       }

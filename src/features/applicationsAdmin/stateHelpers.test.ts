@@ -116,6 +116,17 @@ describe('applicationsAdmin stateHelpers', () => {
     expect(renderJsonValue(12)).toBe('12');
     expect(renderJsonValue(['a', 'b'])).toBe('a, b');
     expect(renderJsonValue({ guardianName: 'Kim' })).toEqual({ 'Guardian Name': 'Kim' });
+    expect(renderJsonValue([{ name: 'Kim' }, { role: 'Guardian' }])).toBe('Name: Kim, Role: Guardian');
+    expect(
+      renderJsonValue({
+        guardianDetails: {
+          fullName: 'Kim Example',
+          contactMethods: ['Email', 'SMS'],
+        },
+      })
+    ).toEqual({
+      'Guardian Details': 'Full Name: Kim Example, Contact Methods: Email, SMS',
+    });
     expect(renderJsonValue(null)).toBeNull();
   });
 

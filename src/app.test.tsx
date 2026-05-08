@@ -103,6 +103,10 @@ vi.mock('./pages/applications/ApplicationsPage', () => ({
   ApplicationsPage: () => <main>Applications Page</main>,
 }));
 
+vi.mock('./pages/communications/CommunicationsPage', () => ({
+  CommunicationsPage: () => <main>Communications Page</main>,
+}));
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -167,6 +171,7 @@ describe('BA00 route behavior', () => {
   it('redirects unauthenticated root users to /login', async () => {
     renderAt('/');
     expect(await screen.findByText('Login Page BASE')).toBeTruthy();
+    expect(screen.queryByText('Shell Layout')).toBeNull();
   });
 
   it('redirects authenticated root users to /event-dashboard', async () => {
@@ -252,5 +257,12 @@ describe('BA00 route behavior', () => {
     renderAt('/applications');
     expect(await screen.findByText('Shell Layout')).toBeTruthy();
     expect(await screen.findByText('Applications Page')).toBeTruthy();
+  });
+
+  it('renders communications route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/communications');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Communications Page')).toBeTruthy();
   });
 });

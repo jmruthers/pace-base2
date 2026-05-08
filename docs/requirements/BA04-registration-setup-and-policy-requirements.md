@@ -35,7 +35,7 @@ Let permitted operators define registration types for the selected event: human-
 
 - All reads and RPCs route through **`useSecureSupabase()`** from `@solvera/pace-core/rbac`; no unrestricted Supabase singleton.
 - Writes are limited to **`app_base_registration_type_upsert`** and **`app_base_registration_type_set_active`** — no privileged direct `INSERT`/`UPDATE`/`DELETE` to `base_registration_type`, eligibility, or requirement tables.
-- **`PagePermissionGuard`** gates the page boundary with `pageName="registration-types"`. Mutation affordances additionally align with **`update`** semantics for authoring operations.
+- **`PagePermissionGuard`** gates the page boundary with `pageName="registration-types"`. Mutation affordances use **`create`** and **`update`** checks; authoring dialogs render within an **`update`** guard.
 - **`@dnd-kit/core`**, **`@dnd-kit/sortable`**, **`@dnd-kit/utilities`** are **consuming-application dependencies** (not re-exported from pace-core).
 - Composition uses pace-core primitives named in §9; layout follows Standard 07 (Semantic HTML + grids as per project rules).
 - Import policy is root-first for consuming apps: use `@solvera/pace-core` by default. Scoped entrypoints (`/rbac`, `/components`) are exception paths used when root does not expose the required symbol or a documented advanced/performance/migration case applies.
@@ -54,8 +54,8 @@ Let permitted operators define registration types for the selected event: human-
 
 **Scope object when required context is absent**
 
-- Pass `{ organisationId: selectedOrganisationId, eventId: selectedEventId, appId }` from **`useUnifiedAuth()`** (`Scope` typing from `@solvera/pace-core/rbac`).
-- When no event selected: **`eventId` is `null` or `undefined` per whichever field the unified auth exposes for absent selection** — the document requires the consuming app thread `null`, not sentinel strings.
+- Pass scope through the route/controller helper as `{ organisationId, eventId, appId }`, where `organisationId` / `eventId` are resolved from **`useResolvedScope()`** with fallback to **`useUnifiedAuth()`** selected ids when unresolved.
+- When no event selected: `eventId` remains `null` or `undefined` per hook state (no sentinel strings).
 
 **Partially-defined scope versus guard stall**
 
@@ -100,7 +100,7 @@ Cover every category template requires; numbering runs contiguous.
 
 ### Primary actions — list toolbar & row actions
 
-14. **RL-PA-01 —** Toolbar **`Button`** “Create registration type” is wrapped in **`PagePermissionGuard`** with **`pageName="registration-types"`**, **`operation="create"`**, **`scope={{ organisationId, eventId, appId }}`**, **`fallback={null}`** (same nesting pattern as BA03 create buttons). Opens **`RD`** in create mode resetting drafts.
+14. **RL-PA-01 —** Toolbar **`Button`** “Create registration type” is wrapped in **`PagePermissionGuard`** with **`pageName="registration-types"`**, **`operation="create"`**, **`scope={{ organisationId, eventId, appId }}`**, **`fallback={null}`** (same nesting pattern as BA03 create buttons). Clicking it resets drafts and requests **`RD`** create mode; actual dialog rendering remains governed by the dialog-level **`operation="update"`** guard.
 15. **RL-PA-02 —** Row **`Button`** “Edit” wrapped in **`PagePermissionGuard`** with **`operation="update"`**, **`fallback={null}`**; opens **`RD`** populated via **BR-SNAPSHOT**.
 16. **RL-PA-03 —** Row **`Switch`** with **`aria-label="Registration type active"`** sits inside **`PagePermissionGuard`** with **`pageName="registration-types"`**, **`operation="update"`**, **`fallback={null}`** — denied users never see the control. **`disabled`** applies only when no event is selected; the Switch is **not** disabled while the RPC is pending. On change, flip `checked` optimistically and call **`app_base_registration_type_set_active`**; on RPC failure revert `checked` to its prior value and call **`HandleMutationError`**.
 17. **RL-PA-04 —** Row **`Button`** “Manage requirements”: same **`update`** **`PagePermissionGuard`** wrapper as Edit; **`disabled`** when the row has **no persisted `id` yet** (create flow requires first successful type save).
@@ -125,7 +125,7 @@ Cover every category template requires; numbering runs contiguous.
 29. **RR-CF-01 —** **`guardian_approval`**: show informational copy referencing parent/guardian contact directory semantics and optional **`Checkbox`** “Require approval from **all** linked guardians”; maps JSON **`{ require_all_guardians: boolean }`** default `{ require_all_guardians: false }` when unchecked.
 30. **RR-CF-02 —** **`designated_org_review`**: informational line plus **`Select`** of eligible organisations (**BR-REVORG**) choosing **`reviewing_org_id`**; payload JSON **`{ reviewing_org_id: "<uuid>" }`**.
 31. **RR-CF-03 —** **`home_leader_approval`** / **`payment`** / **`referee`** / **`event_approval`**: informational read-only **`Alert`** or paragraph per **BR-INFOCOPY**; **no hidden extra dynamic inputs** besides ordering + delete.
-32. **RR-CF-04 —** Save blocked until **`designated_org_review`** rows possess a selected reviewing org UUID and date eligibility rules obey **BR-RULEVALUE** validations. When the user attempts to save with an unresolved `designated_org_review` row, render an inline error message **"Select a reviewing organisation"** immediately below the org `Select` for that row; do not close the dialog or fire the RPC.
+32. **RR-CF-04 —** Save requirements is blocked until all **`designated_org_review`** rows possess a selected reviewing org UUID. When the user attempts to save with an unresolved `designated_org_review` row, render an inline error message **"Select a reviewing organisation"** immediately below the org `Select` for that row; do not close the dialog or fire the RPC.
 
 ### Save behaviour & confirmations
 
@@ -477,7 +477,7 @@ Domains / decisions: honour `docs/database/domains/base.md` when overlapping RLS
 
 Server strings observed inside SQL: **`'update:page.registration-types'`** literal — client permission naming must remain compatible with project's RBAC catalogue (adjust naming if codebase uses dotted variant — implementer aligns **pageName `'registration-types'`** with DB permission factory).
 
-_Scope_: always populated with **organisation**, **event (nullable on no-selection path)**, **BASE app ID**.
+_Scope_: thread `{ organisationId, eventId, appId }` via the registration scope helper (resolved-scope first, selected-id fallback). `organisationId` and `eventId` can be nullable during selection/loading; no sentinel string placeholders.
 
 ---
 

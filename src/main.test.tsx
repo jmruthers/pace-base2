@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const setupRBACMock = vi.hoisted(() => vi.fn());
 const navigateMock = vi.hoisted(() => vi.fn());
+const createClientMock = vi.hoisted(() => vi.fn());
+const mockSupabaseClient = vi.hoisted(() => ({ tag: 'mock-supabase-client' }));
 const captured = vi.hoisted(
   () =>
     ({
@@ -19,8 +21,8 @@ vi.mock('./App', () => ({
   APP_NAME: 'base',
 }));
 
-vi.mock('./lib/supabase', () => ({
-  supabaseClient: { tag: 'mock-supabase-client' },
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: createClientMock,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -69,6 +71,10 @@ async function bootstrapMain() {
   captured.unifiedAuthProps = null;
   setupRBACMock.mockReset();
   navigateMock.mockReset();
+  createClientMock.mockReset();
+  createClientMock.mockReturnValue(mockSupabaseClient);
+  vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+  vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'publishable-key');
   document.body.innerHTML = '<div id="root"></div>';
   await import('./main');
 }
@@ -80,13 +86,18 @@ describe('main bootstrap wiring', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+    vi.unstubAllEnvs();
   });
 
   it('calls setupRBAC with appName base and app resolver before app bootstraps', async () => {
     await bootstrapMain();
+    expect(createClientMock).toHaveBeenCalledWith(
+      'https://example.supabase.co',
+      'publishable-key'
+    );
     expect(setupRBACMock).toHaveBeenCalledTimes(1);
     expect(setupRBACMock).toHaveBeenCalledWith(
-      { tag: 'mock-supabase-client' },
+      mockSupabaseClient,
       expect.objectContaining({
         appName: 'base',
         getAppId: expect.any(Function),

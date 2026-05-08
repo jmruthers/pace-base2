@@ -33,6 +33,10 @@ const evidenceState = vi.hoisted(() => ({
   refetch: vi.fn(async () => undefined),
 }));
 
+const rpcAvailabilityState = vi.hoisted(() => ({
+  data: true as boolean | undefined,
+}));
+
 const mutationState = vi.hoisted(() => ({
   appStatusMutateAsync: vi.fn(async () => undefined),
   checkStatusMutateAsync: vi.fn(async () => undefined),
@@ -67,6 +71,7 @@ vi.mock('@solvera/pace-core/rbac', () => ({
 
 vi.mock('@/features/applicationsAdmin/configuration', () => ({
   useApplicationsQueue: () => queueState,
+  useCheckStatusRpcAvailability: () => rpcAvailabilityState,
   useApplicationEvidence: () => evidenceState,
   useSetApplicationStatusMutation: () => ({ isPending: false, mutateAsync: mutationState.appStatusMutateAsync }),
   useSetCheckStatusMutation: () => ({ isPending: false, mutateAsync: mutationState.checkStatusMutateAsync }),
@@ -192,6 +197,7 @@ describe('ApplicationsPage', () => {
     evidenceState.isLoading = false;
     evidenceState.error = null;
     evidenceState.refetch.mockClear();
+    rpcAvailabilityState.data = true;
     mutationState.appStatusMutateAsync.mockReset();
     mutationState.checkStatusMutateAsync.mockReset();
     mutationState.reissueMutateAsync.mockReset();
@@ -291,6 +297,43 @@ describe('ApplicationsPage', () => {
     expect(screen.getByRole('button', { name: 'Satisfy check' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reject check' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reissue link' })).toBeTruthy();
+  });
+
+  it('hides event approval actions and shows blocker when check-status RPC is unavailable', () => {
+    rpcAvailabilityState.data = false;
+    queueState.data = [
+      {
+        id: 'application-rpc-blocked',
+        event_id: 'event-1',
+        person_id: 'person-2',
+        status: 'submitted',
+        submitted_at: '2026-05-01T00:00:00.000Z',
+        created_at: '2026-05-01T00:00:00.000Z',
+        registration_type_id: 'type-1',
+        person: { preferred_name: 'Sam', first_name: 'Sam', last_name: 'Nash', email: 'sam@example.com' },
+        registration_type: { id: 'type-1', name: 'Camper' },
+        checks: [
+          {
+            id: 'check-event',
+            status: 'pending',
+            requirement_id: 'req-event',
+            token_expires_at: null,
+            actioned_at: null,
+            notes: null,
+            requirement: { check_type: 'event_approval', sort_order: 1, is_automated: false, config: null },
+          },
+        ],
+      },
+    ];
+    render(<ApplicationsPage />);
+    expect(
+      screen.getByText(
+        'Event approval actions are unavailable because `app_base_application_check_set_status` is missing in this environment.'
+      )
+    ).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: 'View' })[0]!);
+    expect(screen.queryByRole('button', { name: 'Satisfy check' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reject check' })).toBeNull();
   });
 
   it('hides application override buttons for non-override statuses', () => {

@@ -128,8 +128,8 @@ export function FormsListPage() {
   const eventSlug = useMemo(() => resolveEventSlug(selectedEvent), [selectedEvent]);
 
   const scope = {
-    organisationId: organisationId ?? selectedOrganisationId,
-    eventId: eventId ?? selectedEventId ?? null,
+    organisationId,
+    eventId,
     appId: appId ?? undefined,
   };
 

@@ -140,16 +140,31 @@ function toSpacedTitleCase(input: string): string {
     .join(' ');
 }
 
+function renderJsonInline(value: unknown): string {
+  if (value == null) {
+    return '';
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => renderJsonInline(entry)).join(', ');
+  }
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([key, item]) => `${toSpacedTitleCase(key)}: ${renderJsonInline(item)}`)
+      .join(', ');
+  }
+  return String(value);
+}
+
 export function renderJsonValue(value: unknown): string | Record<string, string> | null {
   if (value == null) {
     return null;
   }
   if (Array.isArray(value)) {
-    return value.map((entry) => String(entry)).join(', ');
+    return value.map((entry) => renderJsonInline(entry)).join(', ');
   }
   if (typeof value === 'object') {
     return Object.entries(value as Record<string, unknown>).reduce<Record<string, string>>((acc, [key, item]) => {
-      acc[toSpacedTitleCase(key)] = String(item);
+      acc[toSpacedTitleCase(key)] = renderJsonInline(item);
       return acc;
     }, {});
   }

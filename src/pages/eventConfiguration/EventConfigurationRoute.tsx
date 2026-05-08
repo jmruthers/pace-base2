@@ -54,7 +54,6 @@ interface ConfigurationFieldsProps {
 }
 
 interface EventStylingFieldsProps {
-  methods: UseFormReturn<EventConfigurationFormValues>;
   readOnly: boolean;
 }
 
@@ -77,7 +76,28 @@ function toValidationSummary(errors: Record<string, unknown>): string {
   return messages.join('; ') || 'Please correct the highlighted fields.';
 }
 
+function isEventColoursValidationError(error: unknown): error is Error {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return (
+    error.message.startsWith('Invalid JSON in Event Colours field:') ||
+    error.message === 'Event Colours JSON exceeds maximum length of 5000 characters'
+  );
+}
+
 function ConfigurationFields({ methods, readOnly }: ConfigurationFieldsProps) {
+  const errors = methods.formState.errors as Record<string, unknown>;
+  const registrationScopeValue = (methods.watch('registration_scope') as string | null) ?? null;
+  const registrationScopeLabel =
+    registrationScopeValue === 'org_only'
+      ? 'Org only'
+      : registrationScopeValue === 'hierarchy'
+        ? 'Hierarchy'
+        : registrationScopeValue === 'open'
+          ? 'Open'
+          : '';
+
   return (
     <section className="grid gap-3">
       <fieldset className="grid grid-cols-1 gap-3 border-0 p-0 md:grid-cols-2">
@@ -114,7 +134,7 @@ function ConfigurationFields({ methods, readOnly }: ConfigurationFieldsProps) {
         </article>
         <FormField<EventConfigurationFormValues>
           name="event_days"
-          label="Event Duration"
+          label="Event Days"
           render={({ field }) => (
             <Input
               id="event_days"
@@ -203,24 +223,7 @@ function ConfigurationFields({ methods, readOnly }: ConfigurationFieldsProps) {
           />
         )}
       />
-    </section>
-  );
-}
 
-function EventStylingFields({ methods, readOnly }: EventStylingFieldsProps) {
-  const errors = methods.formState.errors as Record<string, unknown>;
-  const registrationScopeValue = (methods.watch('registration_scope') as string | null) ?? null;
-  const registrationScopeLabel =
-    registrationScopeValue === 'org_only'
-      ? 'Org only'
-      : registrationScopeValue === 'hierarchy'
-        ? 'Hierarchy'
-        : registrationScopeValue === 'open'
-          ? 'Open'
-          : '';
-
-  return (
-    <section className="grid gap-3">
       <fieldset className="grid grid-cols-1 gap-3 border-0 p-0 md:grid-cols-2">
         <article className="grid gap-1">
           <Label htmlFor="registration_scope">Registration Scope</Label>
@@ -264,7 +267,13 @@ function EventStylingFields({ methods, readOnly }: EventStylingFieldsProps) {
           />
         </article>
       </fieldset>
+    </section>
+  );
+}
 
+function EventStylingFields({ readOnly }: EventStylingFieldsProps) {
+  return (
+    <section className="grid gap-3">
       <FormField<EventConfigurationFormValues>
         name="event_colours"
         label="Event Colours (JSON)"
@@ -341,7 +350,7 @@ export function EventConfigurationRoute() {
 
   const logoRef = uploadedLogoRef ?? logoRefFromQuery;
   const logoFallback = formatEventLogoFallback(eventName);
-  const uploadOrganisationId = String(eventQuery.data.organisation_id ?? organisationId ?? '');
+  const uploadOrganisationId = eventQuery.data.organisation_id ?? organisationId;
 
   return (
     <main className="grid gap-4">
@@ -358,6 +367,14 @@ export function EventConfigurationRoute() {
             });
             ShowSuccessMessage('Event saved successfully!', toast);
           } catch (error) {
+            if (isEventColoursValidationError(error)) {
+              toast({
+                title: 'Error',
+                description: error.message,
+                variant: 'destructive',
+              });
+              return;
+            }
             HandleMutationError(error, 'event-configuration-save', toast);
           }
         }}
@@ -374,7 +391,10 @@ export function EventConfigurationRoute() {
           <>
             <Card>
               <CardHeader>
-                <CardTitle>Event Configuration</CardTitle>
+                <CardTitle className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
+                  <Calendar className="size-4" />
+                  Event Configuration
+                </CardTitle>
                 <CardDescription>Editing: {eventName}</CardDescription>
               </CardHeader>
               <CardContent>
@@ -401,21 +421,13 @@ export function EventConfigurationRoute() {
                 <CardTitle>Event Styling</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4">
-                <PagePermissionGuard
-                  pageName="configuration"
-                  operation="update"
-                  scope={updateScope}
-                  fallback={<EventStylingFields methods={methods} readOnly />}
-                >
-                  <EventStylingFields methods={methods} readOnly={false} />
-                </PagePermissionGuard>
                 <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <article className="grid h-48 place-items-center rounded-md border border-dashed">
                     {logoRef != null ? (
                       <FileDisplay
                         fileReference={logoRef}
                         supabase={storageSupabase}
-                        bucket="public-files"
+                        bucket="files"
                         variant="inline"
                         className="h-48 w-full object-contain"
                         label="Event logo"
@@ -435,10 +447,10 @@ export function EventConfigurationRoute() {
                       ) : (
                         <FileUpload
                           supabase={storageSupabase}
-                          bucket="public-files"
+                          bucket="files"
                           table_name="core_events"
                           record_id={selectedEventId}
-                          organisation_id={uploadOrganisationId}
+                          organisation_id={uploadOrganisationId ?? ''}
                           app_id={appId}
                           category="event_logos"
                           folder="event_logos"
@@ -480,7 +492,11 @@ export function EventConfigurationRoute() {
                               });
                           }}
                           onUploadError={(error) => {
-                            HandleMutationError(error, 'event-logo-upload', toast);
+                            toast({
+                              title: 'Error',
+                              description: `Failed to upload logo: ${error.message}`,
+                              variant: 'destructive',
+                            });
                           }}
                           label="Upload logo"
                         />
@@ -488,6 +504,14 @@ export function EventConfigurationRoute() {
                     </PagePermissionGuard>
                   </article>
                 </section>
+                <PagePermissionGuard
+                  pageName="configuration"
+                  operation="update"
+                  scope={updateScope}
+                  fallback={<EventStylingFields readOnly />}
+                >
+                  <EventStylingFields readOnly={false} />
+                </PagePermissionGuard>
               </CardContent>
             </Card>
           </>

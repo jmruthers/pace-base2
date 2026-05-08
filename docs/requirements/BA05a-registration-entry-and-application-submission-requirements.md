@@ -66,8 +66,8 @@ Items use prefix **FS-** (functional submission contract). Each item is independ
   - When no `base_registration_type_eligibility` rows exist for the selected type, eligibility evaluation is skipped and the applicant is considered eligible.
 - **FS-07** — Initial status is **backend-derived**: if the selected type has **no** rows in `base_registration_type_requirement`, initial status is **`approved`**; if **any** requirement rows exist, initial status is **`under_review`**.
 - **FS-08** — When initial status is **`under_review`**, the RPC creates one **`base_application_check`** row per requirement, ordered by `sort_order`. All rows are created with `status = 'pending'`. After inserting all check rows, the RPC fires the first check (lowest `sort_order`) and then calls the internal helper **`app_base_advance_application_checks`** (§7.4) to handle subsequent chain state. Fire semantics per check type, the full satisfaction mechanism table, and chain progression rules are defined in **`docs/requirements/base/BASE-architecture.md` §4 — Check chain state machine**, which is the authoritative cross-slice reference. The BA05a-specific portion is:
-  - `guardian_approval` as first check: generate `token_hash` (secure random) + `token_expires_at = now() + interval '14 days'` on the check row; dispatch `base.guardian_request_issued` (BA17 **SN-01**) via Edge Function post-commit.
-  - `referee` as first check: generate `token_hash` + `token_expires_at = now() + interval '14 days'` on the check row; dispatch `base.referee_request_issued` (BA17 **SN-03**) via Edge Function post-commit.
+  - `guardian_approval` as first check: generate `token_hash` (secure random) + `token_expires_at = now() + interval '14 days'` on the check row; queue `base.guardian_request_issued` (BA17 **SN-01**) via `app_base_queue_check_notification` for downstream dispatch.
+  - `referee` as first check: generate `token_hash` + `token_expires_at = now() + interval '14 days'` on the check row; queue `base.referee_request_issued` (BA17 **SN-03**) via `app_base_queue_check_notification` for downstream dispatch.
   - `home_leader_approval`, `designated_org_review`, `event_approval`, `payment` as first check: no action beyond the `pending` row. These are surfaced to the relevant actor via TEAM or BA06 approval surfaces; no token is generated at create time.
   - Subsequent check rows (`sort_order` > first) are created as plain `pending` with null `token_hash` and null `token_expires_at`. They are fired only when their predecessor resolves — handled by `app_base_advance_application_checks`.
 
@@ -83,8 +83,8 @@ Items use prefix **FS-** (functional submission contract). Each item is independ
 
 ### 4.4 Supporting RPCs
 
-- **FS-15** — **`app_base_eligible_referees_for_applicant`** returns referee candidates for `(event_id, applicant_person_id, organisation context)`. Eligibility rule: the candidate must be a `core_member` with `organisation_id` in the set returned by `get_org_ancestors(p_organisation_id)` — i.e., an ancestor organisation of the applicant's organisation — with `deleted_at IS NULL` on both the `core_member` and `core_person` rows, and must not be the applicant themselves (`person_id ≠ p_applicant_person_id`). Implemented as **`SECURITY DEFINER`** with `search_path` hardened to `public`. Permission checks: `auth.uid()` must be non-null; the caller must be either (a) the applicant — `core_person.user_id = auth.uid()` for the row where `core_person.id = p_applicant_person_id` — or (b) a user with `rbac_check_permission_simplified(auth.uid(), 'create:page.applications', p_organisation_id, p_event_id, get_base_app_id(), 'applications') = true`.
-- **FS-16** — **`app_base_application_check_reissue_token`** default **`p_expiry_interval`** is **`'14 days'`** (still overridable). Reissue dispatches a follow-up system notification via the BA05a Edge Function post-commit pattern: **`guardian_approval`** check reissue dispatches `base.guardian_request_reissued` (BA17 **SN-02**); **`referee`** check reissue dispatches `base.referee_request_reissued` (BA17 **SN-04**). The dispatch is mechanically identical to first-issue (FS-08) — only the system_key differs. BA06 and BA07 are the upstream call sites that invoke the reissue RPC.
+- **FS-15** — **`app_base_eligible_referees_for_applicant`** returns referee candidates for `(event_id, applicant_person_id, organisation context)`. Eligibility rule: the candidate must be a `core_member` with `organisation_id` in the ancestor set for `p_organisation_id` (implemented via `org_ancestors` closure-table join) with `deleted_at IS NULL` on both the `core_member` and `core_person` rows, and must not be the applicant themselves (`person_id ≠ p_applicant_person_id`). Implemented as **`SECURITY DEFINER`** with `search_path` hardened to `public`. Permission checks: `auth.uid()` must be non-null; the caller must be either (a) the applicant — `core_person.user_id = auth.uid()` for the row where `core_person.id = p_applicant_person_id` — or (b) a user with `rbac_check_permission_simplified(auth.uid(), 'create:page.applications', p_organisation_id, p_event_id, get_base_app_id(), 'applications') = true`.
+- **FS-16** — **`app_base_application_check_reissue_token`** default **`p_expiry_interval`** is **`'14 days'`** (still overridable). Reissue queues a follow-up system notification through `app_base_queue_check_notification`: **`guardian_approval`** check reissue queues `base.guardian_request_reissued` (BA17 **SN-02**); **`referee`** check reissue queues `base.referee_request_reissued` (BA17 **SN-04**). The dispatch contract is mechanically identical to first-issue (FS-08) — only the `system_key` differs. BA06 and BA07 are the upstream call sites that invoke the reissue RPC.
 - **FS-17** — Existing token resolve, submit, and set-status RPCs (`app_base_application_check_resolve_token`, `app_base_application_check_submit`, `app_base_application_set_status`) remain as documented in architecture; BA05a does not redefine their core semantics beyond FS-16 default.
 
 ### 4.5 pace-core2 renderer alignment
@@ -142,7 +142,7 @@ Not applicable in BASE UI. BA05a defines backend registration/submission contrac
 
 **`app_base_eligible_referees_for_applicant`**
 
-- **Status:** does not exist in dev-db; new RPC to be created in migration PR.
+- **Status:** present in dev-db and part of the canonical BA05a contract surface.
 - **Inputs:** `p_event_id uuid`, `p_applicant_person_id uuid`, `p_organisation_id uuid`.
 - **Returns:** set of rows with the following shape:
 
@@ -155,13 +155,13 @@ Not applicable in BASE UI. BA05a defines backend registration/submission contrac
 | `organisation_id` | uuid | `core_member.organisation_id` — the ancestor org where candidate holds membership |
 | `organisation_name` | text | `core_organisations.name` for `organisation_id` |
 
-- **Eligibility mechanism:** candidates are `core_member` rows where `organisation_id` is in the set returned by `get_org_ancestors(p_organisation_id)` (i.e., any ancestor org of the applicant's org), joined to `core_person`, excluding the applicant (`core_person.id ≠ p_applicant_person_id`), excluding soft-deleted persons (`core_person.deleted_at IS NULL`), and excluding soft-deleted member rows (`core_member.deleted_at IS NULL`). No `ltree` — closure table only.
+- **Eligibility mechanism:** candidates are `core_member` rows where `organisation_id` is in the ancestor set for `p_organisation_id` (implemented with `org_ancestors` closure-table joins), joined to `core_person`, excluding the applicant (`core_person.id ≠ p_applicant_person_id`), excluding soft-deleted persons (`core_person.deleted_at IS NULL`), and excluding soft-deleted member rows (`core_member.deleted_at IS NULL`). No `ltree` — closure table only.
 
 ### 7.3 Internal helpers
 
 **`event_applicant_org_allowed`** — internal to `app_base_application_create` only; not a consumer API.
 
-**`app_base_advance_application_checks(p_application_id uuid)`** — internal chain progression helper; not a consumer API. Called by `app_base_application_create` after first-check activation, and by every satisfaction RPC (BA06, BA07, TEAM-via-BASE) after a check status is written. Created in the BA05a migration PR. Full semantics: `docs/requirements/base/BASE-architecture.md` §4 — Check chain state machine.
+**`app_base_advance_application_checks(p_application_id uuid)`** — internal chain progression helper; not a consumer API. Called by `app_base_application_create` after first-check activation, and by every satisfaction RPC (BA06, BA07, TEAM-via-BASE) after a check status is written. This helper is present in dev-db as part of the BA05a contract surface. Full semantics: `docs/requirements/base/BASE-architecture.md` §4 — Check chain state machine.
 
 ### 7.4 Error catalogue
 

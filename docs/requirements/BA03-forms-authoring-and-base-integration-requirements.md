@@ -9,7 +9,7 @@
 
 ## 2. Overview
 
-This slice owns the two surfaces through which BASE operators author and manage workflow forms for an event: a forms list page and a form builder page. The forms list gives operators a card-grid view of all forms for the selected event, with actions to create, edit, preview, copy the portal URL, and delete forms. The form builder provides a full authoring surface for form metadata, fields, submission scheduling, and registration type bindings, built around the `WorkflowFormAuthoringShell` from pace-core2. All mutations go through three RPCs (`app_base_form_upsert`, `app_base_form_fields_replace`, `app_base_form_delete`) and a direct write to `base_form_registration_type`. The slice is scoped to BASE admin authoring only; participant-facing form submission surfaces are not in scope.
+This slice owns the two surfaces through which BASE operators author and manage workflow forms for an event: a forms list page and a form builder page. The forms list gives operators a card-grid view of all forms for the selected event, with actions to create, edit, preview, copy the portal URL, and delete forms. The form builder provides a full authoring surface for form metadata, fields, submission scheduling, and registration type bindings, built around the `WorkflowFormAuthoringShell` from pace-core2. All mutations go through RPC boundaries (`app_base_form_upsert`, `app_base_form_fields_replace`, `app_base_form_delete`, and registration-binding RPCs). The slice is scoped to BASE admin authoring only; participant-facing form submission surfaces are not in scope.
 
 ---
 
@@ -43,7 +43,7 @@ This slice owns the two surfaces through which BASE operators author and manage 
 
 **Page-level guards and evaluation ordering.**
 - **Evaluation order on `/forms`:** `PagePermissionGuard` fires first. If denied, `<AccessDenied />` renders and the no-event state is never reached.
-- **Scope object when no event is selected:** `{ organisationId: selectedOrganisationId, eventId: null, appId }`. `eventId` is `null` when no event is selected.
+- **Scope object when no event is selected:** `{ organisationId, eventId: null, appId }` from resolved RBAC scope. `eventId` is `null` when no event is selected.
 - **Guard behaviour with `eventId: null`:** the guard evaluates the scope with the null event ID. If the guard passes (e.g. the user has org-level read permission), the no-event empty state renders. If the guard fails with a null event ID, `<AccessDenied />` renders. The build agent must not assume a specific pass/fail outcome — it must render whatever the guard returns.
 - **Practical guard-before-empty-state rule:** `PagePermissionGuard` always wraps the entire page. The no-event empty state only appears inside the authenticated, permitted shell.
 
@@ -69,13 +69,13 @@ This slice owns the two surfaces through which BASE operators author and manage 
 
 **Architectural posture.**
 - The builder uses `WorkflowFormAuthoringShell` from `@solvera/pace-core/forms`. It does not compose `WorkflowFormMetadataEditor` and `WorkflowFormFieldEditor` directly; it uses the shell and customises it via the props listed in §9.2.
-- Save flow makes three sequential async calls: `app_base_form_upsert` → `app_base_form_fields_replace` → (if `base_registration`) `base_form_registration_type` write. Each failure aborts the sequence and shows a destructive toast.
-- Registration binding write uses direct `useSecureSupabase()` delete + insert against `base_form_registration_type`. This is the only direct table mutation in the builder (not an RPC).
+- Save flow makes three sequential async calls: `app_base_form_upsert` → `app_base_form_fields_replace` → (if `base_registration`) registration-binding RPC write. Each failure aborts the sequence and shows a destructive toast.
+- Registration bindings are read/written via canonical backend RPCs (`app_base_form_registration_bindings_get`, `app_base_form_registration_bindings_replace`) scoped to form/event/organisation context.
 - `onStateChange` from the shell is intercepted in the builder page for slug auto-generation (new forms) and to pass updated state to local React state.
 
 **Page-level guards and evaluation ordering.**
 - **Evaluation order on `/form-builder`:** `PagePermissionGuard` fires first. If denied, `<AccessDenied />` renders. If permitted, check for event context: if no event is selected, show the no-event blocking card. If event is present and `formId` query param is provided, show loading state while the form loads. If `formId` is absent, render the shell in create mode immediately.
-- **Guard scope when no event is selected:** `{ organisationId: selectedOrganisationId, eventId: null, appId }`. Same behaviour as `/forms`: guard evaluates with null event ID; if it passes, the no-event card renders.
+- **Guard scope when no event is selected:** `{ organisationId, eventId: null, appId }` from resolved RBAC scope. Same behaviour as `/forms`: guard evaluates with null event ID; if it passes, the no-event card renders.
 - **Guard behaviour during form load (edit mode):** the `PagePermissionGuard` renders its children immediately (not loading-gated); the loading state for form data renders inside the children, not as a guard state.
 
 ---
@@ -88,7 +88,7 @@ Items prefixed `FL-` belong to the Forms List surface; items prefixed `FB-` belo
 
 **Page entry**
 
-1. FL-PE-01 — On entry, the page renders inside the BA00 authenticated shell. The URL is `/forms`. The page reads the selected event from `useEvents()` and, when an event is present, fetches all `core_forms` rows for that event in descending `created_at` order (no `is_active` filter — all forms for the event are shown). In parallel, a field-count batch query runs against `core_form_fields` (see §6.7).
+1. FL-PE-01 — On entry, the page renders inside the BA00 authenticated shell. The URL is `/forms`. The page reads the selected event from `useEvents()` and, when an event is present, fetches all `core_forms` rows for that event in descending `created_at` order (no `is_active` filter — all forms for the event are shown). After the list payload is available, a field-count batch query runs against `core_form_fields` (see §6.7).
 2. FL-PE-02 — Page header renders an h1 reading "Forms" and a subtitle reading "Manage workflow forms for this event."
 
 **Loading states**
@@ -114,7 +114,7 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 10. FL-PC-04 — Workflow type: displayed as a plain text label beneath the title (e.g. "base_registration", "generic"). No badge.
 11. FL-PC-05 — Opens at: when `opens_at` is non-null, displays a "Opens: {date}" line using `formatDate` from `@solvera/pace-core`. When `opens_at` is null, this line is not rendered.
 12. FL-PC-06 — Closes at: when `closes_at` is non-null, displays a "Closes: {date}" line using `formatDate`. When null, omitted.
-13. FL-PC-07 — Card action row: four icon buttons rendered in the card footer in the order: Edit, Preview, Copy URL, Delete. Each is a `Button` with an icon and a tooltip-style `aria-label`. Spacing: evenly distributed in a flex row.
+13. FL-PC-07 — Card action row: four icon buttons rendered in the card footer in the order: Edit, Preview, Copy URL, Delete. Each is a `Button` with an icon and a tooltip-style `aria-label`. Spacing: evenly distributed in a single row container (grid or flex).
 14. FL-PC-08 — Edit button: navigates to `/form-builder?formId={form.id}` using React Router `useNavigate`.
 15. FL-PC-09 — Preview button: opens the form's full portal URL in a new browser tab (`window.open(url, '_blank')`). Full URL constructed per §6.3.
 16. FL-PC-10 — Copy URL button: copies the form's full portal URL to the clipboard via `navigator.clipboard.writeText(url)`. On success, the button icon switches to a checkmark for 2 seconds then reverts. On clipboard API failure, shows a destructive toast: "Could not copy URL to clipboard." Visible on all forms regardless of status.
@@ -156,7 +156,7 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 **Page entry**
 
 32. FB-PE-01 — **Create mode** (no `formId` query param): on entry, the builder renders with the shell in an empty state. Initial `WorkflowAuthoringState` is set per §6.8. The page heading reads "Create Form". No data fetches are required before the shell renders. `useUnifiedAuth().selectedEventId` and `selectedOrganisationId` are populated into `state.metadata.eventId` and `state.metadata.organisationId` respectively.
-33. FB-PE-02 — **Edit mode** (`?formId={uuid}` query param present): on entry, the builder shows a loading state while it fetches the saved `core_forms` row and its `core_form_fields` rows in parallel. If `workflowType === 'base_registration'`, a third fetch loads the saved `base_form_registration_type` bindings for the form. The page heading reads "Edit Form" in this mode.
+33. FB-PE-02 — **Edit mode** (`?formId={uuid}` query param present): on entry, the builder shows a loading state while it fetches the saved `core_forms` row and its `core_form_fields` rows in parallel. If `workflowType === 'base_registration'`, a third fetch loads the saved form registration bindings for the form via registration-binding RPCs. The page heading reads "Edit Form" in this mode.
 34. FB-PE-03 — The URL for create mode is `/form-builder`. The URL for edit mode is `/form-builder?formId={uuid}`. The builder reads the `formId` param from the URL via React Router's `useSearchParams`.
 
 **Loading states**
@@ -165,7 +165,7 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 
 **No-event state**
 
-36. FB-NV-01 — When no event is selected (`selectedEvent` is null from `useEvents()`), the shell does not render. A `Card` is shown with the message: "Select an event from the header before creating or editing a form." No page-level h1 is rendered above the card — the BA00 shell header provides navigation context. This state takes precedence over the loading state and the shell.
+36. FB-NV-01 — When no event context is available (`selectedEvent` is null from `useEvents()` or `selectedEventId` is null from auth context), the shell does not render. A `Card` is shown with the message: "Select an event from the header before creating or editing a form." No page-level h1 is rendered above the card — the BA00 shell header provides navigation context. This state takes precedence over the loading state and the shell.
 
 **Error states**
 
@@ -475,9 +475,8 @@ Triggered when the shell calls `onSave(state)`. The page tracks `isSaving` in lo
 5. Build `p_fields` array from `state.fields` (see BR-16).
 6. Call `app_base_form_fields_replace(resolvedFormId, p_fields)`. On error → `HandleMutationError` → set `isSaving = false` → abort. (Note: the form was already saved in step 4; on fields error the form exists but may have an indeterminate field set. The user can retry the full save to restore fields.)
 7. If `state.metadata.workflowType === 'base_registration'`:
-   - Delete existing bindings: `DELETE FROM base_form_registration_type WHERE form_id = $resolvedFormId AND event_id = $eventId`.
-   - Insert new bindings per BR-17 (skip INSERT if no types are checked).
-   - On error → `HandleMutationError` → set `isSaving = false` → abort. (Note: form and fields were already saved. Bindings are now cleared. The user can retry the full save to restore them.)
+   - Call `app_base_form_registration_bindings_replace` with `p_form_id`, `p_event_id`, `p_organisation_id`, and normalised bindings payload per BR-17.
+   - On error → `HandleMutationError` → set `isSaving = false` → abort. (Note: form and fields were already saved. The user can retry the full save to reconcile bindings.)
 8. On complete success: set `isSaving = false`, show toast "Form saved successfully.", navigate to `/forms`.
 
 ### BR-15 — `p_definition` construction for `app_base_form_upsert`
@@ -531,19 +530,27 @@ const p_fields = state.fields.map((f, idx) => ({
 
 ### BR-17 — Registration binding write
 
-For each form save where `workflowType === 'base_registration'`, the binding write is:
+For each form save where `workflowType === 'base_registration'`, the binding write uses the canonical replace RPC:
 
-1. `DELETE FROM base_form_registration_type WHERE form_id = $resolvedFormId AND event_id = $eventId`
-2. For each binding where `checked === true`:
-   ```
-   INSERT INTO base_form_registration_type
-     (form_id, registration_type_id, event_id, organisation_id, sort_order, is_default)
-   VALUES
-     ($resolvedFormId, $typeId, $eventId, $organisationId, $sortOrderIdx, $isDefault)
-   ```
-   `sort_order` = array index of the checked binding. `is_default` = `true` for at most one binding (the one marked as default in the panel UI).
+```
+const payload = bindings
+  .filter((b) => b.checked)
+  .map((b, idx) => ({
+    registration_type_id: b.typeId,
+    sort_order: idx,
+    is_default: b.isDefault,
+  }))
 
-**Empty bindings case:** When `bindings.filter(b => b.checked).length === 0` (user unchecked all types), the DELETE in step 1 still runs (clearing all existing bindings for this form), and no INSERT is executed. This is valid — the form has no registration type bindings after save.
+supabase.rpc('app_base_form_registration_bindings_replace', {
+  p_form_id: resolvedFormId,
+  p_event_id: selectedEventId,
+  p_organisation_id: selectedOrganisationId,
+  p_bindings: payload,
+  p_actor: user?.id ?? null, // optional actor audit field when available
+})
+```
+
+**Empty bindings case:** When `bindings.filter(b => b.checked).length === 0` (user unchecked all types), `p_bindings` is an empty array. The replace RPC clears existing bindings for the form/event scope and persists an empty set.
 
 ### BR-18 — `opensAt` / `closesAt` ISO 8601 ↔ Date conversion
 
@@ -624,12 +631,11 @@ Result: array of available registration types for the event.
 **Registration bindings read** (used by `RegistrationTypeBindingPanel` in edit mode, in parallel with form detail)
 
 ```
-supabase
-  .from('base_form_registration_type')
-  .select('registration_type_id, sort_order, is_default')
-  .eq('form_id', formId)
-  .eq('event_id', selectedEventId)
-  .order('sort_order', { ascending: true })
+supabase.rpc('app_base_form_registration_bindings_get', {
+  p_form_id: formId,
+  p_event_id: selectedEventId,
+  p_organisation_id: selectedOrganisationId ?? null,
+})
 ```
 
 Result: array of existing binding rows, or empty array.
@@ -673,33 +679,22 @@ supabase.rpc('app_base_form_delete', {
 Success: returns `[{ deleted: boolean, response_count: bigint, registration_binding_count: bigint }]`. Check `data[0].deleted`.
 Failure: Supabase error. Pass to `HandleMutationError`.
 
-**Registration bindings delete** (step 1 of binding write, when `workflowType === 'base_registration'`)
+**Registration bindings replace** (step 3 of save flow, when `workflowType === 'base_registration'`)
 
 ```
-supabase
-  .from('base_form_registration_type')
-  .delete()
-  .eq('form_id', resolvedFormId)
-  .eq('event_id', selectedEventId)
-```
-
-**Registration bindings insert** (step 2 of binding write)
-
-```
-supabase
-  .from('base_form_registration_type')
-  .insert(
-    bindings
-      .filter(b => b.checked)
-      .map((b, idx) => ({
-        form_id: resolvedFormId,
-        registration_type_id: b.typeId,
-        event_id: selectedEventId,
-        organisation_id: selectedOrganisationId,
-        sort_order: idx,
-        is_default: b.isDefault,
-      }))
-  )
+supabase.rpc('app_base_form_registration_bindings_replace', {
+  p_form_id: resolvedFormId,
+  p_event_id: selectedEventId,
+  p_organisation_id: selectedOrganisationId,
+  p_bindings: bindings
+    .filter((b) => b.checked)
+    .map((b, idx) => ({
+      registration_type_id: b.typeId,
+      sort_order: idx,
+      is_default: b.isDefault,
+    })),
+  p_actor: user?.id ?? null,
+})
 ```
 
 ### 7.3 Permission / RLS contracts
@@ -739,7 +734,7 @@ The `app_base_form_upsert` and `app_base_form_delete` RPCs both enforce `update:
 |---|---|
 | `core_forms` | Primary form rows — read for list and edit, written via RPCs |
 | `core_form_fields` | Form field rows — read for field count (list) and edit mode (builder), replaced via RPC |
-| `base_form_registration_type` | Registration type bindings for forms — read in builder, written directly |
+| `base_form_registration_type` | Registration type bindings for forms — read and written via backend registration-binding RPCs |
 | `base_registration_type` | Available registration types for an event — read for binding panel |
 | `core_form_responses` | Not read by this slice. Referenced by `app_base_form_delete` internally to check response count. |
 
@@ -762,7 +757,7 @@ Before implementation, verify:
 3. `core_forms.workflow_type` is `text NOT NULL`.
 4. `core_form_fields.field_key` is `text NOT NULL` (no `table_name` or `column_name`).
 5. `base_form_registration_type` exists with columns: `id`, `form_id`, `registration_type_id`, `event_id`, `organisation_id`, `sort_order`, `is_default`.
-6. `app_base_form_upsert`, `app_base_form_fields_replace`, `app_base_form_delete` all exist with the signatures in §7.2.
+6. `app_base_form_upsert`, `app_base_form_fields_replace`, `app_base_form_delete`, `app_base_form_registration_bindings_get`, and `app_base_form_registration_bindings_replace` all exist with the signatures in §7.1/§7.2.
 7. `app_base_form_upsert` writes `status`, `is_primary_entrypoint`, `is_active`, `opens_at`, `closes_at`, `max_submissions`, `confirmation_message` from `p_definition` (Q12 DB fix applied).
 8. Confirm the BASE event type shape: verify `useEvents().selectedEvent` exposes a `slug` property or only `event_name`.
 9. **VERIFIED (2026-05-01):** `ConfirmationDialog` does not support single-button mode — `cancelLabel` is always rendered. Use `Dialog` sub-components directly for the blocking delete dialog. Verify the public export path of `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter` at build time.
@@ -806,9 +801,9 @@ Bounded context: BA03 of `BASE-architecture.md`. `core_forms` and `core_form_fie
 | Save button visibility on `/form-builder` | `form-builder` / `update` | same | Save button hidden; shell rendered `disabled={true}` |
 | `app_base_form_upsert` RPC (server-enforced) | `update:page.forms` | org + event context | RPC raises permission exception |
 | `app_base_form_fields_replace` RPC (server-enforced) | `update:page.form-builder` | org + event context | RPC raises permission exception |
-| Direct delete/insert on `base_form_registration_type` | n/a (direct table write via `useSecureSupabase()`) | `{ form_id, event_id, organisation_id }` row-scoped | Mutation fails with RLS error if not permitted |
+| `app_base_form_registration_bindings_replace` RPC (server-enforced) | `update:page.forms` + event/org scope checks | `{ form_id, event_id, organisation_id }` via RPC args | RPC raises permission exception |
 
-The slice does not introduce new RLS policies on any table. All server-side enforcement is via the RPCs' existing RBAC checks, except for `base_form_registration_type` which uses direct table writes. **Build-time verification required (§8.3):** confirm via Supabase MCP (dev-db `rkytnffgmwnnmewevqgp`) that the authenticated user session (via `useSecureSupabase()`) has RLS permission to delete and insert rows in `base_form_registration_type` scoped to the event and organisation. If RLS blocks these writes, escalate to the DB engineer before implementing — do not stub or bypass RLS.
+The slice does not introduce new RLS policies on any table. All server-side enforcement is via RPC RBAC checks. **Build-time verification required (§8.3):** confirm via Supabase MCP (dev-db `rkytnffgmwnnmewevqgp`) that the registration-binding RPC signatures are available and enforce expected event/org scoping.
 
 ---
 
