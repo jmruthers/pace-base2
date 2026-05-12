@@ -21,6 +21,7 @@ const draftControls = vi.hoisted(() => ({
   setDraft: vi.fn(),
   commitDraft: vi.fn(),
 }));
+const sendTestSpy = vi.hoisted(() => vi.fn());
 
 vi.mock('@solvera/pace-core/hooks', () => ({
   useUnifiedAuth: () => authState,
@@ -62,14 +63,34 @@ vi.mock('@solvera/pace-core/components', () => ({
   CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   MultiSelect: ({
     placeholder,
+    value,
     onValueChange,
   }: {
     placeholder?: string;
+    value?: string[];
     onValueChange?: (values: string[]) => void;
   }) => (
-    <article role="button" tabIndex={0} onClick={() => onValueChange?.(['approved'])}>
-      {placeholder ?? 'Select'}
-    </article>
+    <section>
+      <p>{placeholder ?? 'Select'}</p>
+      <p>{JSON.stringify(value ?? [])}</p>
+      <article
+        role="button"
+        tabIndex={0}
+        onClick={() => {
+          if (placeholder === 'Status') {
+            onValueChange?.(['approved']);
+            return;
+          }
+          if (placeholder === 'Search or select participants...') {
+            onValueChange?.(['member-1']);
+            return;
+          }
+          onValueChange?.(['value-1']);
+        }}
+      >
+        Select value
+      </article>
+    </section>
   ),
 }));
 
@@ -84,25 +105,29 @@ vi.mock('@solvera/pace-core/comms', () => ({
     loadTemplates: vi.fn(),
     loadMergeFields: vi.fn(),
     send: vi.fn(),
-    sendTest: vi.fn().mockResolvedValue({ ok: true, data: { total_recipients: 0 } }),
+    sendTest: sendTestSpy,
     schedule: vi.fn(),
     saveDraft: vi.fn(),
   }),
   CommComposer: ({
+    adapter,
     recipientPool,
     onSendComplete,
+    onScheduleComplete,
   }: {
-    recipientPool: { filters?: { status?: string[] } };
+    adapter: { sendTest: (request: unknown) => Promise<{ ok: boolean; data: unknown }> };
+    recipientPool: { type: string; filters?: { status?: string[] }; member_ids?: string[] };
     onSendComplete?: (result: {
       message_id: string;
       total_recipients: number;
       suppression_skipped: number;
-      warnings: [];
+      warnings: Array<{ message: string }>;
     }) => void;
+    onScheduleComplete?: (scheduledAt: string) => void;
   }) => (
     <section>
       <p>Comm Composer</p>
-      <p>{JSON.stringify(recipientPool.filters?.status ?? [])}</p>
+      <p>{JSON.stringify(recipientPool)}</p>
       <article
         role="button"
         tabIndex={0}
@@ -111,11 +136,27 @@ vi.mock('@solvera/pace-core/comms', () => ({
             message_id: 'msg-1',
             total_recipients: 3,
             suppression_skipped: 1,
-            warnings: [],
+            warnings: [{ message: 'Gateway partially failed.' }],
           })
         }
       >
         Trigger Send Success
+      </article>
+      <article
+        role="button"
+        tabIndex={0}
+        onClick={() => onScheduleComplete?.('2026-06-01T10:30:00Z')}
+      >
+        Trigger Schedule Success
+      </article>
+      <article
+        role="button"
+        tabIndex={0}
+        onClick={() => {
+          void adapter.sendTest({ test: true });
+        }}
+      >
+        Trigger Send Test
       </article>
     </section>
   ),
@@ -134,6 +175,12 @@ vi.mock('@/features/communications/configuration', () => ({
     isError: false,
     error: null,
   }),
+  useSpecificParticipantOptions: () => ({
+    data: [{ value: 'member-1', label: 'Participant 1' }],
+    isLoading: false,
+    isError: false,
+    error: null,
+  }),
 }));
 
 describe('CommunicationsPage', () => {
@@ -143,6 +190,16 @@ describe('CommunicationsPage', () => {
     permissionState.canCreate = true;
     permissionState.canUpdate = true;
     permissionState.isLoading = false;
+    sendTestSpy.mockReset();
+    sendTestSpy.mockResolvedValue({
+      ok: true,
+      data: {
+        message_id: 'test-1',
+        total_recipients: 1,
+        suppression_skipped: 0,
+        warnings: [{ message: 'Test warning' }],
+      },
+    });
     toastSpy.mockReset();
     draftControls.setDraft.mockReset();
     draftControls.commitDraft.mockReset();
@@ -168,12 +225,21 @@ describe('CommunicationsPage', () => {
   it('updates status filter and renders composer', async () => {
     render(<CommunicationsPage />);
     expect(screen.getByText('Comm Composer')).toBeTruthy();
-    expect(screen.getByText('[]')).toBeTruthy();
-    fireEvent.click(screen.getByText('Status'));
+    expect(screen.getByText('{"type":"event_participants","event_id":"event-1","filters":{}}')).toBeTruthy();
+    fireEvent.click(screen.getAllByText('Select value')[1]);
     expect(await screen.findByText('["approved"]')).toBeTruthy();
   });
 
-  it('shows success and suppression toasts after send success callback', () => {
+  it('switches to specific participants mode and uses manual pool descriptor', async () => {
+    render(<CommunicationsPage />);
+    fireEvent.click(screen.getByText('Specific participants'));
+    fireEvent.click(screen.getAllByText('Select value')[0]);
+    expect(await screen.findByText('["member-1"]')).toBeTruthy();
+    expect(await screen.findByText('{"type":"manual","member_ids":["member-1"]}')).toBeTruthy();
+    expect(screen.queryByText('Clear filters')).toBeNull();
+  });
+
+  it('shows success, suppression, and warning toasts after send success callback', () => {
     render(<CommunicationsPage />);
     fireEvent.click(screen.getByText('Trigger Send Success'));
     expect(toastSpy).toHaveBeenCalledWith(
@@ -185,6 +251,40 @@ describe('CommunicationsPage', () => {
     expect(toastSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         description: '1 recipients were suppressed and skipped.',
+      })
+    );
+    expect(toastSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Gateway partially failed.',
+      })
+    );
+  });
+
+  it('shows send test success and warning toasts', async () => {
+    render(<CommunicationsPage />);
+    fireEvent.click(screen.getByText('Trigger Send Test'));
+    await vi.waitFor(() => {
+      expect(toastSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Test email sent to your email address.',
+          variant: 'success',
+        })
+      );
+    });
+    expect(toastSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Test warning',
+      })
+    );
+  });
+
+  it('shows schedule toast with datetime copy', () => {
+    render(<CommunicationsPage />);
+    fireEvent.click(screen.getByText('Trigger Schedule Success'));
+    expect(toastSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Message scheduled for 2026-06-01T10:30:00Z.',
+        variant: 'success',
       })
     );
   });

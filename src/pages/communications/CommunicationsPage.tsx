@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   CommComposer,
   useCommDraft,
   useCommSendAdapter,
   type CommRbacContext,
+  type CommSendResult,
 } from '@solvera/pace-core/comms';
 import {
   Card,
@@ -28,12 +29,15 @@ import {
 } from '@/features/communications/constants';
 import {
   useRegistrationTypeFilterOptions,
+  useSpecificParticipantOptions,
   useUnitFilterOptions,
 } from '@/features/communications/configuration';
 import {
+  DEFAULT_COMMUNICATION_POOL_MODE,
   EMPTY_COMMUNICATION_FILTERS,
-  buildEventParticipantsPool,
+  buildRecipientPool,
   hasActiveCommunicationFilters,
+  type CommunicationPoolMode,
   type CommunicationFilters,
 } from '@/features/communications/shared';
 
@@ -112,9 +116,16 @@ function CommunicationsPageContent({
   canUpdate,
 }: CommunicationsPageContentProps) {
   const { toast } = useToast();
+  const [poolMode, setPoolMode] = useState<CommunicationPoolMode>(DEFAULT_COMMUNICATION_POOL_MODE);
   const [filters, setFilters] = useState<CommunicationFilters>(EMPTY_COMMUNICATION_FILTERS);
+  const [manualMemberIds, setManualMemberIds] = useState<string[]>([]);
   const registrationTypeOptionsQuery = useRegistrationTypeFilterOptions(selectedEventId);
   const unitOptionsQuery = useUnitFilterOptions(selectedEventId);
+  const specificParticipantOptionsQuery = useSpecificParticipantOptions(
+    selectedEventId,
+    effectiveOrganisationId,
+    poolMode === 'specific_participants'
+  );
 
   const adapter = useCommSendAdapter({
     organisationId: effectiveOrganisationId,
@@ -125,8 +136,8 @@ function CommunicationsPageContent({
   const draftState = useCommDraft({ channel: 'email' });
 
   const recipientPool = useMemo(
-    () => buildEventParticipantsPool(selectedEventId, filters),
-    [filters, selectedEventId]
+    () => buildRecipientPool(selectedEventId, poolMode, filters, manualMemberIds),
+    [filters, manualMemberIds, poolMode, selectedEventId]
   );
   const commRbacContext = useMemo<CommRbacContext>(
     () => ({
@@ -139,9 +150,27 @@ function CommunicationsPageContent({
     [canCreate, canUpdate, selectedEventId]
   );
 
+  const emitWarningToasts = useCallback(
+    (result: CommSendResult) => {
+      for (const warning of result.warnings) {
+        toast({
+          description: warning.message,
+        });
+      }
+    },
+    [toast]
+  );
+
   const wrappedAdapter = useMemo(
     () => ({
       ...adapter,
+      send: async (request: Parameters<typeof adapter.send>[0]) => {
+        const result = await adapter.send(request);
+        if (result.ok) {
+          emitWarningToasts(result.data);
+        }
+        return result;
+      },
       sendTest: async (request: Parameters<typeof adapter.sendTest>[0]) => {
         const result = await adapter.sendTest(request);
         if (result.ok) {
@@ -149,15 +178,27 @@ function CommunicationsPageContent({
             title: 'Test email sent to your email address.',
             variant: 'success',
           });
+          emitWarningToasts(result.data);
         }
         return result;
       },
     }),
-    [adapter, toast]
+    [adapter, emitWarningToasts, toast]
   );
 
   const registrationTypeOptions = registrationTypeOptionsQuery.data ?? [];
+  const specificParticipantOptions = specificParticipantOptionsQuery.data ?? [];
   const unitOptions = unitOptionsQuery.data ?? [];
+
+  const isEventParticipantsMode = poolMode === 'event_participants';
+
+  function resetCompositionState() {
+    setPoolMode(DEFAULT_COMMUNICATION_POOL_MODE);
+    setFilters(EMPTY_COMMUNICATION_FILTERS);
+    setManualMemberIds([]);
+    draftState.setDraft({ channel: 'email' });
+    draftState.commitDraft({ channel: 'email' });
+  }
 
   return (
     <main className="grid gap-4">
@@ -165,59 +206,108 @@ function CommunicationsPageContent({
         <h1>Communications</h1>
       </header>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <MultiSelect
-          value={filters.registrationTypeIds}
-          options={registrationTypeOptions}
-          placeholder="Registration type"
-          onValueChange={(registrationTypeIds) =>
-            setFilters((previous) => ({ ...previous, registrationTypeIds }))
-          }
-          clearable
-          disabled={registrationTypeOptionsQuery.isLoading}
-        />
-        <MultiSelect
-          value={filters.statuses}
-          options={COMMUNICATION_STATUS_OPTIONS}
-          placeholder="Status"
-          onValueChange={(nextStatuses) =>
-            setFilters((previous) => ({
-              ...previous,
-              statuses: nextStatuses as CommunicationStatusFilter[],
-            }))
-          }
-          clearable
-        />
-        <MultiSelect
-          value={filters.unitIds}
-          options={unitOptions}
-          placeholder="Unit"
-          onValueChange={(unitIds) => setFilters((previous) => ({ ...previous, unitIds }))}
-          clearable
-          disabled={unitOptionsQuery.isLoading}
-        />
+      <section className="grid gap-2 sm:grid-cols-2">
+        <Button
+          type="button"
+          variant={isEventParticipantsMode ? 'default' : 'outline'}
+          onClick={() => {
+            setPoolMode('event_participants');
+            setManualMemberIds([]);
+            setFilters(EMPTY_COMMUNICATION_FILTERS);
+          }}
+        >
+          Event participants
+        </Button>
+        <Button
+          type="button"
+          variant={isEventParticipantsMode ? 'outline' : 'default'}
+          onClick={() => {
+            setPoolMode('specific_participants');
+            setFilters(EMPTY_COMMUNICATION_FILTERS);
+          }}
+        >
+          Specific participants
+        </Button>
       </section>
 
-      {hasActiveCommunicationFilters(filters) ? (
-        <Button type="button" variant="outline" className="justify-self-end" onClick={() => setFilters(EMPTY_COMMUNICATION_FILTERS)}>
-          Clear filters
-        </Button>
-      ) : null}
+      {isEventParticipantsMode ? (
+        <>
+          <section className="grid gap-3 md:grid-cols-3">
+            <MultiSelect
+              value={filters.registrationTypeIds}
+              options={registrationTypeOptions}
+              placeholder="Registration type"
+              onValueChange={(registrationTypeIds) =>
+                setFilters((previous) => ({ ...previous, registrationTypeIds }))
+              }
+              clearable
+              disabled={registrationTypeOptionsQuery.isLoading}
+            />
+            <MultiSelect
+              value={filters.statuses}
+              options={COMMUNICATION_STATUS_OPTIONS}
+              placeholder="Status"
+              onValueChange={(nextStatuses) =>
+                setFilters((previous) => ({
+                  ...previous,
+                  statuses: nextStatuses as CommunicationStatusFilter[],
+                }))
+              }
+              clearable
+            />
+            <MultiSelect
+              value={filters.unitIds}
+              options={unitOptions}
+              placeholder="Unit"
+              onValueChange={(unitIds) => setFilters((previous) => ({ ...previous, unitIds }))}
+              clearable
+              disabled={unitOptionsQuery.isLoading}
+            />
+          </section>
 
-      {registrationTypeOptionsQuery.isError || unitOptionsQuery.isError ? (
+          {hasActiveCommunicationFilters(filters) ? (
+            <Button
+              type="button"
+              variant="link"
+              className="justify-self-end"
+              onClick={() => setFilters(EMPTY_COMMUNICATION_FILTERS)}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </>
+      ) : (
+        <section>
+          <MultiSelect
+            value={manualMemberIds}
+            options={specificParticipantOptions}
+            placeholder="Search or select participants..."
+            onValueChange={setManualMemberIds}
+            clearable
+            disabled={specificParticipantOptionsQuery.isLoading}
+          />
+        </section>
+      )}
+
+      {(isEventParticipantsMode &&
+        (registrationTypeOptionsQuery.isError || unitOptionsQuery.isError)) ||
+      (!isEventParticipantsMode && specificParticipantOptionsQuery.isError) ? (
         <Card>
           <CardHeader>
             <CardTitle>Filter data unavailable</CardTitle>
             <CardDescription>
               {(registrationTypeOptionsQuery.error as Error | null)?.message ??
                 (unitOptionsQuery.error as Error | null)?.message ??
-                'Could not load filter options.'}
+                (specificParticipantOptionsQuery.error as Error | null)?.message ??
+                'Could not load participant options.'}
             </CardDescription>
           </CardHeader>
         </Card>
       ) : null}
 
-      {registrationTypeOptions.length === 0 && !registrationTypeOptionsQuery.isLoading ? (
+      {isEventParticipantsMode &&
+      registrationTypeOptions.length === 0 &&
+      !registrationTypeOptionsQuery.isLoading ? (
         <Card>
           <CardContent>
             <p>No registration types available for this event.</p>
@@ -225,7 +315,7 @@ function CommunicationsPageContent({
         </Card>
       ) : null}
 
-      {unitOptions.length === 0 && !unitOptionsQuery.isLoading ? (
+      {isEventParticipantsMode && unitOptions.length === 0 && !unitOptionsQuery.isLoading ? (
         <Card>
           <CardContent>
             <p>No units available.</p>
@@ -252,18 +342,18 @@ function CommunicationsPageContent({
               description: `${result.suppression_skipped} recipients were suppressed and skipped.`,
             });
           }
-          setFilters(EMPTY_COMMUNICATION_FILTERS);
-          draftState.setDraft({ channel: 'email' });
-          draftState.commitDraft({ channel: 'email' });
+          emitWarningToasts(result);
+          resetCompositionState();
         }}
-        onScheduleComplete={() => {
+        onScheduleComplete={(scheduledAt) => {
           toast({
-            title: 'Message scheduled.',
+            title:
+              typeof scheduledAt === 'string' && scheduledAt.length > 0
+                ? `Message scheduled for ${scheduledAt}.`
+                : 'Message scheduled for the selected date and time.',
             variant: 'success',
           });
-          setFilters(EMPTY_COMMUNICATION_FILTERS);
-          draftState.setDraft({ channel: 'email' });
-          draftState.commitDraft({ channel: 'email' });
+          resetCompositionState();
         }}
         onSendError={(message) => {
           toast({

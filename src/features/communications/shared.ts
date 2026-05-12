@@ -1,4 +1,4 @@
-import type { EventParticipantsPool } from '@solvera/pace-core/comms';
+import type { EventParticipantsPool, ManualPool, RecipientPoolDescriptor } from '@solvera/pace-core/comms';
 import type { CommunicationStatusFilter } from './constants';
 
 export interface CommunicationFilters {
@@ -7,11 +7,15 @@ export interface CommunicationFilters {
   unitIds: string[];
 }
 
+export type CommunicationPoolMode = 'event_participants' | 'specific_participants';
+
 export const EMPTY_COMMUNICATION_FILTERS: CommunicationFilters = {
   registrationTypeIds: [],
   statuses: [],
   unitIds: [],
 };
+
+export const DEFAULT_COMMUNICATION_POOL_MODE: CommunicationPoolMode = 'event_participants';
 
 export function hasActiveCommunicationFilters(filters: CommunicationFilters): boolean {
   return (
@@ -33,4 +37,24 @@ export function buildEventParticipantsPool(
       unit_ids: filters.unitIds.length > 0 ? filters.unitIds : undefined,
     },
   };
+}
+
+export function buildManualPool(memberIds: string[]): ManualPool {
+  return {
+    type: 'manual',
+    member_ids: memberIds,
+  };
+}
+
+export function buildRecipientPool(
+  eventId: string,
+  mode: CommunicationPoolMode,
+  filters: CommunicationFilters,
+  memberIds: string[]
+): RecipientPoolDescriptor {
+  if (mode === 'specific_participants') {
+    return buildManualPool(memberIds);
+  }
+
+  return buildEventParticipantsPool(eventId, filters);
 }
