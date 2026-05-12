@@ -42,13 +42,13 @@ Event staff need a single admin surface to set up and manage all scan points for
 
 - All reads use **`useSecureSupabase()`** from `@solvera/pace-core/rbac`. No service-role client in route code.
 - `base_scan_point` RLS uses the older `check_user_event_access` / `check_user_is_event_creator` pattern (confirmed against dev-db 2026-05-12), not `check_rbac_permission_with_context`. SELECT is permitted via `check_user_event_access`. INSERT and UPDATE are permitted via `check_user_is_event_creator`. DELETE is also permitted for event creators via `check_user_is_event_creator` (operators with creator rights can delete scan points — contrast with the specced "denied" posture; the live policy is more permissive). service_role bypasses all RLS. No RPC exists in dev-db for scan-point mutations.
-- **`PagePermissionGuard`** gates the route using `pageName="scanning"` and `operation="read"`.
+- **`PagePermissionGuard`** gates the `/scanning` shell route using `pageName="scanning"` and `operation="read"` (BA00 `AuthenticatedShell` routing). The scanning setup page component SHOULD ALSO wrap its returned tree in **`PagePermissionGuard`** with the same `pageName` / `operation` (and `AccessDenied` fallback) so page-level RBAC hooks meet Standard 3 audit expectations, even though the shell route already enforces read access.
 - Event context is resolved via **`useEvents()`** — use `selectedEvent.id` as `event_id` at all data boundaries.
 - Manifest generation executes direct SELECT queries via the secure Supabase client — no RPC or Edge function.
 
 ### Page-level guards and evaluation ordering for `/scanning`
 
-1. **`PagePermissionGuard`** with `pageName="scanning"` and `operation="read"` wraps the main content.
+1. **`PagePermissionGuard`** with `pageName="scanning"` and `operation="read"` wraps the **shell route** for `/scanning` (BA00) and SHOULD wrap the page component’s returned content as well (Standard 3).
 2. If the guard denies access, **`AccessDenied`** is rendered immediately. No-event messaging does not replace or precede denial.
 3. If the guard is loading and no custom `loadingFallback` prop is supplied, **`PagePermissionGuard`** renders `null` — neither children nor the denial state is shown. A null Supabase client (transient auth initialisation) renders a centred **`LoadingSpinner`** in the main content region.
 4. If the guard permits and **no event is selected** (`selectedEvent` is null or `selectedEvent.id` is falsy), the page shows a blocking **`Card`** instructing the user to select an event in the shell header. Data fetches do not run. The four section DataTables are not rendered.
@@ -88,7 +88,7 @@ Prefix legend: **`SC`** /scanning page-level, **`SP`** scan-point management, **
 ### `/scanning` — scan-point list content
 
 13. **SP-PC-01 —** The scan-point list is a **`DataTable`** with title "Scan Points".
-14. **SP-PC-02 —** Columns (in order): **Name** (`scan_point.name` read directly from the DB, sortable), **Context** (`Badge`, sortable), **Direction** (`Badge`, sortable), **Resource** (text or "—", sortable), **Status** (paired badges: active/inactive status + offline-capable indicator, sortable by status), **Actions** (Launch ↗, Edit, Deactivate/Activate).
+14. **SP-PC-02 —** Columns (in order): **Name** (`scan_point.name` read directly from the DB, sortable), **Context** (`Badge`, sortable), **Direction** (`Badge`, sortable), **Resource** (text or "—", sortable), **Status** (paired badges: active/inactive status + offline-capable indicator, sortable by status), **Actions** (Launch — icon-only row control with `aria-label="Launch scan point"`, Edit, Deactivate/Activate).
 15. **SP-PC-03 —** Rows are ordered by Name ascending on initial load.
 16. **SP-PC-04 —** The `DataTable` enables search (across Name and resource display text), sorting, and pagination. Filtering, export, import, bulk editing, creation via DataTable toolbar, and deletion via DataTable toolbar are disabled — mutations use custom row actions and a dedicated "Create scan point" button above the table.
 
@@ -96,7 +96,7 @@ Prefix legend: **`SC`** /scanning page-level, **`SP`** scan-point management, **
 
 17. **SP-PA-01 —** A **"Create scan point"** `Button variant="default"` is placed immediately above the scan-point `DataTable` (outside the DataTable toolbar). The button is only rendered when the authenticated user has `create:page.scanning`. Pressing it opens the create dialog (see SP-PA-02 to SP-PA-05).
 18. **SP-PA-02 —** The create dialog is a controlled `Dialog` containing a `Form`. `DialogTitle` "Create scan point". Fields in `DialogBody` (in order):
-    - **Name** — required text input, `FormField` `name="name"` `label="Name"` `required`, max 100 characters, placeholder "e.g. Main gate, Activity hub entrance", helper text "A short label to identify this scan point." Error copy: "Name is required."
+    - **Name** — required text input, `FormField` `name="name"` `label="Name"` `required`, max 100 characters, placeholder "e.g. Main gate, Activity hub entrance", helper text "A short label to identify this scan point." Error copy: "Name is required." when empty; "Name must be 100 characters or fewer." when over max length.
     - **Context type** — required `Select` with options: "Site" (`site`), "Activity" (`activity`), "Transport" (`transport`), "Meal" (`meal`). No other values accepted.
     - **Direction** — required `Select` with options: "In" (`in`), "Out" (`out`), "Both" (`both`), "Neutral" (`neutral`).
     - **Resource** — optional text display control when context type is `site` or `meal` (no resource selection shown). Required `Select` when context type is `activity` (select from `base_activity_session` rows for the current event). Required `Select` when context type is `transport` (select from `trac_activity` rows for the current event — `trac_itinerary_assignment` is live so transport context is fully enabled). See BR-SP-01.
@@ -128,7 +128,7 @@ Prefix legend: **`SC`** /scanning page-level, **`SP`** scan-point management, **
 
 ### `/scanning` — launch action
 
-32. **SP-PA-16 —** A **Launch ↗** row action appears on all scan-point rows regardless of active/inactive status. Pressing Launch navigates to `/scanning/:scanPointId` where `:scanPointId` is the `base_scan_point.id`. Navigation is unconditional — BA13 handles all runtime validation including inactive point warnings.
+32. **SP-PA-16 —** A **Launch** row action (icon-only control, `aria-label="Launch scan point"`) appears on all scan-point rows regardless of active/inactive status. Pressing it navigates to `/scanning/:scanPointId` where `:scanPointId` is the `base_scan_point.id`. Navigation is unconditional — BA13 handles all runtime validation including inactive point warnings.
 
 ### `/scanning` — manifest downloads
 
@@ -220,11 +220,11 @@ features: {
 - **Direction cell:** `Badge variant="solid-sec-muted"` with label "In", "Out", "Both", or "Neutral". Badge mapping: `in` → "In", `out` → "Out", `both` → "Both", `neutral` → `Badge variant="solid-sec-muted"` "Neutral".
 - **Resource cell:** display text for the resolved resource name, or "—" when the scan point has no resource binding (site and meal contexts).
 - **Status cell:** two badges rendered side by side — (1) active/inactive status badge: active → `Badge variant="solid-main-normal"` "Active", inactive → `Badge variant="solid-sec-muted"` "Inactive"; (2) offline-capable indicator: `Badge variant="solid-acc-normal"` "Offline" — rendered for all four context types (all context types support a manifest download per Q-S1 resolution).
-- **Row actions (rightmost column):**
-  - **Launch ↗** `Button variant="ghost"` `size="icon"` `aria-label="Launch scan point"` — icon: `ExternalLink` from `@solvera/pace-core/icons`. Always rendered on all rows.
-  - **Edit** `Button variant="ghost"` `size="icon"` `aria-label="Edit scan point"` — icon: `Pencil` from `@solvera/pace-core/icons`. Rendered only on active rows and only when user has `update:page.scanning`.
-  - **Deactivate** `Button variant="ghost"` `size="icon"` `aria-label="Deactivate scan point"` — icon: `EyeOff` from `@solvera/pace-core/icons`. Rendered only on active rows and only when user has `update:page.scanning`.
-  - **Activate** `Button variant="ghost"` `size="icon"` `aria-label="Activate scan point"` — icon: `Eye` from `@solvera/pace-core/icons`. Rendered only on inactive rows and only when user has `update:page.scanning`.
+- **Row actions (rightmost column):** Icons MUST come from `@solvera/pace-core/icons` and MUST use only symbols exported from that module for BASE (see §9.1).
+  - **Launch** — `Button variant="ghost"` `size="icon"` `aria-label="Launch scan point"` — icon: `ChevronRight` from `@solvera/pace-core/icons`. Icon-only control (no visible Unicode arrow required). Always rendered on all rows.
+  - **Edit** — `Button variant="ghost"` `size="icon"` `aria-label="Edit scan point"` — icon: `SquarePen` from `@solvera/pace-core/icons`. Rendered only on active rows and only when user has `update:page.scanning`.
+  - **Deactivate** — `Button variant="ghost"` `size="icon"` `aria-label="Deactivate scan point"` — icon: `X` from `@solvera/pace-core/icons`. Rendered only on active rows and only when user has `update:page.scanning`.
+  - **Activate** — `Button variant="ghost"` `size="icon"` `aria-label="Activate scan point"` — icon: `Plus` from `@solvera/pace-core/icons`. Rendered only on inactive rows and only when user has `update:page.scanning`.
 
 ### Components — create / edit Dialog
 
@@ -233,10 +233,10 @@ Both the create and edit flows use the same field layout inside a controlled `Di
 - **`Dialog`** controlled via `open`/`onOpenChange`. Mounted via `DialogPortal` outside the component tree.
 - **`DialogHeader`:** `DialogTitle` "Create scan point" or "Edit scan point".
 - **`DialogBody`:** `Form` with `FormField` elements in order:
-  - **Name** — `FormField` `name="name"` `label="Name"` `required` containing a text input, max 100 characters, placeholder "e.g. Main gate, Activity hub entrance", helper text "A short label to identify this scan point." For edit dialogs, pre-populated with the existing `scan_point.name` value. Inline error when empty: "Name is required."
+  - **Name** — `FormField` `name="name"` `label="Name"` `required` containing a text input, max 100 characters, placeholder "e.g. Main gate, Activity hub entrance", helper text "A short label to identify this scan point." (e.g. adjacent `<small>`). For edit dialogs, pre-populated with the existing `scan_point.name` value. Inline error when empty: "Name is required."; when over max length: "Name must be 100 characters or fewer."
   - **Context type** — `FormField` `name="context_type"` `label="Context type"` `required` containing a `Select` with four `SelectItem` elements: Site, Activity, Transport, Meal. For edit dialogs, pre-populated with the current value.
   - **Direction** — `FormField` `name="direction"` `label="Direction"` `required` containing a `Select` with four `SelectItem` elements: In (`in`), Out (`out`), Both (`both`), Neutral (`neutral`). For edit dialogs, pre-populated.
-  - **Resource** — `FormField` `name="resource_id"` `label="Resource"` — rendered conditionally. Not rendered when `context_type` is `site` or `meal`. Rendered as a required `Select` when `context_type` is `activity` (options from `base_activity_session` rows for `selectedEvent.id`, label format: offering name + " — " + session name or `formatDateTime(session.start_time, { timezone: selectedEvent.timezone, format: 'd MMM yyyy h:mm a' })` when session name is absent). Rendered as a required `Select` when `context_type` is `transport` (options from `trac_activity` rows for the current event — `trac_itinerary_assignment` is live so transport context is fully enabled). Resource field value clears when context type changes.
+  - **Resource** — `FormField` `name="resource_id"` `label="Resource"` — rendered conditionally. Not rendered when `context_type` is `site` or `meal`. Rendered as a required `Select` when `context_type` is `activity` (options from `base_activity_session` rows for `selectedEvent.id`, label format: offering name + " — " + session name or `formatInTimeZone(session.start_time, selectedEvent.timezone, 'd MMM yyyy h:mm a')` when session name is absent and timezone is available; otherwise `formatDateTime(session.start_time)`). Rendered as a required `Select` when `context_type` is `transport` (options from `trac_activity` rows for the current event — `trac_itinerary_assignment` is live so transport context is fully enabled). Resource field value clears when context type changes.
 - **`DialogFooter`:** `Button variant="outline"` "Cancel" + `Button variant="default"` `type="submit"` labelled "Create scan point" (create) or "Save changes" (edit).
 - **`Select` inside Dialog:** `positionMode` auto detects the Dialog context and uses `fixed` positioning — no extra configuration needed.
 - **Field-level validation errors:** appear as `<p role="alert">` below the affected field, per `FormField` rendered layout.
@@ -245,8 +245,8 @@ Both the create and edit flows use the same field layout inside a controlled `Di
 
 - **`Dialog`** controlled. Mounted via `DialogPortal`.
 - **`DialogTitle`:** "Deactivate scan point"
-- **`DialogBody`:** `scan_point.name` rendered as `<p className='font-semibold text-sm text-foreground'>`, then copy: "Deactivating this scan point will remove it from the live scanning list. Existing scan history will not be affected."
-- **`DialogFooter`:** `Button variant="destructive"` "Deactivate" + `Button variant="outline"` "Cancel".
+- **`DialogBody`:** `scan_point.name` rendered as `<p><strong>…</strong></p>` (semantic emphasis; avoid ad-hoc typography utility classes on semantic text per Standard 07), then copy: "Deactivating this scan point will remove it from the live scanning list. Existing scan history will not be affected."
+- **`DialogFooter`:** `Button variant="destructive"` "Deactivate" (first in DOM order) + `Button variant="outline"` "Cancel", trailing-aligned as a pair.
 
 ### Components — manifests Card
 
@@ -277,7 +277,7 @@ The conflict DataTable carries its own pace-core Card wrapper. Do not double-wra
 
 - **`Dialog`** controlled. Mounted via `DialogPortal`.
 - **`DialogTitle`:** "Conflict detail"
-- **`DialogBody`:** read-only field list. Fields are displayed as label–value pairs in a two-column grid: 200px label column (`font-medium text-sm text-muted-foreground`, left-aligned), remaining width value column (`text-sm text-foreground`, left-aligned). Long `validation_reason` values wrap within the value column; no truncation.
+- **`DialogBody`:** read-only field list. Fields are displayed as a description list `<dl>` in a two-column CSS Grid (`grid-cols-[200px_1fr]`): each label is `<dt>`, each value is `<dd>`. Rely on `core_person` / semantic typography from Standard 07 — do not apply `text-*` / `font-*` utility classes on `<dt>` / `<dd>`. Long `validation_reason` values wrap within the value column; no truncation.
   - **Scan point:** `scan_point.name`
   - **Card identifier:** `core_member_card.card_identifier`
   - **Result:** `validation_result` (plain text — value is `upload_conflict`)
@@ -325,7 +325,7 @@ The history DataTable carries its own pace-core Card wrapper. Do not double-wrap
 
 - **`window.confirm` is not used anywhere in this slice.** All confirmations use pace-core `Dialog`.
 - **Dialog focus:** `DialogContent` calls `focusFirstFocusableIn` on open. Escape and backdrop click close the dialog and return focus to the trigger element.
-- **Form validation:** Zod validation runs on submit (`mode='onSubmit'`). Field-level errors appear inline below the affected field.
+- **Form validation:** On submit, validate fields to match BR-V-01 (inline errors below the affected field). Zod is optional; implementations MAY use Zod + `mode='onSubmit'` or an equivalent manual validation layer that yields the same outcomes.
 - **Context type change in form:** when `context_type` changes in the create or edit form, the Resource field value is cleared and the field is conditionally shown or hidden per the rules above.
 - **Activate — no dialog:** the Activate row action fires immediately (no confirmation dialog). Success and failure are communicated via toast only.
 - **Focus on close when trigger row removed:** if the trigger row has been removed from the DataTable following a state change (e.g. after deactivation removes the row from the active filter), focus returns to the DataTable container's first focusable row or, if the table is empty, to the "Create scan point" button.
@@ -471,6 +471,7 @@ BA12 reads `core_member_card.card_identifier` and `core_member_card.is_active` f
 | Error class | Trigger | Display |
 |-------------|---------|---------|
 | `validation_error.scan_point_name_required` | `name` is empty or absent | Inline error on Name field: "Name is required." |
+| `validation_error.scan_point_name_too_long` | `name` trimmed length exceeds 100 | Inline error on Name field: "Name must be 100 characters or fewer." |
 | `validation_error.scan_point_context_invalid` | `context_type` is not in {`site`, `activity`, `transport`, `meal`} | Inline error on Context type field: "Select a valid context type." |
 | `validation_error.scan_point_resource_binding_invalid` | Resource-bound context (`activity`, `transport`) submitted without a valid `resource_id`, or `resource_id` does not resolve to a live record. "The selected resource is no longer available." fires when the submitted `resource_id` fails a backend FK constraint (the referenced record does not exist or has been deleted) — this is a server-side constraint violation returned as `validation_error.scan_point_resource_binding_invalid` in the error response. | Inline error on Resource field: "A resource is required for this context type." or "The selected resource is no longer available." |
 | `validation_error.manifest_context_unsupported` | Manifest download requested for a context type with no manifest query defined | `toast variant='destructive'` "Manifest not available for this context type." |
@@ -706,7 +707,7 @@ The `base_scan_point` table includes `updated_at timestamptz NOT NULL DEFAULT no
 | `Alert`, `AlertDescription` | `@solvera/pace-core/components` | Error states (per section) |
 | `LoadingSpinner` | `@solvera/pace-core/components` | Auth-init loading, manifest button loading |
 | `toast` | `@solvera/pace-core/components` | Success and failure feedback for all mutations and downloads |
-| `PagePermissionGuard`, `AccessDenied` | `@solvera/pace-core/rbac` | Route gating |
+| `PagePermissionGuard`, `AccessDenied` | `@solvera/pace-core/rbac` | Read gating (`pageName="scanning"`, `operation="read"`) on the page component tree alongside shell routing; denial fallback |
 | `useSecureSupabase` | `@solvera/pace-core/rbac` | RLS-aware Supabase client for all queries and mutations |
 | `useCan` | `@solvera/pace-core/rbac` | Permission-conditional rendering of create button, edit/deactivate/activate row actions |
 | `useEvents` | `@solvera/pace-core/hooks` | `selectedEvent.id` and `organisation_id` event context |
@@ -714,7 +715,9 @@ The `base_scan_point` table includes `updated_at timestamptz NOT NULL DEFAULT no
 | `normalizeSupabaseError` | `@solvera/pace-core/utils` | Normalised error messages for toasts and Alert components |
 | `formatDateTime` | `@solvera/pace-core/utils` | Consistent `timestamptz` display across history and conflict tables |
 | `EventId`, `OrganisationId`, `UserId` | `@solvera/pace-core/types` | Branded ID types at feature boundary |
-| `ExternalLink`, `Pencil`, `EyeOff`, `Eye` | `@solvera/pace-core/icons` | Row action icons: Launch (ExternalLink), Edit (Pencil), Deactivate (EyeOff), Activate (Eye) |
+| `ChevronRight`, `SquarePen`, `X`, `Plus` | `@solvera/pace-core/icons` | Row action icons: Launch (`ChevronRight`), Edit (`SquarePen`), Deactivate (`X`), Activate (`Plus`) — **only** these icon names (or other symbols actually exported from `@solvera/pace-core/icons`) are valid in BASE; do not import Lucide icons from other paths. |
+
+**Icons MUST be imported from `@solvera/pace-core/icons` only.** Consuming apps must not depend on icon symbols that are not re-exported in that module.
 
 ### §9.2 Slice-specific caveats
 
@@ -778,7 +781,7 @@ RLS enforces scope at the database layer — permission checks in the client are
 - Given an inactive scan-point row, then the Edit row action is absent regardless of user permissions.
 - Given an active scan-point row, when the user presses Deactivate and confirms in the dialog, then the row's `is_active` becomes false, the list refreshes, and the Activate row action appears in its place.
 - Given an inactive scan-point row, when the user with `update:page.scanning` presses Activate, then no dialog is shown, the row's `is_active` becomes true, and the Edit and Deactivate actions become available on that row.
-- Given any scan-point row, when the user presses Launch ↗, then the browser navigates to `/scanning/:scanPointId`.
+- Given any scan-point row, when the user activates the **Launch** control (`aria-label="Launch scan point"`), then the browser navigates to `/scanning/:scanPointId`.
 - Given a user with `read:page.scanning` presses any manifest download button (site, activity, transport, or meal), when the query runs, then the button shows a spinner and is disabled during execution, and a JSON file is downloaded after success.
 - Given the manifest query returns zero rows, when the download completes, then a JSON file containing an empty array `[]` is downloaded with no error toast.
 - Given the manifest query fails, when the failure is caught, then a `toast variant='destructive'` is shown with the normalised error and no file is downloaded.
@@ -797,7 +800,7 @@ RLS enforces scope at the database layer — permission checks in the client are
 1. **Scan-point CRUD:** Load `/scanning` with BA18 seed scan points. Verify all columns render correctly — the Name cell shows `scan_point.name` from the DB, badges match the mapping in §5, active/inactive toggle works via Deactivate and Activate actions.
 2. **Edit guards:** Press Edit on an active row, change name, context type and resource, save. Verify name updates in the list. Verify no `base_scan_event` rows are affected. Attempt to find the Edit action on an inactive row — it must be absent.
 3. **Deactivate + Activate cycle:** Deactivate a scan point; verify `is_active = false` in dev-db (once table lands), row shows inactive badge, Edit action absent, Activate action present. Activate it; verify `is_active = true`, Edit returns.
-4. **Launch navigation:** Press Launch ↗ on any row; verify the URL changes to `/scanning/{scan_point_id}`.
+4. **Launch navigation:** Activate the Launch control (`aria-label="Launch scan point"`) on any row; verify the URL changes to `/scanning/{scan_point_id}`.
 5. **Manifest downloads (all four):** Press each manifest button in turn. Verify a `.json` file is downloaded for each with the correct filename format `{context-type}-manifest-{event-id}-{YYYY-MM-DD}.json`. Open each file and verify records contain `card_identifier`, `person_id`, `name`. (Requires BA18 seed data with approved applications, active cards, confirmed bookings, and transport assignments for non-empty results.)
 6. **Manifest empty result:** Run against an event with approved applications but no active cards. Verify the downloaded file contains `[]` and no error toast appears.
 7. **Transport manifest download:** Press "Download Transport Manifest". Verify a `.json` file is downloaded with the correct filename format `transport-manifest-{event-id}-{YYYY-MM-DD}.json`. Open the file and verify each record contains `card_identifier`, `person_id`, `name` for transport-assigned participants (BA18 seed data required for non-empty result).
@@ -849,7 +852,7 @@ Specific blocking conditions:
 - All §11 acceptance criteria verified with contract-level evidence (not pre-ticked).
 - §12 verification flows completed for all sections, including all four manifest downloads (site, activity, transport, meal).
 - BA18 seed data confirmed available for non-empty verification.
-- QA pack at `docs/delivery/test-packs/BA12-qa-pack.md` executed; quality gates green.
+- QA pack at `docs/test-packs/BA12-qa-pack.md` executed; quality gates green.
 - `base_scan_event` authenticated INSERT RLS confirmed changed to `false` in dev-db. This is the sole outstanding DB migration prerequisite for the scanning cluster.
 - `base_scan_point` `updated_at` trigger confirmed present (no migration needed — trigger is live).
 
