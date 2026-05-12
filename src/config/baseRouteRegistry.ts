@@ -115,6 +115,14 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     includeInNavigation: true,
   },
   {
+    path: '/activities/:offeringId',
+    label: 'Activity Offering',
+    pageName: 'activities',
+    sliceId: 'activity-offering-and-session-setup',
+    includeInShell: true,
+    includeInNavigation: false,
+  },
+  {
     path: '/scanning',
     label: 'Scanning',
     pageName: 'scanning',

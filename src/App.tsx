@@ -19,6 +19,8 @@ import { ApplicationsPage } from './pages/applications/ApplicationsPage';
 import { UnitsPage } from './pages/units/UnitsPage';
 import { UnitPreferencesPage } from './pages/unitPreferences/UnitPreferencesPage';
 import { CommunicationsPage } from './pages/communications/CommunicationsPage';
+import { ActivitiesPage } from './pages/activities/ActivitiesPage';
+import { ActivityOfferingPage } from './pages/activities/ActivityOfferingPage';
 import {
   getShellProtectedRoutes,
 } from './config/baseRouteRegistry';
@@ -92,6 +94,10 @@ function App() {
                         <UnitsPage />
                       ) : route.path === '/unit-preferences' ? (
                         <UnitPreferencesPage />
+                      ) : route.path === '/activities' ? (
+                        <ActivitiesPage />
+                      ) : route.path === '/activities/:offeringId' ? (
+                        <ActivityOfferingPage />
                       ) : route.path === '/scanning/:scanPointId' ? (
                         <ScanRuntimePlaceholderPage />
                       ) : (

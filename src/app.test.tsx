@@ -107,6 +107,14 @@ vi.mock('./pages/communications/CommunicationsPage', () => ({
   CommunicationsPage: () => <main>Communications Page</main>,
 }));
 
+vi.mock('./pages/activities/ActivitiesPage', () => ({
+  ActivitiesPage: () => <main>Activities Page</main>,
+}));
+
+vi.mock('./pages/activities/ActivityOfferingPage', () => ({
+  ActivityOfferingPage: () => <main>Activity Offering Page</main>,
+}));
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -231,6 +239,20 @@ describe('BA00 route behavior', () => {
     expect(await screen.findByText('Access Denied')).toBeTruthy();
   });
 
+  it('shows access denied for activities list when read permission is denied', async () => {
+    authState.isAuthenticated = true;
+    permissionState.allowRead = false;
+    renderAt('/activities');
+    expect(await screen.findByText('Access Denied')).toBeTruthy();
+  });
+
+  it('shows access denied for activity detail when read permission is denied', async () => {
+    authState.isAuthenticated = true;
+    permissionState.allowRead = false;
+    renderAt('/activities/offering-1');
+    expect(await screen.findByText('Access Denied')).toBeTruthy();
+  });
+
   it('renders form builder route inside shell when authenticated', async () => {
     authState.isAuthenticated = true;
     renderAt('/form-builder');
@@ -264,5 +286,19 @@ describe('BA00 route behavior', () => {
     renderAt('/communications');
     expect(await screen.findByText('Shell Layout')).toBeTruthy();
     expect(await screen.findByText('Communications Page')).toBeTruthy();
+  });
+
+  it('renders activities route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/activities');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Activities Page')).toBeTruthy();
+  });
+
+  it('renders activity offering route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/activities/offering-1');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Activity Offering Page')).toBeTruthy();
   });
 });
