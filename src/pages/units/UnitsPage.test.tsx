@@ -4,6 +4,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UnitsPage } from './UnitsPage';
+import type { UnitRoleTypeRow, UnitRow } from '@/features/unitsCoordination/types';
 
 const authState = vi.hoisted(() => ({
   selectedEventId: null as string | null,
@@ -14,6 +15,40 @@ const authState = vi.hoisted(() => ({
 
 const rbacState = vi.hoisted(() => ({
   secureSupabase: {} as Record<string, unknown> | null,
+}));
+
+const unitsDataState = vi.hoisted(() => ({
+  units: [] as UnitRow[],
+  roleTypes: [] as UnitRoleTypeRow[],
+  approvedApplications: [] as Array<{
+    id: string;
+    status: string;
+    person: { preferred_name: string | null; first_name: string | null; last_name: string | null; email: string | null } | null;
+  }>,
+  assignments: [] as Array<{
+    id: string;
+    unit_id: string;
+    application_id: string;
+    role_type_id: string;
+    role_type: { id: string; role_title: string } | null;
+    application: {
+      id: string;
+      status: string;
+      person: { preferred_name: string | null; first_name: string | null; last_name: string | null; email: string | null } | null;
+    } | null;
+  }>,
+  unitsLoading: false,
+  roleTypesLoading: false,
+  approvedLoading: false,
+  assignmentsLoading: false,
+}));
+
+const mutationSpies = vi.hoisted(() => ({
+  createUnit: vi.fn(),
+}));
+
+const tableCapture = vi.hoisted(() => ({
+  instances: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock('@solvera/pace-core/components', () => ({
@@ -32,7 +67,10 @@ vi.mock('@solvera/pace-core/components', () => ({
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
   CardTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   ConfirmationDialog: () => null,
-  DataTable: () => null,
+  DataTable: (props: Record<string, unknown>) => {
+    tableCapture.instances.push(props);
+    return null;
+  },
   Label: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   LoadingSpinner: () => <p>Loading</p>,
   Select: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
@@ -69,11 +107,31 @@ vi.mock('@solvera/pace-core/rbac', () => ({
 }));
 
 vi.mock('@/features/unitsCoordination/configuration', () => ({
-  useUnitsList: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
-  useRoleTypesList: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
-  useApprovedApplications: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
-  useUnitRoleAssignments: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
-  useCreateUnitMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUnitsList: () => ({
+    data: unitsDataState.units,
+    isLoading: unitsDataState.unitsLoading,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  useRoleTypesList: () => ({
+    data: unitsDataState.roleTypes,
+    isLoading: unitsDataState.roleTypesLoading,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  useApprovedApplications: () => ({
+    data: unitsDataState.approvedApplications,
+    isLoading: unitsDataState.approvedLoading,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  useUnitRoleAssignments: () => ({
+    data: unitsDataState.assignments,
+    isLoading: unitsDataState.assignmentsLoading,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  useCreateUnitMutation: () => ({ mutateAsync: mutationSpies.createUnit, isPending: false }),
   useUpdateUnitMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteUnitMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCreateRoleTypeMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -89,6 +147,13 @@ describe('UnitsPage', () => {
     authState.selectedEventId = null;
     authState.selectedEvent = null;
     rbacState.secureSupabase = {};
+    unitsDataState.units = [];
+    unitsDataState.roleTypes = [];
+    unitsDataState.approvedApplications = [];
+    unitsDataState.assignments = [];
+    unitsDataState.unitsLoading = false;
+    tableCapture.instances = [];
+    mutationSpies.createUnit.mockReset();
   });
 
   it('shows no-event guidance when no event is selected', () => {
@@ -117,5 +182,44 @@ describe('UnitsPage', () => {
     );
 
     expect(screen.getByText('Loading')).toBeTruthy();
+  });
+
+  it('resolves parent references created earlier in the same import payload', async () => {
+    authState.selectedEventId = 'event-1';
+    authState.selectedEvent = { name: 'Event One' };
+    unitsDataState.units = [];
+    mutationSpies.createUnit.mockImplementation(async ({ unitNumber, parentUnitId }) => ({
+      id: `unit-${unitNumber}`,
+      unit_number: unitNumber,
+      parent_unit_id: parentUnitId ?? null,
+    }));
+
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UnitsPage />
+      </QueryClientProvider>
+    );
+
+    const unitsTableProps = tableCapture.instances[0] as {
+      onImport: (rows: Array<Record<string, unknown>>) => Promise<{
+        successCount: number;
+        totalCount: number;
+        failedCount: number;
+        failedRows: Array<{ row: number; reason: string }>;
+      }>;
+    };
+
+    const summary = await unitsTableProps.onImport([
+      { unit_number: '2', unit_name: 'Parent' },
+      { unit_number: '3', unit_name: 'Child', parent_unit_number: '2' },
+    ]);
+
+    expect(summary.successCount).toBe(2);
+    expect(mutationSpies.createUnit).toHaveBeenCalledTimes(2);
+    expect(mutationSpies.createUnit).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ parentUnitId: 'unit-2' })
+    );
   });
 });

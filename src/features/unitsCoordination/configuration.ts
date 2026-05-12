@@ -291,23 +291,28 @@ export function useCreateUnitMutation() {
       if (!organisation.ok) {
         throw new Error(organisation.message);
       }
-      const { error } = await supabase.from('base_units').insert(
-        withCreatedAndUpdatedBy(
-          {
-            unit_number: payload.unitNumber,
-            unit_name: payload.unitName,
-            subcamp: payload.subcamp,
-            contingent: payload.contingent,
-            parent_unit_id: payload.parentUnitId,
-            event_id: payload.eventId,
-            organisation_id: organisation.data,
-          },
-          actorUserId
+      const { data, error } = await supabase
+        .from('base_units')
+        .insert(
+          withCreatedAndUpdatedBy(
+            {
+              unit_number: payload.unitNumber,
+              unit_name: payload.unitName,
+              subcamp: payload.subcamp,
+              contingent: payload.contingent,
+              parent_unit_id: payload.parentUnitId,
+              event_id: payload.eventId,
+              organisation_id: organisation.data,
+            },
+            actorUserId
+          )
         )
-      );
+        .select('id, unit_number, parent_unit_id')
+        .single();
       if (error != null) {
         throw new Error(toErrorMessage(error, 'Failed to create unit.'));
       }
+      return (data as { id: string; unit_number: number; parent_unit_id: string | null } | null) ?? null;
     },
   });
 }

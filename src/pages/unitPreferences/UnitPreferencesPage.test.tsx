@@ -4,12 +4,26 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UnitPreferencesPage } from './UnitPreferencesPage';
+import type { ActivityPreferenceRow, ActivitySessionRow, UnitRow } from '@/features/unitsCoordination/types';
 
 const authState = vi.hoisted(() => ({
   selectedEventId: null as string | null,
   selectedOrganisationId: 'org-1',
   appId: 'base-app',
   selectedEvent: null as unknown,
+}));
+
+const pageState = vi.hoisted(() => ({
+  units: [] as UnitRow[],
+  unitsLoading: false,
+  unitsError: null as Error | null,
+  sessions: [] as ActivitySessionRow[],
+  sessionsLoading: false,
+  sessionsError: null as Error | null,
+  preferences: [] as ActivityPreferenceRow[],
+  preferencesLoading: false,
+  preferencesError: null as Error | null,
+  submitter: null as { preferred_name: string | null; first_name: string | null; last_name: string | null } | null,
 }));
 
 vi.mock('@solvera/pace-core/components', () => ({
@@ -67,10 +81,25 @@ vi.mock('@solvera/pace-core/rbac', () => ({
 }));
 
 vi.mock('@/features/unitsCoordination/configuration', () => ({
-  useUnitsList: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
-  useActivitySessions: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
-  useUnitPreferences: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
-  useSubmitterPerson: () => ({ data: null }),
+  useUnitsList: () => ({
+    data: pageState.units,
+    isLoading: pageState.unitsLoading,
+    error: pageState.unitsError,
+    refetch: vi.fn(),
+  }),
+  useActivitySessions: () => ({
+    data: pageState.sessions,
+    isLoading: pageState.sessionsLoading,
+    error: pageState.sessionsError,
+    refetch: vi.fn(),
+  }),
+  useUnitPreferences: () => ({
+    data: pageState.preferences,
+    isLoading: pageState.preferencesLoading,
+    error: pageState.preferencesError,
+    refetch: vi.fn(),
+  }),
+  useSubmitterPerson: () => ({ data: pageState.submitter }),
   useCreatePreferenceMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdatePreferenceRankMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeletePreferenceMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -82,6 +111,16 @@ describe('UnitPreferencesPage', () => {
     cleanup();
     authState.selectedEventId = null;
     authState.selectedEvent = null;
+    pageState.units = [];
+    pageState.unitsLoading = false;
+    pageState.unitsError = null;
+    pageState.sessions = [];
+    pageState.sessionsLoading = false;
+    pageState.sessionsError = null;
+    pageState.preferences = [];
+    pageState.preferencesLoading = false;
+    pageState.preferencesError = null;
+    pageState.submitter = null;
   });
 
   it('shows no-event guidance when no event is selected', () => {
@@ -95,5 +134,65 @@ describe('UnitPreferencesPage', () => {
 
     expect(screen.getByText('No event selected')).toBeTruthy();
     expect(screen.getByText('Select an event from the header to manage unit preferences.')).toBeTruthy();
+  });
+
+  it('disables unit selector while units are loading', () => {
+    authState.selectedEventId = 'event-1';
+    authState.selectedEvent = { name: 'Event One' };
+    pageState.unitsLoading = true;
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UnitPreferencesPage />
+      </QueryClientProvider>
+    );
+
+    expect(document.querySelector('fieldset[disabled]')).toBeTruthy();
+  });
+
+  it('shows units-empty guidance when event has no units', () => {
+    authState.selectedEventId = 'event-1';
+    authState.selectedEvent = { name: 'Event One' };
+    pageState.units = [
+      {
+        id: 'unit-1',
+        unit_number: 1,
+        unit_name: 'One',
+        subcamp: null,
+        contingent: null,
+        parent_unit_id: null,
+        event_id: 'event-1',
+        created_at: null,
+        updated_at: null,
+      },
+    ];
+    pageState.units = [];
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UnitPreferencesPage />
+      </QueryClientProvider>
+    );
+
+    expect(
+      screen.getByText('No units have been created for this event. Create units in the Units page first.')
+    ).toBeTruthy();
+  });
+
+  it('normalizes units query errors in the alert', () => {
+    authState.selectedEventId = 'event-1';
+    authState.selectedEvent = { name: 'Event One' };
+    pageState.unitsError = new Error('Units failed');
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UnitPreferencesPage />
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByText('Units failed')).toBeTruthy();
   });
 });

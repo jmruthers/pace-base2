@@ -123,7 +123,7 @@ export function formatParentUnitLabel(parent: UnitRow | null | undefined): strin
   if (parentName == null) {
     return `${parent.unit_number}`;
   }
-  return `${parent.unit_number} - ${parentName}`;
+  return `${parent.unit_number} – ${parentName}`;
 }
 
 export function formatUnitDisplayLabel(unit: UnitRow): string {

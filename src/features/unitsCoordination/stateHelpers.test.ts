@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   arePreferenceRanksContiguous,
   computeDescendantIds,
+  formatParentUnitLabel,
   hasDuplicateSessionPreference,
   normalizeOptionalText,
   normalizePreferenceRanks,
@@ -101,6 +102,36 @@ describe('unitsCoordination state helpers', () => {
     expect(excluded.has('a')).toBe(true);
     expect(excluded.has('b')).toBe(true);
     expect(excluded.has('c')).toBe(true);
+  });
+
+  it('formats parent labels using an em dash fallback and en dash separator', () => {
+    expect(formatParentUnitLabel(null)).toBe('—');
+    expect(
+      formatParentUnitLabel({
+        id: 'u-1',
+        unit_number: 4,
+        unit_name: null,
+        subcamp: null,
+        contingent: null,
+        parent_unit_id: null,
+        event_id: 'event-1',
+        created_at: null,
+        updated_at: null,
+      })
+    ).toBe('4');
+    expect(
+      formatParentUnitLabel({
+        id: 'u-2',
+        unit_number: 5,
+        unit_name: 'Alpha',
+        subcamp: null,
+        contingent: null,
+        parent_unit_id: null,
+        event_id: 'event-1',
+        created_at: null,
+        updated_at: null,
+      })
+    ).toBe('5 – Alpha');
   });
 
   it('normalises and validates preference ranks contiguously', () => {

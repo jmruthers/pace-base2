@@ -22,7 +22,7 @@ import {
 } from '@solvera/pace-core/components';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { PagePermissionGuard, useResolvedScope, useSecureSupabase } from '@solvera/pace-core/rbac';
-import { HandleMutationError, ShowSuccessMessage, formatDateTime } from '@solvera/pace-core/utils';
+import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage, formatDateTime } from '@solvera/pace-core/utils';
 import {
   useActivitySessions,
   useCreatePreferenceMutation,
@@ -271,26 +271,28 @@ export function UnitPreferencesPage() {
         <CardContent>
           <Label htmlFor="unit-preferences-selector">
             <span>Unit</span>
-            <Select
-              value={selectedUnitId}
-              onValueChange={setSelectedUnitId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a unit" />
-              </SelectTrigger>
-              <SelectContent>
-                {(unitsQuery.data ?? []).map((unit) => (
-                  <SelectItem key={unit.id} value={unit.id}>
-                    {formatUnitDisplayLabel(unit)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <fieldset disabled={unitsQuery.isLoading} className="m-0 min-w-0 border-0 p-0">
+              <Select
+                value={selectedUnitId}
+                onValueChange={setSelectedUnitId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(unitsQuery.data ?? []).map((unit) => (
+                    <SelectItem key={unit.id} value={unit.id}>
+                      {formatUnitDisplayLabel(unit)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </fieldset>
           </Label>
           {unitsQuery.error != null ? (
             <Alert variant="destructive">
               <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{String(unitsQuery.error)}</AlertDescription>
+              <AlertDescription>{NormalizeSupabaseError(unitsQuery.error).message}</AlertDescription>
               <Button type="button" variant="outline" onClick={retryUnitsQuery}>
                 Retry
               </Button>
@@ -321,7 +323,9 @@ export function UnitPreferencesPage() {
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
-            {sessionsQuery.error != null ? String(sessionsQuery.error) : String(preferencesQuery.error)}
+            {sessionsQuery.error != null
+              ? NormalizeSupabaseError(sessionsQuery.error).message
+              : NormalizeSupabaseError(preferencesQuery.error).message}
           </AlertDescription>
           <Button type="button" variant="outline" onClick={retryPreferenceData}>
             Retry

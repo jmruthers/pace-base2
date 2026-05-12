@@ -160,6 +160,22 @@ export function UnitsPage() {
     [unitsQuery.data]
   );
 
+  const editableParentOptionIdsByUnitId = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    const allUnits = unitsQuery.data ?? [];
+    for (const unit of allUnits) {
+      const excluded = computeDescendantIds(allUnits, unit.id);
+      const allowed = new Set<string>();
+      for (const candidate of allUnits) {
+        if (!excluded.has(candidate.id)) {
+          allowed.add(candidate.id);
+        }
+      }
+      map.set(unit.id, allowed);
+    }
+    return map;
+  }, [unitsQuery.data]);
+
   const unitsColumns = useMemo(
     () => [
       {
@@ -274,7 +290,7 @@ export function UnitsPage() {
         header: 'Assigned Role',
         sortable: true,
         cell: ({ row }: { row: { assigned_role: string | null } }) =>
-          row.assigned_role ?? 'No role assigned',
+          row.assigned_role ?? <em>No role assigned</em>,
       },
       {
         id: 'assignmentActions',
@@ -339,8 +355,8 @@ export function UnitsPage() {
     try {
       const nextParentUnitId = parseParentUnitId(rowData.parent_unit_id);
       if (nextParentUnitId != null) {
-        const excluded = computeDescendantIds(unitsQuery.data ?? [], row.id);
-        if (excluded.has(nextParentUnitId)) {
+        const allowedParentOptionIds = editableParentOptionIdsByUnitId.get(row.id);
+        if (allowedParentOptionIds != null && !allowedParentOptionIds.has(nextParentUnitId)) {
           throw new Error('This assignment would create a circular unit reference.');
         }
       }
@@ -392,7 +408,7 @@ export function UnitsPage() {
             ? null
             : unitsByNumber.get(parentUnitNumber)?.id ?? null;
 
-        await createUnitMutation.mutateAsync({
+        const createdUnit = await createUnitMutation.mutateAsync({
           eventId: selectedEventId,
           unitNumber,
           unitName: normalizeOptionalText(String(rawRow.unit_name ?? '')),
@@ -400,6 +416,19 @@ export function UnitsPage() {
           contingent: normalizeOptionalText(String(rawRow.contingent ?? '')),
           parentUnitId,
         });
+        if (createdUnit != null) {
+          unitsByNumber.set(unitNumber, {
+            id: createdUnit.id,
+            unit_number: createdUnit.unit_number,
+            unit_name: normalizeOptionalText(String(rawRow.unit_name ?? '')),
+            subcamp: normalizeOptionalText(String(rawRow.subcamp ?? '')),
+            contingent: normalizeOptionalText(String(rawRow.contingent ?? '')),
+            parent_unit_id: createdUnit.parent_unit_id,
+            event_id: selectedEventId,
+            created_at: null,
+            updated_at: null,
+          });
+        }
         successCount += 1;
       } catch (error) {
         failedRows.push({
