@@ -75,8 +75,10 @@ vi.mock('@/components/shell/FeaturePlaceholderPanel', () => ({
   FeaturePlaceholderPanel: ({ title }: { title: string }) => <main>{`Feature: ${title}`}</main>,
 }));
 
-vi.mock('./pages/shell/ScanRuntimePlaceholderPage', () => ({
-  ScanRuntimePlaceholderPage: () => <main>Scan Runtime</main>,
+vi.mock('./pages/scanning/ScanningRuntimePage', () => ({
+  /** Mirrors in-page PagePermissionGuard when the full page module is mocked. */
+  ScanningRuntimePage: () =>
+    permissionState.allowRead ? <main>BA13 Scan Runtime</main> : <main>Access Denied</main>,
 }));
 
 vi.mock('./pages/eventConfiguration/EventDashboardPage', () => ({
@@ -202,11 +204,11 @@ describe('BA00 route behavior', () => {
     expect(await screen.findByText('Event Dashboard Page')).toBeTruthy();
   });
 
-  it('renders scanning runtime route inside shell when authenticated', async () => {
+  it('renders scanning runtime route outside standard app shell when authenticated', async () => {
     authState.isAuthenticated = true;
     renderAt('/scanning/scan-point-1');
-    expect(await screen.findByText('Shell Layout')).toBeTruthy();
-    expect(await screen.findByText('Scan Runtime')).toBeTruthy();
+    expect(await screen.findByText('BA13 Scan Runtime')).toBeTruthy();
+    expect(screen.queryByText('Shell Layout')).toBeNull();
   });
 
   it('redirects unauthenticated scanning runtime route to login', async () => {

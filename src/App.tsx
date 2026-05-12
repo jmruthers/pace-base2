@@ -9,7 +9,7 @@ import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AuthenticatedShell } from './components/layout/AuthenticatedShell';
 import { BaseNotFoundPage } from './pages/shell/BaseNotFoundPage';
 import { FeaturePlaceholderPanel } from '@/components/shell/FeaturePlaceholderPanel';
-import { ScanRuntimePlaceholderPage } from './pages/shell/ScanRuntimePlaceholderPage';
+import { ScanningRuntimePage } from './pages/scanning/ScanningRuntimePage';
 import { EventDashboardPage } from './pages/eventConfiguration/EventDashboardPage';
 import { EventConfigurationRoute } from './pages/eventConfiguration/EventConfigurationRoute';
 import { FormsListPage } from './pages/forms/FormsListPage';
@@ -60,6 +60,8 @@ function App() {
         >
           <Route path="/" element={<Navigate to="/event-dashboard" replace />} />
 
+          <Route path="scanning/:scanPointId" element={<ScanningRuntimePage />} />
+
           <Route element={<AuthenticatedShell />}>
             {shellProtectedRoutes
               .filter((route) => route.path !== '/' && route.path !== '*')
@@ -104,8 +106,6 @@ function App() {
                         <ActivityOfferingPage />
                       ) : route.path === '/scanning' ? (
                         <ScanningSetupPage />
-                      ) : route.path === '/scanning/:scanPointId' ? (
-                        <ScanRuntimePlaceholderPage />
                       ) : (
                         <FeaturePlaceholderPanel
                           title={route.label}

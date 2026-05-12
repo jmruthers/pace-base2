@@ -1,0 +1,118 @@
+import 'fake-indexeddb/auto';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isOk } from '@solvera/pace-core/types';
+import {
+  DEDUP_WINDOW_MS,
+  buildQueueEntry,
+  hasRecentAcceptAtPoint,
+  openScanQueueDb,
+  putScanQueueEntry,
+} from './scanQueueIdb';
+
+describe('scanQueueIdb', () => {
+  beforeEach(() => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('11111111-1111-1111-1111-111111111111');
+    vi.stubGlobal(
+      'sessionStorage',
+      {
+        getItem: () => 'device-session-1',
+        setItem: () => undefined,
+        removeItem: () => undefined,
+        clear: () => undefined,
+        length: 0,
+        key: () => null,
+      } as Storage
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('buildQueueEntry always sets sync_status pending', () => {
+    const e = buildQueueEntry({
+      scanPointId: 'sp-1',
+      cardIdentifier: 'c1',
+      scannedAt: 1,
+      validationResult: 'accepted',
+      validationReason: null,
+      overrideBy: null,
+      notes: null,
+    });
+    expect(e.sync_status).toBe('pending');
+  });
+
+  it('dedup matches within window lower bound exclusive', async () => {
+    const t0 = 1_000_000;
+    const scanPointId = 'point-1';
+    const card = 'CARD-1';
+
+    const put = await putScanQueueEntry(
+      buildQueueEntry({
+        scanPointId,
+        cardIdentifier: card,
+        scannedAt: t0,
+        validationResult: 'accepted',
+        validationReason: null,
+        overrideBy: null,
+        notes: null,
+      })
+    );
+    expect(isOk(put)).toBe(true);
+
+    const near = await hasRecentAcceptAtPoint(scanPointId, card, t0 + DEDUP_WINDOW_MS - 1, DEDUP_WINDOW_MS);
+    expect(isOk(near) && near.data).toBe(true);
+
+    const far = await hasRecentAcceptAtPoint(scanPointId, card, t0 + DEDUP_WINDOW_MS, DEDUP_WINDOW_MS);
+    expect(isOk(far) && !far.data).toBe(true);
+  });
+
+  it('override immutability: prior rejected row unchanged after second accepted_override entry', async () => {
+    const scanPointId = 'point-1';
+    const rejectEntry = buildQueueEntry({
+      scanPointId,
+      cardIdentifier: 'X',
+      scannedAt: 10,
+      validationResult: 'rejected',
+      validationReason: 'booking_not_valid',
+      overrideBy: null,
+      notes: null,
+    });
+    rejectEntry.local_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+    const overrideEntry = buildQueueEntry({
+      scanPointId,
+      cardIdentifier: 'X',
+      scannedAt: 20,
+      validationResult: 'accepted_override',
+      validationReason: 'booking_not_valid',
+      overrideBy: 'user-1',
+      notes: null,
+    });
+    overrideEntry.local_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+    const putReject = await putScanQueueEntry(rejectEntry);
+    const putOverride = await putScanQueueEntry(overrideEntry);
+    expect(isOk(putReject)).toBe(true);
+    expect(isOk(putOverride)).toBe(true);
+
+    const dbOpen = await openScanQueueDb();
+    expect(isOk(dbOpen)).toBe(true);
+    if (!isOk(dbOpen)) {
+      throw new Error('expected db');
+    }
+    const db = dbOpen.data;
+    const first = await new Promise<unknown>((resolve, reject) => {
+      const tx = db.transaction('scan_events', 'readonly');
+      const req = tx.objectStore('scan_events').get('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+
+    const firstRow = first as { validation_result: string; local_id: string };
+    expect(firstRow.local_id).toBe('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+    expect(firstRow.validation_result).toBe('rejected');
+  });
+});

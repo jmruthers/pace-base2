@@ -35,8 +35,10 @@ import {
 import { ChevronRight, Plus, SquarePen, X } from '@solvera/pace-core/icons';
 import { useEvents, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AccessDenied, PagePermissionGuard, useCan, useResolvedScope, useSecureSupabase } from '@solvera/pace-core/rbac';
+import { isOk } from '@solvera/pace-core/types';
 import { NormalizeSupabaseError, formatDateTime } from '@solvera/pace-core/utils';
 import { useRetryRefetchHandler } from '@/features/applicationsAdmin/queryHelpers';
+import { persistManifestToIdb } from '@/features/scanningSetup/manifestIdb';
 import {
   loadManifestByContext,
   useActivityResourceOptions,
@@ -481,6 +483,15 @@ export function ScanningSetupPage() {
         eventId,
         organisationId
       );
+      const persist = await persistManifestToIdb({ eventId, manifestType: contextType, rows });
+      if (!isOk(persist)) {
+        toast({
+          title: 'Error',
+          description: persist.error.message,
+          variant: 'destructive',
+        });
+        return;
+      }
       const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');

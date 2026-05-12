@@ -2,7 +2,7 @@
 
 ## Slice metadata
 
-- Status: Draft
+- Status: Implemented in BASE (formal §15 sign-off / QA pack execution pending)
 - Depends on: BA06 (approved application states), BA11 (activity booking oversight contracts), BA12 (scan-point setup and identity contracts)
 - Backend impact: Schema changes required — `base_scan_point`, `base_activity_booking`, `trac_itinerary_assignment` are forward spec and not yet in dev-db. `base_scan_event` and `core_member_card` are live in dev-db (`rkytnffgmwnnmewevqgp`). `validation_result` / `validation_reason` two-column schema split is confirmed deployed. IndexedDB queue structure is client-local; no backend migration needed for queue itself.
 - Frontend impact: UI — `/scanning/:scanPointId` dedicated operator runtime surface
@@ -147,7 +147,7 @@ Prefix legend: **`RT`** runtime page-level, **`SC`** scan input and result, **`O
 
 A header bar with `bg-card border-b border-border` styling, `h-12` (48px) fixed height, `px-4` horizontal padding, full viewport width. It contains three elements in a single horizontal row:
 
-- **Left:** `Button variant="ghost" size="sm"` or `<a>` "Back to scanning setup" → `/scanning`. An `ArrowLeft` icon from `@solvera/pace-core/icons` precedes the text. This is always rendered.
+- **Left:** `Button variant="ghost" size="sm"` or `<a>` "Back to scanning setup" → `/scanning`. A `ChevronLeft` icon from `@solvera/pace-core/icons` precedes the text (BASE icons barrel does not export `ArrowLeft`; `ChevronLeft` is the approved substitute). This is always rendered.
 - **Centre:** Scan-point identity block (see below) — horizontally centred via `flex-1 flex justify-center`.
 - **Right:** right placeholder `<div aria-hidden='true'>` with `w-24` fixed width matching the approximate rendered width of the back-navigation button.
 
@@ -176,7 +176,7 @@ The main content area stacks the following elements vertically with `gap-6` betw
     - `rejected_duplicate_scan`: "Duplicate scan. This card has already been scanned at this point."
     - `rejected_registration_not_valid`: "Registration not valid. No approved registration found for this participant at this event."
     - Override-accepted: "Override recorded. Participant entry accepted by override."
-  - **Footer:** `scanned_at` formatted as `formatDateTime(result.scanned_at, { timezone: selectedEvent.timezone, format: 'd MMM yyyy h:mm a' })` in `text-xs text-muted-foreground`. Shown for all result states (accepted, rejected, override-accepted).
+  - **Footer:** `scanned_at` formatted with `formatInTimeZone(scannedAt, selectedEvent.timezone ?? user timezone, 'd MMM yyyy h:mm a')` from `@solvera/pace-core/utils` (equivalent intent to wall-clock display in the event timezone). Shown for all result states (accepted, rejected, override-accepted).
   - **Override-accepted header row:** shows `Badge variant='solid-acc-normal'` "Accepted (override)" on the left; participant name on the right. Same header row layout (`flex items-center justify-between gap-2`) as accepted.
   - **Action row** (visible only on rejected results, not on accepted or override-accepted):
     - `Button variant="outline"` "Dismiss" — always rendered on rejection.
@@ -603,11 +603,11 @@ BA14 is responsible for reading this queue and flushing entries to `base_scan_ev
 | `useCan` | `@solvera/pace-core/rbac` | Permission-conditional rendering of Override and Manual scan actions |
 | `useEvents` | `@solvera/pace-core/hooks` | `selectedEvent.id` and `selectedEvent.name` for scan-point identity display and eligibility scoping |
 | `useUnifiedAuth` | `@solvera/pace-core/hooks` | `auth.uid()` for `override_by` field on override and manual scan queue entries |
-| `normalizeSupabaseError` | `@solvera/pace-core/utils` | Error display for failed eligibility reads and scan-point fetch failures |
-| `formatDateTime` | `@solvera/pace-core/utils` | `scanned_at` timestamp display within result panel where applicable |
+| `NormalizeSupabaseError` | `@solvera/pace-core/utils` | Error normalisation for failed eligibility reads and scan-point fetch failures |
+| `formatInTimeZone` | `@solvera/pace-core/utils` | `scanned_at` timestamp in event (or user) timezone within result panel |
 | `EventId`, `OrganisationId`, `UserId` | `@solvera/pace-core/types` | Branded ID types at feature boundary |
 | `collectSourceErrors`, `composeResilientState`, `resolveWithFallback` | `@solvera/pace-core/resilience` | Composing loading state from multiple eligibility data sources (scan-point, manifest, validation lookups) with partial-data fallback |
-| `ArrowLeft` | `@solvera/pace-core/icons` | Icon for "Back to scanning setup" in top bar |
+| `ChevronLeft` | `@solvera/pace-core/icons` | Icon for "Back to scanning setup" in top bar (BASE barrel; `ArrowLeft` not exported) |
 
 ### §9.2 Slice-specific caveats
 
@@ -673,13 +673,13 @@ RLS policies for `base_activity_booking` and `trac_itinerary_assignment` are for
 - Given the override Dialog is open, when "Cancel" is pressed, then the dialog closes and the rejected result panel remains visible with the Dismiss and Override buttons intact.
 - Given the authenticated user lacks `update:page.scanning` and a rejection with an overridable class is displayed, then the Override button is absent; only the Dismiss button is shown.
 - Given the authenticated user has `update:page.scanning`, when "Manual scan" is pressed, then the manual scan Dialog opens with a name-search `Input` and a disabled "Record manual scan" button.
-- Given the manual scan Dialog is open and the operator types a name that matches at least one approved `base_application` row, then a dropdown list of up to 10 matching participants appears below the search `Input`.
+- Given the manual scan Dialog is open and the operator types a name that matches at least one approved `base_application` row, then a dropdown list of up to **20** matching participants appears below the search `Input` (matches MS-PA-03 / §7.2).
 - Given a participant is selected in the manual scan Dialog and "Record manual scan" is pressed, then a queue entry with `card_identifier = null`, `validation_result = 'accepted_override'`, `override_by = auth.uid()` is written to IndexedDB; the dialog closes; the result panel shows the override-accepted state.
 - Given a scan is processed (any outcome), when the queue entry is written to IndexedDB, then `sync_status = 'pending'` and the entry is visible in the `ba13_scan_queue` object store.
 - Given the device is offline when a card scan occurs, when the scan is processed and validated against the offline manifest, then the queue entry is written to IndexedDB with `sync_status = 'pending'` and the result panel shows the appropriate outcome — identical to the online path.
 - Given a duplicate scan (same `card_identifier` at the same scan point within the dedup window), when the second scan is processed, then `rejected` / `duplicate_scan` is recorded and displayed; no Override button is shown.
 - Given the user presses "Back to scanning setup" in the top bar, then navigation proceeds to `/scanning`.
-- Given a card is in the offline manifest but has no matching booking entry in the manifest (activity context), when the operator scans the card while offline, then the result panel shows `Badge variant='solid-sec-muted'` "Booking not valid" and the result is queued as `rejected` / `booking_not_valid`.
+- **Activity context, offline (MVP manifest contract):** BA12 activity/transport manifests use the shared `ManifestRow` shape in `src/features/scanningSetup/types.ts` (`card_identifier`, `person_id`, `name` only)—there is **no** per-session or per-booking row in the downloaded JSON. Therefore offline activity eligibility **cannot** distinguish “confirmed booking for this session” from manifest data alone. **MVP behaviour:** while offline, activity (and transport) scans are rejected with `booking_not_valid` (or an eligibility read error when a live read was required but unavailable), unless product later extends BA12 manifest payload and BA13 validation to carry session/leg scope. This supersedes any earlier wording that assumed booking-level rows inside the offline manifest file.
 
 ---
 
@@ -735,7 +735,7 @@ RLS policies for `base_activity_booking` and `trac_itinerary_assignment` are for
 - All §11 acceptance criteria verified with evidence (not pre-ticked).
 - §12 verification flows completed for all context types that are unblocked; activity and transport context verification completed once forward-spec tables land.
 - BA18 seed data confirmed available for non-empty scan scenarios.
-- QA pack at `docs/delivery/test-packs/BA13-qa-pack.md` executed; quality gates green.
+- QA pack at [`docs/test-packs/BA13-qa-pack.md`](../test-packs/BA13-qa-pack.md) executed; quality gates green.
 - `base_scan_event` two-column schema split (`validation_result` + `validation_reason`) confirmed deployed to dev-db. `device_id text NULLABLE` confirmed as a live column. `scan_card_id` and `member_id` NOT NULL constraints noted — BA14 flush path is responsible for resolving these values.
 - IndexedDB queue structure confirmed matching BR-IQ-01 field shape.
 - BA14 sync worker confirmed able to read entries from `ba13_scan_queue` and flush to `base_scan_event` (end-to-end sync verified in integration).
