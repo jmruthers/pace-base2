@@ -1,6 +1,6 @@
 # BA07 — Token Approval Actions
 
-## 1. Slice metadata
+## Slice metadata
 
 - Status: Ready for implementation
 - Depends on: BA04 (Registration Setup and Policy — requirement types and chains), BA05a.contract (Registration Entry and Application Submission — application and check creation, token issue, `app_base_application_check_reissue_token`, chain helper and satisfaction RPC wiring per architecture)
@@ -382,11 +382,10 @@ Traceability: AC-01→TA-01–05; AC-02→TA-13; AC-03→TA-08; AC-04→TA-09–
 
 ## 17. References
 
-- `docs/requirements/base/BASE-project-brief.md`
-- `docs/requirements/base/BASE-architecture.md`
-- `docs/requirements/base/BA04-registration-setup-and-policy-requirements.md`
-- `docs/requirements/base/BA05a-registration-entry-and-application-submission-requirements.md`
-- `docs/database/domains/base.md`
+- `docs/requirements/BASE-project-brief.md`
+- `docs/requirements/BASE-architecture.md`
+- `docs/requirements/BA04-registration-setup-and-policy-requirements.md`
+- `docs/requirements/BA05a-registration-entry-and-application-submission-requirements.md`
 
 ## 18. Implementing Agent Instructions
 

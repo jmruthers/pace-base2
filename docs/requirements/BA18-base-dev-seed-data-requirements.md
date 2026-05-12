@@ -2,7 +2,7 @@
 
 ---
 
-## 1. Slice metadata
+## Slice metadata
 
 - Status: Draft
 - Depends on: BA00, BA01
@@ -433,11 +433,9 @@ No page permission guards, RBAC resource checks, or `PagePermissionGuard` config
 
 ## 17. References
 
-- `docs/requirements/base/BASE-project-brief.md`
-- `docs/requirements/base/BASE-architecture.md`
-- `docs/database/domains/base.md`
-- `docs/database/decisions/DB-change-decisions-base.md`
-- `docs/delivery/base-backend-ready-report.md`
+- `docs/requirements/BASE-project-brief.md`
+- `docs/requirements/BASE-architecture.md`
+- `docs/delivery/base-build-queue.md`
 
 ## 18. Implementing Agent Instructions
 

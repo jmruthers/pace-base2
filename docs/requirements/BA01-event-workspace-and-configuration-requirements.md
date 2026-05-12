@@ -540,11 +540,10 @@ Each criterion traces to one or more Functional Specification items. Do not pre-
 
 ## 17. References
 
-- `docs/requirements/base/BASE-project-brief.md`
-- `docs/requirements/base/BASE-architecture.md`
-- `docs/requirements/base/BA00-app-shell-and-access-requirements.md`
-- `docs/requirements/base/BA18-base-dev-seed-data-requirements.md`
-- `docs/database/domains/base.md`
+- `docs/requirements/BASE-project-brief.md`
+- `docs/requirements/BASE-architecture.md`
+- `docs/requirements/BA00-app-shell-and-access-requirements.md`
+- `docs/requirements/BA18-base-dev-seed-data-requirements.md`
 
 ## 18. Implementing Agent Instructions
 

@@ -1,6 +1,6 @@
 # BA05a — Registration Entry and Application Submission
 
-## 1. Slice metadata
+## Slice metadata
 
 - Status: Ready for implementation
 - Depends on: BA02 (Shared Forms Platform Contracts), BA03 (Forms Authoring and BASE Integration), BA04 (Registration Setup and Policy)

@@ -1,21 +1,11 @@
 # BA08 — Units and Group Coordination
 
-## 1. Slice metadata
+## Slice metadata
 
-- Slice ID: BA08
-- Name: Units and Group Coordination
 - Status: Draft
 - Depends on: BA06 (approved applications pool for role assignment)
 - Backend impact: Read + write contracts; `app_base_unit_preference_submit(p_unit_id, p_event_id)` is part of the BA08 submit contract
 - Frontend impact: UI
-- Routes owned: `/units`, `/unit-preferences`
-- QA pack: `docs/delivery/test-packs/BA08-qa-pack.md` _(create or align with repo convention when the pack is authored)_
-- Seed data dependency: Recommended (BA18) for non-empty unit/preference verification
-- Backend-ready evidence:
-  - **`base_units` CRUD** — direct Supabase table writes; `organisation_id` resolved from `core_events.organisation_id` at application layer; triggers confirmed.
-  - **`base_unit_role_types` CRUD** — direct Supabase table writes; `organisation_id` must be resolved from `core_events.organisation_id` at application layer (no INSERT trigger exists; see §14 build rule).
-  - **`base_unit_roles` assign/remove** — direct Supabase table writes; `event_id` and `organisation_id` filled by `sync_base_unit_roles_event_org_trigger` (INSERT + UPDATE); confirmed present on dev-db.
-  - **`app_base_unit_preference_submit(p_unit_id, p_event_id)`** — preference submission RPC used by `/unit-preferences` submit flow.
 
 ---
 
@@ -954,14 +944,12 @@ features: {
 
 ## 17. References
 
-- `rebuild/BASE-architecture.md` — § 5 Units And Group Coordination; route ownership; cross-slice hand-offs.
-- `rebuild/BASE-project-brief.md` — delivery framing and BASE scope.
-- `rebuild/slices/BA06-requirements.md` — approved application pool consumed by role assignment.
-- `rebuild/slices/BA09-requirements.md` _(upcoming)_ — `base_activity_session` records consumed by /unit-preferences available sessions list.
-- `rebuild/slices/BA17-requirements.md` — consumes BA08.contract (unit filter dropdown).
-- `rebuild/slices/BA18-requirements.md` — seed data for non-empty unit/preference verification.
-- `rebuild/_authoring/parity-audit/BA08.md` — authoring trace (non-runtime).
-- pace-core standards: RBAC (03), compliance (01/05), visual (07), testing (08).
+- `docs/requirements/BASE-architecture.md` — §5 Units And Group Coordination; route ownership; cross-slice hand-offs.
+- `docs/requirements/BASE-project-brief.md` — delivery framing and BASE scope.
+- `docs/requirements/BA06-applications-admin-and-review-requirements.md` — approved application pool consumed by role assignment.
+- `docs/requirements/BA09-activity-offering-setup-requirements.md` — `base_activity_session` records consumed by `/unit-preferences` available sessions list.
+- `docs/requirements/BA17-communications-and-system-notifications-requirements.md` — consumes BA08.contract (unit filter dropdown).
+- `docs/requirements/BA18-base-dev-seed-data-requirements.md` — seed data for non-empty unit/preference verification.
 
 ---
 
@@ -990,21 +978,6 @@ features: {
 
 ---
 
-## 19. Self-containment audit
-
-- [x] No legacy filesystem paths outside §17 authoring reference.
-- [x] No banned delta wording in normative sections (zero matches for `preserve` / `retain` / `the existing` / `the original` / `equivalent to` / `similar to legacy` / `as today`).
-- [x] Designer can construct UI from §5 alone for all repeated visual elements.
-- [x] QA can execute §11 without repository access.
-- [x] All business rule symbols referenced from §4/§5 are defined in §6 (includes BR-SUBMITTER-DISPLAY added by prompt-06 fix).
-- [x] All pace-core2 symbols used in §4/§5 appear in §9.1.
-- [x] §3 guard × empty-state evaluation order matches §4 and §5.
-- [x] `selectedEvent.id` used consistently (no `event_id` field references on EventStub).
-- [x] `onImport` used (no `onImportRows`).
-- [x] No `window.confirm()` references in normative sections.
-
----
-
-## 20. Open questions
+## 19. Open questions
 
 No unresolved BA08 open questions for this run.

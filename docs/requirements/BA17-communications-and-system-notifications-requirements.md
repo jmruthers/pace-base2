@@ -1,20 +1,11 @@
 # BA17 — Communications and System Notifications
 
-## 1. Slice metadata
+## Slice metadata
 
-- Slice ID: BA17
-- Name: Communications and System Notifications
 - Status: Draft
 - Depends on: BA01 (Event Workspace and Configuration), BA04 (Registration Setup and Policy — registration types feed the recipient-pool filter dropdown), BA05a.contract (Registration Entry and Application Submission — system notification call points SN-01..SN-04), BA06.contract (Applications Admin and Review — system notification call points SN-05 / SN-06), BA08.contract (Units and Group Coordination — `base_units` table contract feeds the unit filter dropdown; table verified present in dev-db 2026-05-01 per BA17 audit) _(BA00 shell is transitively required via BA01; not restated here, matching architecture's slice overview)_
 - Backend impact: Read contract only (all pump_* schema, system_key rows, and `rbac_app_pages` prerequisites verified — see §8)
 - Frontend impact: Both (UI for `/communications`; utility export for system notification call points in BA05a / BA06)
-- Routes owned: `/communications`
-- Safe for unattended execution: Backend-ready only
-- Execution owner: BASE consuming app queue
-- Execution lane: BASE overnight (after CR23 readiness gates clear)
-- Backend-ready evidence required: All implementation gates in §8 confirmed PASSED before frontend execution begins (re-verify if regressions suspected)
-- QA pack: `docs/delivery/test-packs/BA17-qa-pack.md`
-- Seed data dependency: Recommended (BA18) for non-empty registration type and unit filter verification
 
 ---
 
@@ -139,7 +130,7 @@ ER-05. If `adapter.sendTest` fails, a toast notification (destructive variant) s
 
 PC-01. The `CommComposer` card renders a single-column compose form. It contains (in order): channel selector, template browser, sender name, channel-specific sender fields (email: sender email + subject; SMS: sender phone), preview/edit toggle, body editors with `MergeFieldToolbar`, and a card footer with action buttons. Full structural detail is in §5.
 
-PC-02. The recipient pool is always `event_participants` type, scoped to the selected event. The `EventParticipantsPool` descriptor is constructed from the active filter state and passed to `CommComposer` via the `recipientPool` prop.
+PC-02. The recipient pool type is determined by the active pool mode (see SA-04). In "Event participants" mode, an `EventParticipantsPool` descriptor (`{ type: 'event_participants', event_id, filters }`) is constructed from the active filter state and passed to `CommComposer` via the `recipientPool` prop. In "Specific participants" mode, a `ManualPool` descriptor (`{ type: 'manual', member_ids: [...] }`) is constructed from the selected participant `member_ids` and passed instead. At page initialisation, pool mode defaults to "Event participants".
 
 PC-03. A `RecipientPoolPreview` is rendered below the `CommComposer` card, always visible. It shows: estimated recipient count, up to 5 sample recipient names, and any pool warnings (e.g. "12 recipients have no email address"). This component is rendered by `CommComposer` internally — no separate implementation in the page.
 
@@ -151,26 +142,30 @@ PC-06. CommComposer renders both Email and SMS channel toggle buttons. Selecting
 
 **Primary actions**
 
-PA-01. **Send now** — clicking "Send now" calls `adapter.send()` with the current `CommSendRequest`. On success: a toast (success variant) shows "Message sent to N participants" (where N = `CommSendResult.total_recipients`). The draft resets to `{ channel: 'email' }` and filters clear. If `suppression_skipped > 0`, an additional toast (default variant) shows "N recipients were suppressed and skipped." On failure: a toast (destructive variant) shows `result.error.message`; draft is not reset.
+PA-01. **Send now** — clicking "Send now" calls `adapter.send()` with the current `CommSendRequest`. On success: a toast (success variant) shows "Message sent to N participants" (where N = `CommSendResult.total_recipients`). The draft resets to `{ channel: 'email' }` and pool mode resets to "Event participants" with filters cleared. If `suppression_skipped > 0`, an additional toast (default variant) shows "N recipients were suppressed and skipped." If `result.warnings.length > 0`, one additional toast (default variant) is shown for each warning item using `warning.message` as the toast body. Warning types: `unresolved_token` (a merge token could not be resolved for some recipients — relevant when merge field validation is not blocking) and `gateway_partial_failure` (delivery to some recipients was not confirmed by the gateway). On failure: a toast (destructive variant) shows `result.error.message`; draft is not reset.
 
 PA-02. **Send CTA blocked by unresolved tokens** — when `blockSendOnUnresolvedTokens` is `true` and the draft body or subject contains unresolved merge tokens (tokens not present in the loaded merge field list), the "Send now" button is disabled. CommComposer shows an alert banner: "Resolve all tokens before sending." Once all tokens are resolved, the button re-enables.
 
 PA-03. **Schedule** — clicking "Schedule" in the CommComposer footer opens a datetime picker (CommComposer-internal). After the operator selects a future datetime and confirms, `adapter.schedule()` is called with `CommScheduleRequest` (extends `CommSendRequest` with `scheduled_at`). On success: a toast (success variant) shows "Message scheduled for [formatted datetime]." Draft resets. On failure: a toast (destructive variant) shows `result.error.message`.
 
-PA-04. **Send test** — clicking "Send test" calls `adapter.sendTest()` with the current draft as `CommSendTestRequest`. The test message is sent to the signed-in user's email address (resolved by PUMP from the authenticated user's profile). On success: a toast (success variant) shows "Test email sent to your email address." On failure: a toast (destructive variant) shows `result.error.message`.
+PA-04. **Send test** — clicking "Send test" calls `adapter.sendTest()` with the current draft as `CommSendTestRequest`. The test message is sent to the signed-in user's email address (resolved by PUMP from the authenticated user's profile). On success: a toast (success variant) shows "Test email sent to your email address." If `result.warnings.length > 0`, one additional toast (default variant) is shown per warning item using `warning.message` as the toast body (same treatment as PA-01). On failure: a toast (destructive variant) shows `result.error.message`.
 
 **Secondary actions**
 
-SA-01. **Recipient filters** — the filter bar above CommComposer contains three multi-select dropdowns:
+SA-01. **Recipient filters** — visible only when pool mode is "Event participants" (see SA-04). The filter bar above CommComposer contains three multi-select dropdowns:
 - *Registration type*: options are `base_registration_type` records for the selected event (label = `name`). Default: no selection (no filter applied).
 - *Status*: options are the five BASE application statuses — "Submitted" (`submitted`), "Under review" (`under_review`), "Approved" (`approved`), "Rejected" (`rejected`), "Withdrawn" (`withdrawn`). Default: no selection (no filter applied).
 - *Unit*: options are `base_units` records for the selected event (label = `name`). Default: no selection (no filter applied).
 
 Changing any filter immediately updates the `EventParticipantsPool.filters` object in the pool descriptor and schedules a `RecipientPoolPreview` re-fetch, debounced by 400 ms. Rapid successive filter changes reset the debounce timer; only one re-fetch fires after the user stops changing filters.
 
-SA-02. **Clear filters** — a "Clear filters" link appears in the filter bar when at least one filter has a value selected. Clicking it resets all three dropdowns to empty and triggers a pool preview re-fetch with no filters.
+SA-02. **Clear filters** — a "Clear filters" link appears in the filter bar (EventParticipants mode only) when at least one filter has a value selected. Clicking it resets all three dropdowns to empty and triggers a pool preview re-fetch with no filters.
 
 SA-03. **Merge field toolbar** — the `MergeFieldToolbar` inside CommComposer shows available merge fields as chips (e.g. `{{first_name}}`). Clicking a chip inserts the token at the cursor position in the active text area. See §9.2 for CommComposer rendered layout details.
+
+SA-04. **Pool mode switcher** — a pair of mutually exclusive toggle buttons placed immediately above the filter bar (or participant picker): "Event participants" and "Specific participants". Default: "Event participants" active. Switching to "Specific participants" hides the filter bar (SA-01/SA-02) and shows the participant picker (SA-05); the pool descriptor switches to `ManualPool`. Switching back to "Event participants" hides the participant picker, clears the manual selection, shows the filter bar, and resets the pool to `EventParticipantsPool` with no filters. The pool mode switcher is rendered whenever the compose surface is visible, regardless of `canCompose` or `canSend`.
+
+SA-05. **Manual participant selection** — visible only when pool mode is "Specific participants". A `MultiSelect` component (from `@solvera/pace-core/components`) allows the operator to select individual approved participants for the current event. Options are sourced via the two-step query in §6 BR-15: fetch approved `base_application` rows joined to `core_person` (for names), then resolve `person_id → core_member.id` to obtain `ManualPool.member_ids`. Each option is `{ value: core_member.id, label: resolvedName }` where `resolvedName = preferred_name` (if non-null and non-empty) else `first_name + ' ' + last_name`. Selecting participants builds the `ManualPool` descriptor: `{ type: 'manual', member_ids: [selected core_member.id values] }`. The `MultiSelect` placeholder reads "Search or select participants…". Options are loaded once on mode switch; the `MultiSelect` search input filters client-side within the loaded option set. Options are not re-fetched unless the selected event changes.
 
 **Permission-conditional rendering**
 
@@ -192,7 +187,7 @@ NAV-03. Navigating away from `/communications` with an unsaved dirty draft does 
 
 **Edge cases and constraints**
 
-EC-01. If a filter combination selects no matching participants, the pool estimate = 0. The compose surface remains active. Sending to an empty pool is not blocked at the UI level.
+EC-01. If a filter combination selects no matching participants (EventParticipants mode), or if no participants are selected in the participant picker (ManualPool mode, `member_ids = []`), the pool estimate = 0. The compose surface remains active in both cases. Sending to an empty pool is not blocked at the UI level — PUMP completes the send with `total_recipients = 0`.
 
 EC-02. If the draft channel is switched while a template is selected, the template selection is cleared (CommComposer-internal). The operator must re-select a template for the new channel.
 
@@ -200,7 +195,7 @@ EC-03. If merge fields fail to load (ER-01 scenario), the `MergeFieldToolbar` sh
 
 EC-04. The "Send test" button is visible and enabled for any user with `update:page.communications`, even if the pool is empty or the recipient count is zero. Test sends are not pool-scoped.
 
-EC-05. If the selected event changes while the operator is composing (via the global event picker in BA00), the draft resets, all filters clear, and all adapter calls re-run with the new event context.
+EC-05. If the selected event changes while the operator is composing (via the global event picker in BA00), the draft resets, pool mode resets to "Event participants", all filters clear, any manual participant selection is cleared, and all adapter calls re-run with the new event context.
 
 ### 4.2 System notification utility
 
@@ -240,9 +235,11 @@ If a future wave adds notifications for any of these types, a new `base.*` syste
 The `/communications` page uses the BA00 app shell (header, nav sidebar, authenticated wrapper). The page content area is a single-column layout with the following top-to-bottom order:
 
 1. **Page heading row** — `<h1>` "Communications", no subtitle.
-2. **Filter bar** — a horizontal row of three `Select` (multi-select) components.
-3. **CommComposer card** — full-width single-column compose form.
-4. **RecipientPoolPreview** — rendered below the CommComposer card (CommComposer-internal; no separate page element required).
+2. **Pool mode switcher** — a pair of toggle buttons: "Event participants" / "Specific participants".
+3. **Filter bar** *(EventParticipants mode only)* — a horizontal row of three `MultiSelect` components (registration type, status, unit). Hidden when pool mode is "Specific participants".
+4. **Participant picker** *(Specific participants mode only)* — a `MultiSelect` for selecting individual approved participants. Hidden when pool mode is "Event participants".
+5. **CommComposer card** — full-width single-column compose form.
+6. **RecipientPoolPreview** — rendered below the CommComposer card (CommComposer-internal; no separate page element required).
 
 **Desktop:** single column, max-width constrained to the app shell's content width. CommComposer card occupies the full content width.
 
@@ -250,7 +247,15 @@ The `/communications` page uses the BA00 app shell (header, nav sidebar, authent
 
 ### 5.2 Components
 
-#### Filter bar
+#### Pool mode switcher
+
+Two toggle buttons rendered as a segmented control (or `Button` pair, variant `outline`, active state visually distinguished): "Event participants" and "Specific participants". Placed directly above the filter bar / participant picker area. Full-width is not required — left-aligned in the content column. Only one mode is active at a time; clicking the inactive button activates it.
+
+#### Participant picker (ManualPool mode)
+
+A single `MultiSelect` component from `@solvera/pace-core/components`, full-width, rendered in place of the filter bar when pool mode is "Specific participants". Options are loaded on mode switch (see BR-15). The `MultiSelect` placeholder: "Search or select participants…". Zero selections = `member_ids: []`. On mobile: the `MultiSelect` spans full width and its option list scrolls vertically.
+
+#### Filter bar (EventParticipants mode)
 
 Three `MultiSelect` components from `@solvera/pace-core/components`, arranged horizontally in a row (flex row, even spacing). Each `MultiSelect` allows multiple concurrent selections within its dimension; selecting zero values in a dimension applies no constraint for that dimension.
 
@@ -332,7 +337,9 @@ Rendered automatically by `CommComposer`. Shows:
 | Compose-only (canSend=false) | CommComposer fully editable. Footer shows callout "You do not have permission to send." No send buttons. |
 | Full access | CommComposer fully editable. Footer shows all buttons. |
 | Send in progress | "Send now" button shows loading indicator and is disabled. |
-| Send success | Toast (success variant): "Message sent to N participants." Draft resets. Filters clear. If `suppression_skipped > 0`, second toast (default variant): "N recipients were suppressed and skipped." |
+| Send success | Toast (success variant): "Message sent to N participants." Draft resets. Pool mode resets to "Event participants". Filters clear. Manual selection clears. If `suppression_skipped > 0`, second toast (default variant): "N recipients were suppressed and skipped." If `result.warnings.length > 0`, one additional default-variant toast per warning using `warning.message`. |
+| Participant picker loading | `MultiSelect` shows inline `LoadingSpinner` and is disabled while BR-15 two-step query runs. |
+| Participant picker error | `Alert variant="destructive"` below the `MultiSelect` with normalised error message and a "Retry" link. |
 | Schedule in progress | "Schedule" button shows loading indicator and is disabled. |
 | Schedule success | Toast (success variant): "Message scheduled for [formatted datetime]." Draft resets. |
 | Send test in progress | "Send test" button shows loading indicator and is disabled. |
@@ -343,6 +350,9 @@ Rendered automatically by `CommComposer`. Shows:
 
 | Interaction | Behaviour |
 |---|---|
+| Pool mode switch to "Specific participants" | Hides filter bar. Shows participant picker. Starts BR-15 query to load options. Pool descriptor switches to `ManualPool { member_ids: [] }`. `RecipientPoolPreview` re-fetches with empty ManualPool. |
+| Pool mode switch to "Event participants" | Hides participant picker. Shows filter bar. Clears manual selection. Pool descriptor resets to `EventParticipantsPool` with no filters. `RecipientPoolPreview` re-fetches. |
+| Participant picker selection change | Updates `ManualPool.member_ids`. Triggers `RecipientPoolPreview` re-fetch. No debounce (selection is deliberate). |
 | Filter dropdown change | Updates `EventParticipantsPool.filters`. Schedules a `RecipientPoolPreview` re-fetch (400 ms debounce). Filter bar and CommComposer remain interactive. |
 | Clear filters link | Resets all three dropdowns to empty. Triggers pool preview re-fetch with no filters. |
 | Channel toggle | Switches CommComposer channel. Clears channel-specific draft fields. Re-fetches templates and merge fields for new channel. |
@@ -372,7 +382,7 @@ Rendered automatically by `CommComposer`. Shows:
 | Composer (no send) | ✅ | ✅ | — | CommComposer fully editable; footer shows "You do not have permission to send." callout only |
 | Full operator | ✅ | ✅ | ✅ | Full compose surface; all footer buttons (Send test, Schedule, Send now) visible and enabled |
 
-**Filter bar visibility:** The filter bar is rendered in all states where the page content area is visible (i.e., all states except No access and No event selected). The `MultiSelect` dropdowns are interactive regardless of `canCompose` or `canSend` — filtering the pool preview does not require compose or send permission.
+**Pool mode switcher and pool controls visibility:** The pool mode switcher is rendered in all states where the page content area is visible (i.e., all states except No access and No event selected). The filter bar (EventParticipants mode) or participant picker (Specific participants mode) is interactive regardless of `canCompose` or `canSend` — adjusting the pool preview does not require compose or send permission.
 
 ---
 
@@ -392,10 +402,11 @@ Where `content` is the concatenation of all draft text fields, and `mergeFields`
 
 **Edge case:** If merge fields have not yet loaded (adapter call pending), all tokens are treated as unresolved — send is blocked until fields load.
 
-### BR-02 — Recipient pool is always event_participants scoped to selected event
+### BR-02 — Recipient pool is scoped to the selected event; type determined by pool mode
 
-The recipient pool descriptor for all operator sends on `/communications` is:
+The recipient pool descriptor passed to `CommComposer` is one of two shapes, controlled by the pool mode switcher (SA-04):
 
+**EventParticipants mode (default):**
 ```typescript
 {
   type: 'event_participants',
@@ -408,7 +419,15 @@ The recipient pool descriptor for all operator sends on `/communications` is:
 }
 ```
 
-No other pool type is available on this page. If `selectedEventId` is absent (no event selected), the pool descriptor cannot be constructed and the compose surface does not render.
+**Specific participants mode (ManualPool):**
+```typescript
+{
+  type: 'manual',
+  member_ids: selectedMemberIds  // array of core_member.id values; may be empty
+}
+```
+
+No other pool types are available on this page. If `selectedEventId` is absent (no event selected), neither pool descriptor can be constructed and the compose surface does not render.
 
 ### BR-03 — Operator sends never bypass suppression
 
@@ -483,9 +502,9 @@ BASE uses `adapter.loadTemplates()` to read `pump_organisation_templates` record
 
 All BA17 system notification keys use the `base.*` namespace prefix. These keys resolve rows in `pump_system_templates` by their immutable `system_key` column. All 6 keys are confirmed present in dev-db (see §8). Calling `sendSystemNotification()` with a key that does not exist in `pump_system_templates` produces a PUMP error; the failure is handled per BR-05.
 
-### BR-13 — Filter dimensions combine with AND logic
+### BR-13 — Filter dimensions combine with AND logic (EventParticipants mode only)
 
-When multiple filter dropdowns have active selections, the pool applies cross-dimension AND logic: a participant must satisfy at least one selected value in **each** active dimension.
+When multiple filter dropdowns have active selections in EventParticipants mode, the pool applies cross-dimension AND logic: a participant must satisfy at least one selected value in **each** active dimension.
 
 | Scenario | Result |
 |---|---|
@@ -507,6 +526,38 @@ Within a single dimension, multiple values are OR'd (participant must match at l
 | `scopeId` | `eventId` from active event context |
 
 **Note:** In BASE v1, `canSend` and `canSchedule` are always equal — both derive from `update:page.communications`. The `CommRbacContext` type supports independent values for future differentiation, but BASE does not use that capability in v1. Do not implement independent permission checks for scheduling.
+
+### BR-15 — ManualPool participant lookup query
+
+**Trigger:** operator switches pool mode to "Specific participants" (SA-04). Options must load before the `MultiSelect` (SA-05) is interactive.
+
+**Two-step query (run in parallel, then merged client-side):**
+
+Step 1 — Approved applications with names:
+```ts
+supabase
+  .from('base_application')
+  .select('id, person_id, core_person!inner(preferred_name, first_name, last_name)')
+  .eq('event_id', selectedEvent.id)
+  .eq('organisation_id', selectedOrganisation.id)
+  .eq('status', 'approved')
+  .limit(500)
+```
+
+Step 2 — Resolve `person_id` values to `core_member.id`:
+```ts
+supabase
+  .from('core_member')
+  .select('id, person_id')
+  .eq('organisation_id', selectedOrganisation.id)
+  .in('person_id', personIds)   // personIds extracted from Step 1 result
+```
+
+**Client-side merge:** for each Step 1 row, find the Step 2 row where `core_member.person_id = application.person_id`. Build the option: `{ value: core_member.id, label: resolvedName }` where `resolvedName = preferred_name` (if non-null and non-empty) else `first_name + ' ' + last_name`. Rows where no matching `core_member` row exists are excluded from the option set (no membership record yet — unusual; not an error).
+
+**Limit:** 500 applications per fetch. The `MultiSelect` search input filters client-side within the loaded option set — no paginated server search.
+
+**Result cached for the current event:** options are not re-fetched on repeated mode switches within the same event context.
 
 ---
 
@@ -567,7 +618,7 @@ adapter.send(CommSendRequest) → ApiResult<CommSendResult>
 - `message_id: string`
 - `total_recipients: number`
 - `suppression_skipped: number`
-- `warnings: CommTokenWarning[]`
+- `warnings: CommTokenWarning[]` — each entry: `{ type: 'unresolved_token' | 'gateway_partial_failure'; token?: string; count: number; message: string }`. BA17 surfaces each entry as a separate default-variant toast via `warning.message` on send-now success (PA-01) and send-test success (PA-04). An empty array is the normal-success case and produces no extra toasts.
 
 **Send test:**
 ```typescript
@@ -693,8 +744,9 @@ AND page_name = 'communications';
 | `CommTemplate` | type | `@solvera/pace-core/comms` | Template record shape |
 | `CommMergeField` | type | `@solvera/pace-core/comms` | Merge field record shape |
 | `CommRecipientPreview` | type | `@solvera/pace-core/comms` | Pool preview result |
-| `EventParticipantsPool` | type | `@solvera/pace-core/comms` | Pool descriptor type |
+| `EventParticipantsPool` | type | `@solvera/pace-core/comms` | Pool descriptor type (EventParticipants mode) |
 | `EventParticipantsPoolFilters` | type | `@solvera/pace-core/comms` | Pool filters (status values pending Q-3 PR) |
+| `ManualPool` | type | `@solvera/pace-core/comms` | Pool descriptor type (Specific participants mode): `{ type: 'manual'; member_ids: string[] }` |
 | `RecipientPoolDescriptor` | type | `@solvera/pace-core/comms` | Union of pool descriptor types |
 | `SystemNotificationRequest` | type | `@solvera/pace-core/comms` | System notification request shape |
 | `SystemNotificationRecipientDescriptor` | type | `@solvera/pace-core/comms` | Recipient descriptor union |
@@ -725,7 +777,7 @@ AND page_name = 'communications';
 | `adapter` | `CommSendAdapter` | Yes | Pass the object returned by `useCommSendAdapter(...)` |
 | `organisationId` | `string` | Yes | Active organisation UUID |
 | `sourceApp` | `string` | Yes | Pass `'base'` |
-| `recipientPool` | `RecipientPoolDescriptor` | Yes | `EventParticipantsPool` descriptor constructed by the page from filter state |
+| `recipientPool` | `RecipientPoolDescriptor` | Yes | `EventParticipantsPool` (EventParticipants mode) or `ManualPool` (Specific participants mode) descriptor constructed by the page from pool mode state |
 | `rbac` | `CommRbacContext` | Yes | Derived from `useResourcePermissions('communications')` per BR-14 |
 | `draft` | `CommDraft` | Yes | Controlled value from `useCommDraft` |
 | `onDraftChange` | `(draft: CommDraft) => void` | Yes | Pass `updateDraft` or `setDraft` from `useCommDraft` |
@@ -1233,17 +1285,14 @@ A slice is Done only when:
 
 ## 17. References
 
-- `/rebuild/slices/BASE-project-brief.md`
-- `/rebuild/slices/BASE-architecture.md` — §BA17 row in slice overview table; route ownership registry `/communications`; execution lane (BASE overnight, after CR23 readiness)
-- BA00 — App Shell and Access (provides authenticated shell, navigation, event context)
-- BA01 — Event Workspace and Configuration (owns `/event-dashboard` nav card linking to `/communications`)
-- BA04 — Registration Setup and Policy (owns `base_registration_type` — filter data source)
-- BA05a — Registration Entry and Application Submission (system notification call points: guardian + referee)
-- BA06 — Applications Admin and Review (system notification call points: application approved/rejected)
-- BA08 — Units and Group Coordination (owns `base_units` — filter data source)
-- `pace-core2/packages/core/docs/requirements/CR23-comms-platform.md` — canonical comms architecture authority
-- `docs/database/domains/base.md` — BASE domain schema reference
-- `rebuild/_authoring/parity-audit/BA17.md` — Phase 1 parity audit with full resolution log
+- `docs/requirements/BASE-project-brief.md`
+- `docs/requirements/BASE-architecture.md` — BA17 slice overview, `/communications` route ownership, and execution lane context.
+- `docs/requirements/BA00-app-shell-and-access-requirements.md` — authenticated shell, navigation, and event context.
+- `docs/requirements/BA01-event-workspace-and-configuration-requirements.md` — `/event-dashboard` navigation handoff to `/communications`.
+- `docs/requirements/BA04-registration-setup-and-policy-requirements.md` — `base_registration_type` filter data source.
+- `docs/requirements/BA05a-registration-entry-and-application-submission-requirements.md` — guardian/referee system-notification call points.
+- `docs/requirements/BA06-applications-admin-and-review-requirements.md` — application approved/rejected system-notification call points.
+- `docs/requirements/BA08-units-and-group-coordination-requirements.md` — `base_units` filter data source.
 
 ---
 
@@ -1280,29 +1329,6 @@ If any check fails, **stop and flag** — do not proceed with stubs or workaroun
 
 ---
 
-## 19. Self-containment audit
-
-The author confirms the following (run literally — not interpretively — using grep/search for keyword checks):
-
-- [x] No legacy file paths anywhere in this document.
-- [x] No legacy hook, component, utility, service, or route names anywhere in this document.
-- [x] No language of the form "preserve / retain / keep / as today / the existing / the original" — verified by literal search. Zero matches outside this checklist.
-- [x] "The current X" usages reviewed: all occurrences are runtime-state references (the current user, the current event, the current channel, the currently-selected template, the currently-focused textarea, the current filters). No legacy-capability references found.
-- [x] Every property of the new app is stated as a positive declaration, not as a delta against an unstated baseline.
-- [x] Every business rule referenced in §4 and §5 is defined explicitly in §6.
-- [x] Cross-slice references (BA05a, BA06, BA01, BA04, BA08) are about contracts (route handoff, data shape, exported constants) — not about behaviour delegation.
-- [x] A UI designer with no other context can mock up the `/communications` surface from §5 alone. §5 restates all repeated element details inline (filter bar controls, CommComposer card structure, footer buttons, permission table).
-- [x] A QA tester with no code access can verify all 18 acceptance criteria.
-- [x] Every non-trivial pace-core2 item in §9.1 has full prop/argument/return-shape detail in §9.2 (`CommComposer`, `useCommDraft`, `useCommSendAdapter`, `useResourcePermissions`, `PagePermissionGuard`, `sendSystemNotification`, `toast`, `ApiResult`/`ApiError`, `MultiSelect`). Primitive items (`LoadingSpinner`, `AccessDenied`, type-only imports except `MultiSelectOption` paired with `MultiSelect`) are table-only.
-- [x] No "equivalent to X" or "similar to legacy Y" hedging language anywhere in this document. Every behaviour is named with an actual pace-core2 export and documented, or defined as an explicit business rule in §6.
-- [x] §3 specifies evaluation order for the page guard + no-event state: guard fires first (before event context check); scope object fields documented for absent eventId; guard behaviour during loading documented.
-- [x] §5 ↔ §16 cross-consistency checked: no feature described in §5 is prohibited by any "Do not" rule in §16. CommComposer is allowed; `sendSystemNotification` from React is correctly prohibited in §16 and not described in §5 as a UI action.
-- [x] §6 → §9 propagation: `getUnresolvedTokens` (cited in BR-01), `EventParticipantsPool` / `EventParticipantsPoolFilters` (cited in BR-02, BR-10), `CommRbacContext` (cited in BR-14), `SystemNotificationRequest` (cited in BR-06, BR-07, BR-08), `ApiResult`/`ApiError` (cited in BR-05 and throughout §7) all appear in §9.1.
-- [x] Cross-section consistency sweep after final gate clearance (2026-05-01): all §8 gates ✅ PASSED; `MultiSelect` and `rbac_app_pages` `communications` row verified against pace-core2 source and dev-db; §14 / §18 / §20 updated for regression-check wording; §9.2 `MultiSelect` props aligned to shipped component.
-- [x] Visual rendering verified against pace-core2 source: CommComposer is documented as single-column per the actual `components.tsx` source (not the CR23 two-column spec). This matches the source observation recorded in the parity audit.
-
----
-
-## 20. Open questions
+## 19. Open questions
 
 No open questions. All Phase 1 questions resolved before Phase 2 commenced. All §8 implementation gates ✅ PASSED as of 2026-05-01 (final verification: dev-db `communications` `rbac_app_pages` row; pace-core2 `MultiSelect` export).

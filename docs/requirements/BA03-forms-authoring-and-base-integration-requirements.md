@@ -1,6 +1,6 @@
 # BA03 — Forms Authoring and BASE Integration
 
-## 1. Slice metadata
+## Slice metadata
 
 - Status: Draft
 - Depends on: BA00 (App Shell and Access), BA01 (Event Workspace and Configuration — `/forms` is event-scoped and receives navigation from the BA01 dashboard), BA02 (Shared Forms Platform Contracts)
@@ -893,12 +893,11 @@ Each criterion traces to one or more Functional Specification items. Do not pre-
 
 ## 17. References
 
-- `docs/requirements/base/BASE-project-brief.md`
-- `docs/requirements/base/BASE-architecture.md`
-- `docs/requirements/base/BA00-app-shell-and-access-requirements.md`
-- `docs/requirements/base/BA02-shared-forms-platform-contracts-requirements.md`
-- `docs/requirements/base/BA18-base-dev-seed-data-requirements.md`
-- `packages/core/docs/requirements/CR21-workflow-forms-runtime.md`
+- `docs/requirements/BASE-project-brief.md`
+- `docs/requirements/BASE-architecture.md`
+- `docs/requirements/BA00-app-shell-and-access-requirements.md`
+- `docs/requirements/BA02-shared-forms-platform-contracts-requirements.md`
+- `docs/requirements/BA18-base-dev-seed-data-requirements.md`
 
 ## 18. Implementing Agent Instructions
 

@@ -619,14 +619,11 @@ BA02 defines contract shapes; RLS policies are owned by the backend/database tra
 
 ## 17. References
 
-- `docs/requirements/base/BASE-project-brief.md`
-- `docs/requirements/base/BASE-architecture.md`
-- `docs/requirements/base/BA03-forms-authoring-and-base-integration-requirements.md`
-- `docs/requirements/base/BA04-registration-setup-and-policy-requirements.md`
-- `docs/requirements/base/BA05a-registration-entry-and-application-submission-requirements.md`
-- `packages/core/docs/requirements/CR21-workflow-forms-runtime.md`
-- `docs/database/domains/base.md`
-- `docs/database/decisions/DB-change-decisions-p3.md`
+- `docs/requirements/BASE-project-brief.md`
+- `docs/requirements/BASE-architecture.md`
+- `docs/requirements/BA03-forms-authoring-and-base-integration-requirements.md`
+- `docs/requirements/BA04-registration-setup-and-policy-requirements.md`
+- `docs/requirements/BA05a-registration-entry-and-application-submission-requirements.md`
 
 ## 18. Implementing Agent Instructions
 

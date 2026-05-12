@@ -1,6 +1,6 @@
 # BA05b — Participant Application Progress
 
-## 1. Slice metadata
+## Slice metadata
 
 - Status: Draft
 - Depends on: BA05a (Registration Entry and Application Submission — application creation, initial checks, schema fields including `referee_person_id`)
@@ -319,12 +319,11 @@ Traceability: AC-01→PP-04–08; AC-02→PP-10; AC-03→PP-13–14; AC-04→PP-
 
 ## 17. References
 
-- `docs/requirements/base/BASE-project-brief.md`
-- `docs/requirements/base/BASE-architecture.md`
-- `docs/requirements/base/BA05a-registration-entry-and-application-submission-requirements.md`
-- `docs/requirements/base/BA06-applications-admin-and-review-requirements.md`
-- `docs/requirements/base/BA18-base-dev-seed-data-requirements.md`
-- `docs/database/domains/base.md`
+- `docs/requirements/BASE-project-brief.md`
+- `docs/requirements/BASE-architecture.md`
+- `docs/requirements/BA05a-registration-entry-and-application-submission-requirements.md`
+- `docs/requirements/BA06-applications-admin-and-review-requirements.md`
+- `docs/requirements/BA18-base-dev-seed-data-requirements.md`
 
 ## 18. Implementing Agent Instructions
 

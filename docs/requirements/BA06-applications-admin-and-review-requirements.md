@@ -1,6 +1,6 @@
 # BA06 — Applications Admin and Review
 
-## 1. Slice metadata
+## Slice metadata
 
 - Status: Draft
 - Depends on: BA04 (registration policy and requirement chains), BA05a.contract (application creation and `workflow_subject` linking), BA17.contract (system notification keys **SN-05** `base.application_approved` and **SN-06** `base.application_rejected` — keys must exist in `pump_system_templates` for BA06 status-transition Edge Functions to dispatch; verified present in dev-db 2026-05-01 per BA17 audit) _(BA00 shell is transitively required via BA04 → BA01; not restated here, matching architecture's slice overview)_
@@ -499,13 +499,13 @@ _Note_: server-side permission enforcement for the two verified RPCs uses `is_su
 
 ## 17. References
 
-- `docs/requirements/base/BASE-project-brief.md`
-- `docs/requirements/base/BASE-architecture.md`
-- `docs/requirements/base/BA02-shared-forms-platform-contracts-requirements.md`
-- `docs/requirements/base/BA04-registration-setup-and-policy-requirements.md`
-- `docs/requirements/base/BA05a-registration-entry-and-application-submission-requirements.md`
-- `docs/requirements/base/BA17-communications-and-system-notifications-requirements.md`
-- `docs/requirements/base/BA18-base-dev-seed-data-requirements.md`
+- `docs/requirements/BASE-project-brief.md`
+- `docs/requirements/BASE-architecture.md`
+- `docs/requirements/BA02-shared-forms-platform-contracts-requirements.md`
+- `docs/requirements/BA04-registration-setup-and-policy-requirements.md`
+- `docs/requirements/BA05a-registration-entry-and-application-submission-requirements.md`
+- `docs/requirements/BA17-communications-and-system-notifications-requirements.md`
+- `docs/requirements/BA18-base-dev-seed-data-requirements.md`
 
 ## 18. Implementing Agent Instructions
 

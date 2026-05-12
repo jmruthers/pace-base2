@@ -1,6 +1,6 @@
 # BA04 — Registration Setup and Policy
 
-## 1. Slice metadata
+## Slice metadata
 
 - Status: Draft
 - Depends on: BA01 (Event Configuration — event-level registration scope stays on `/configuration`), BA02, BA03 _(BA00 shell is transitively required via BA01; not restated here, matching architecture's slice overview)_
@@ -533,13 +533,12 @@ _Scope_: thread `{ organisationId, eventId, appId }` via the registration scope 
 
 ## 17. References
 
-- `docs/requirements/base/BASE-project-brief.md`
-- `docs/requirements/base/BASE-architecture.md`
-- `docs/requirements/base/BA00-app-shell-and-access-requirements.md`
-- `docs/requirements/base/BA01-event-workspace-and-configuration-requirements.md`
-- `docs/requirements/base/BA03-forms-authoring-and-base-integration-requirements.md`
-- `docs/requirements/base/BA18-base-dev-seed-data-requirements.md`
-- `docs/database/domains/base.md`
+- `docs/requirements/BASE-project-brief.md`
+- `docs/requirements/BASE-architecture.md`
+- `docs/requirements/BA00-app-shell-and-access-requirements.md`
+- `docs/requirements/BA01-event-workspace-and-configuration-requirements.md`
+- `docs/requirements/BA03-forms-authoring-and-base-integration-requirements.md`
+- `docs/requirements/BA18-base-dev-seed-data-requirements.md`
 
 ## 18. Implementing Agent Instructions
 
