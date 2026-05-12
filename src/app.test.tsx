@@ -111,6 +111,10 @@ vi.mock('./pages/activities/ActivitiesPage', () => ({
   ActivitiesPage: () => <main>Activities Page</main>,
 }));
 
+vi.mock('./pages/activities/BookingsPage', () => ({
+  BookingsPage: () => <main>Bookings Page</main>,
+}));
+
 vi.mock('./pages/activities/ActivityOfferingPage', () => ({
   ActivityOfferingPage: () => <main>Activity Offering Page</main>,
 }));
@@ -311,6 +315,20 @@ describe('BA00 route behavior', () => {
     renderAt('/activities/offering-1');
     expect(await screen.findByText('Shell Layout')).toBeTruthy();
     expect(await screen.findByText('Activity Offering Page')).toBeTruthy();
+  });
+
+  it('renders activity bookings route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/activities/bookings');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Bookings Page')).toBeTruthy();
+  });
+
+  it('shows access denied for activity bookings when read permission is denied', async () => {
+    authState.isAuthenticated = true;
+    permissionState.allowRead = false;
+    renderAt('/activities/bookings');
+    expect(await screen.findByText('Access Denied')).toBeTruthy();
   });
 
   it('shows access denied for scanning setup when read permission is denied', async () => {

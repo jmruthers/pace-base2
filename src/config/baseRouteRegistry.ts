@@ -115,6 +115,14 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     includeInNavigation: true,
   },
   {
+    path: '/activities/bookings',
+    label: 'Bookings',
+    pageName: 'bookings',
+    sliceId: 'activity-booking-operations-oversight',
+    includeInShell: true,
+    includeInNavigation: false,
+  },
+  {
     path: '/activities/:offeringId',
     label: 'Activity Offering',
     pageName: 'activities',

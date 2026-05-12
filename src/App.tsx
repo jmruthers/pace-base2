@@ -20,6 +20,7 @@ import { UnitsPage } from './pages/units/UnitsPage';
 import { UnitPreferencesPage } from './pages/unitPreferences/UnitPreferencesPage';
 import { CommunicationsPage } from './pages/communications/CommunicationsPage';
 import { ActivitiesPage } from './pages/activities/ActivitiesPage';
+import { BookingsPage } from './pages/activities/BookingsPage';
 import { ActivityOfferingPage } from './pages/activities/ActivityOfferingPage';
 import { ScanningSetupPage } from './pages/scanning/ScanningSetupPage';
 import {
@@ -97,6 +98,8 @@ function App() {
                         <UnitPreferencesPage />
                       ) : route.path === '/activities' ? (
                         <ActivitiesPage />
+                      ) : route.path === '/activities/bookings' ? (
+                        <BookingsPage />
                       ) : route.path === '/activities/:offeringId' ? (
                         <ActivityOfferingPage />
                       ) : route.path === '/scanning' ? (
