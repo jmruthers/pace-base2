@@ -12,6 +12,7 @@ import type { BadgeVariant } from '@solvera/pace-core/components';
 export interface BadgeDescriptor {
   label: string;
   variant: BadgeVariant;
+  className?: string;
 }
 
 export function getDirectionBadge(direction: ScanDirection): BadgeDescriptor {
@@ -59,7 +60,20 @@ export function getResultBadge(result: ScanValidationResult): BadgeDescriptor {
   if (result === 'rejected') {
     return { label: 'Rejected', variant: 'solid-sec-muted' };
   }
-  return { label: 'Conflict', variant: 'outline-acc-muted' };
+  return { label: 'Upload conflict', variant: 'outline-acc-muted' };
+}
+
+export function getQueueSyncBadge(status: 'pending' | 'syncing' | 'synced' | 'failed'): BadgeDescriptor {
+  if (status === 'pending') {
+    return { label: 'Pending upload', variant: 'solid-acc-normal' };
+  }
+  if (status === 'syncing') {
+    return { label: 'Uploading...', variant: 'solid-sec-muted', className: 'animate-pulse' };
+  }
+  if (status === 'synced') {
+    return { label: 'Uploaded', variant: 'solid-main-normal' };
+  }
+  return { label: 'Upload failed', variant: 'outline-acc-muted' };
 }
 
 export function deriveParticipantName(values: {

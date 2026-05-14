@@ -4,9 +4,13 @@ import { isOk } from '@solvera/pace-core/types';
 import {
   DEDUP_WINDOW_MS,
   buildQueueEntry,
+  getScanQueueEntry,
   hasRecentAcceptAtPoint,
+  listScanQueueEntriesByStatus,
   openScanQueueDb,
   putScanQueueEntry,
+  resetSyncingEntriesToPending,
+  updateScanQueueEntrySyncStatus,
 } from './scanQueueIdb';
 
 describe('scanQueueIdb', () => {
@@ -114,5 +118,90 @@ describe('scanQueueIdb', () => {
     const firstRow = first as { validation_result: string; local_id: string };
     expect(firstRow.local_id).toBe('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
     expect(firstRow.validation_result).toBe('rejected');
+  });
+
+  it('updates sync status and stores local failure reason', async () => {
+    const entry = buildQueueEntry({
+      scanPointId: 'point-2',
+      cardIdentifier: 'CARD-2',
+      scannedAt: 40,
+      validationResult: 'accepted',
+      validationReason: null,
+      overrideBy: null,
+      notes: null,
+    });
+    entry.local_id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+    const put = await putScanQueueEntry(entry);
+    expect(isOk(put)).toBe(true);
+
+    const updated = await updateScanQueueEntrySyncStatus({
+      localId: entry.local_id,
+      syncStatus: 'failed',
+      failureReason: 'edge_sync_failed',
+    });
+    expect(isOk(updated) && updated.data?.sync_status === 'failed').toBe(true);
+    expect(isOk(updated) ? updated.data?.failure_reason : null).toBe('edge_sync_failed');
+
+    const reloaded = await getScanQueueEntry(entry.local_id);
+    expect(isOk(reloaded) && reloaded.data?.failure_reason === 'edge_sync_failed').toBe(true);
+  });
+
+  it('resets stale syncing entries to pending on startup recovery', async () => {
+    const entry = buildQueueEntry({
+      scanPointId: 'point-3',
+      cardIdentifier: 'CARD-3',
+      scannedAt: 60,
+      validationResult: 'accepted',
+      validationReason: null,
+      overrideBy: null,
+      notes: null,
+    });
+    entry.local_id = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+    await putScanQueueEntry(entry);
+    await updateScanQueueEntrySyncStatus({
+      localId: entry.local_id,
+      syncStatus: 'syncing',
+    });
+
+    const reset = await resetSyncingEntriesToPending();
+    expect(isOk(reset) && reset.data === 1).toBe(true);
+
+    const row = await getScanQueueEntry(entry.local_id);
+    expect(isOk(row) && row.data?.sync_status === 'pending').toBe(true);
+  });
+
+  it('lists entries by sync status for flush selection', async () => {
+    const pending = buildQueueEntry({
+      scanPointId: 'point-4',
+      cardIdentifier: 'CARD-4',
+      scannedAt: 70,
+      validationResult: 'accepted',
+      validationReason: null,
+      overrideBy: null,
+      notes: null,
+    });
+    pending.local_id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+    const failed = buildQueueEntry({
+      scanPointId: 'point-4',
+      cardIdentifier: 'CARD-5',
+      scannedAt: 80,
+      validationResult: 'rejected',
+      validationReason: 'booking_not_valid',
+      overrideBy: null,
+      notes: null,
+    });
+    failed.local_id = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+    await putScanQueueEntry(pending);
+    await putScanQueueEntry(failed);
+    await updateScanQueueEntrySyncStatus({
+      localId: failed.local_id,
+      syncStatus: 'failed',
+      failureReason: 'edge_sync_failed',
+    });
+
+    const rows = await listScanQueueEntriesByStatus(['pending', 'failed']);
+    expect(isOk(rows)).toBe(true);
+    expect(isOk(rows) ? rows.data.some((row) => row.local_id === pending.local_id) : false).toBe(true);
+    expect(isOk(rows) ? rows.data.some((row) => row.local_id === failed.local_id) : false).toBe(true);
   });
 });

@@ -22,6 +22,7 @@ export interface ScanQueueEntry {
   notes: string | null;
   device_id: string | null;
   sync_status: QueueSyncStatus;
+  failure_reason?: string | null;
 }
 
 export interface ScanPointRecord {

@@ -1,10 +1,12 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import {
   PaceLoginPage,
   ProtectedRoute,
   SessionRestorationLoader,
 } from '@solvera/pace-core/components';
 import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
+import { useSecureSupabase } from '@solvera/pace-core/rbac';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AuthenticatedShell } from './components/layout/AuthenticatedShell';
 import { BaseNotFoundPage } from './pages/shell/BaseNotFoundPage';
@@ -26,10 +28,34 @@ import { ScanningSetupPage } from './pages/scanning/ScanningSetupPage';
 import {
   getShellProtectedRoutes,
 } from './config/baseRouteRegistry';
+import { startScanSyncWorker, stopScanSyncWorker } from '@/features/scanningRuntime/sync/scanSyncWorker';
 
 export const APP_NAME = 'BASE';
 
 const shellProtectedRoutes = getShellProtectedRoutes();
+
+function useScanSyncWorkerBootstrap() {
+  const secureSupabase = useSecureSupabase();
+  useEffect(() => {
+    if (secureSupabase == null) {
+      return undefined;
+    }
+    void startScanSyncWorker(secureSupabase);
+    return () => {
+      stopScanSyncWorker();
+    };
+  }, [secureSupabase]);
+  return null;
+}
+
+function ProtectedAppLayout() {
+  useScanSyncWorkerBootstrap();
+  return (
+    <>
+      <Outlet />
+    </>
+  );
+}
 
 function LoginRoute() {
   const { isAuthenticated, isLoading } = useUnifiedAuth();
@@ -58,66 +84,68 @@ function App() {
         <Route
           element={<ProtectedRoute loginPath="/login" requireEvent={false} />}
         >
-          <Route path="/" element={<Navigate to="/event-dashboard" replace />} />
+          <Route element={<ProtectedAppLayout />}>
+            <Route path="/" element={<Navigate to="/event-dashboard" replace />} />
 
-          <Route path="scanning/:scanPointId" element={<ScanningRuntimePage />} />
+            <Route path="scanning/:scanPointId" element={<ScanningRuntimePage />} />
 
-          <Route element={<AuthenticatedShell />}>
-            {shellProtectedRoutes
-              .filter((route) => route.path !== '/' && route.path !== '*')
-              .map((route) => (
-                <Route
-                  key={route.path}
-                  path={route.relativePath}
-                  element={
-                    <PagePermissionGuard
-                      pageName={route.pageName}
-                      operation="read"
-                      scope={{
-                        organisationId,
-                        eventId,
-                        appId: appId ?? undefined,
-                      }}
-                      fallback={<AccessDenied />}
-                    >
-                      {route.path === '/event-dashboard' ? (
-                        <EventDashboardPage />
-                      ) : route.path === '/configuration' ? (
-                        <EventConfigurationRoute />
-                      ) : route.path === '/forms' ? (
-                        <FormsListPage />
-                      ) : route.path === '/form-builder' ? (
-                        <FormBuilderPage />
-                      ) : route.path === '/registration-types' ? (
-                        <RegistrationTypesPage />
-                      ) : route.path === '/applications' ? (
-                        <ApplicationsPage />
-                      ) : route.path === '/communications' ? (
-                        <CommunicationsPage />
-                      ) : route.path === '/units' ? (
-                        <UnitsPage />
-                      ) : route.path === '/unit-preferences' ? (
-                        <UnitPreferencesPage />
-                      ) : route.path === '/activities' ? (
-                        <ActivitiesPage />
-                      ) : route.path === '/activities/bookings' ? (
-                        <BookingsPage />
-                      ) : route.path === '/activities/:offeringId' ? (
-                        <ActivityOfferingPage />
-                      ) : route.path === '/scanning' ? (
-                        <ScanningSetupPage />
-                      ) : (
-                        <FeaturePlaceholderPanel
-                          title={route.label}
-                          description={`This route is owned by ${route.sliceId} and is scaffolded under the BASE shell boundary.`}
-                        />
-                      )}
-                    </PagePermissionGuard>
-                  }
-                />
-              ))}
+            <Route element={<AuthenticatedShell />}>
+              {shellProtectedRoutes
+                .filter((route) => route.path !== '/' && route.path !== '*')
+                .map((route) => (
+                  <Route
+                    key={route.path}
+                    path={route.relativePath}
+                    element={
+                      <PagePermissionGuard
+                        pageName={route.pageName}
+                        operation="read"
+                        scope={{
+                          organisationId,
+                          eventId,
+                          appId: appId ?? undefined,
+                        }}
+                        fallback={<AccessDenied />}
+                      >
+                        {route.path === '/event-dashboard' ? (
+                          <EventDashboardPage />
+                        ) : route.path === '/configuration' ? (
+                          <EventConfigurationRoute />
+                        ) : route.path === '/forms' ? (
+                          <FormsListPage />
+                        ) : route.path === '/form-builder' ? (
+                          <FormBuilderPage />
+                        ) : route.path === '/registration-types' ? (
+                          <RegistrationTypesPage />
+                        ) : route.path === '/applications' ? (
+                          <ApplicationsPage />
+                        ) : route.path === '/communications' ? (
+                          <CommunicationsPage />
+                        ) : route.path === '/units' ? (
+                          <UnitsPage />
+                        ) : route.path === '/unit-preferences' ? (
+                          <UnitPreferencesPage />
+                        ) : route.path === '/activities' ? (
+                          <ActivitiesPage />
+                        ) : route.path === '/activities/bookings' ? (
+                          <BookingsPage />
+                        ) : route.path === '/activities/:offeringId' ? (
+                          <ActivityOfferingPage />
+                        ) : route.path === '/scanning' ? (
+                          <ScanningSetupPage />
+                        ) : (
+                          <FeaturePlaceholderPanel
+                            title={route.label}
+                            description={`This route is owned by ${route.sliceId} and is scaffolded under the BASE shell boundary.`}
+                          />
+                        )}
+                      </PagePermissionGuard>
+                    }
+                  />
+                ))}
 
-            <Route path="*" element={<BaseNotFoundPage />} />
+              <Route path="*" element={<BaseNotFoundPage />} />
+            </Route>
           </Route>
         </Route>
       </Routes>

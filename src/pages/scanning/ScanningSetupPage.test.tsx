@@ -82,7 +82,25 @@ const state = vi.hoisted(() => ({
   ] as Array<Record<string, unknown>>,
   historyLoading: false,
   historyError: null as unknown,
+  queueCounts: { pending: 1, syncing: 0, synced: 2, failed: 1 },
+  queueFailedEntries: [
+    {
+      local_id: 'failed-1',
+      scan_point_id: 'point-1',
+      card_identifier: 'CARD-1',
+      scanned_at: 1,
+      validation_result: 'rejected',
+      validation_reason: 'booking_not_valid',
+      override_by: null,
+      notes: null,
+      device_id: 'device-1',
+      sync_status: 'failed',
+      failure_reason: 'edge_sync_failed',
+    },
+  ] as Array<Record<string, unknown>>,
 }));
+
+const retryFailedQueueEntriesMock = vi.hoisted(() => vi.fn(async () => ({ retried: 1, skippedManualNoCard: 0 })));
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>();
@@ -152,6 +170,15 @@ vi.mock('@/features/scanningSetup/configuration', () => ({
   useUpdateScanPointMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
   useSetScanPointActiveMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
   loadManifestByContext: vi.fn(async () => []),
+}));
+
+vi.mock('@/features/scanningRuntime/sync/scanSyncWorker', () => ({
+  useScanSyncSnapshot: () => ({ isFlushing: false, lastFlushAt: null }),
+  getQueueStatusCounts: vi.fn(async () => state.queueCounts),
+  getQueueEntriesByStatus: vi.fn(async (statuses: string[]) =>
+    statuses.includes('failed') ? state.queueFailedEntries : []
+  ),
+  retryFailedQueueEntries: retryFailedQueueEntriesMock,
 }));
 
 vi.mock('@solvera/pace-core/utils', () => ({
@@ -283,6 +310,23 @@ describe('ScanningSetupPage', () => {
     state.scanPointsError = null;
     state.conflictsError = null;
     state.historyError = null;
+    state.queueCounts = { pending: 1, syncing: 0, synced: 2, failed: 1 };
+    state.queueFailedEntries = [
+      {
+        local_id: 'failed-1',
+        scan_point_id: 'point-1',
+        card_identifier: 'CARD-1',
+        scanned_at: 1,
+        validation_result: 'rejected',
+        validation_reason: 'booking_not_valid',
+        override_by: null,
+        notes: null,
+        device_id: 'device-1',
+        sync_status: 'failed',
+        failure_reason: 'edge_sync_failed',
+      },
+    ];
+    retryFailedQueueEntriesMock.mockClear();
   });
 
   afterEach(() => cleanup());
@@ -320,5 +364,24 @@ describe('ScanningSetupPage', () => {
     state.canRead = false;
     renderPage();
     expect(screen.getByText('Access Denied')).toBeTruthy();
+  });
+
+  it('shows per-entry retry buttons with entry-specific aria labels', async () => {
+    state.canUpdate = true;
+    state.queueCounts = { pending: 1, syncing: 0, synced: 2, failed: 1 };
+    renderPage();
+    expect(await screen.findByRole('button', { name: 'Retry failed queue entry failed-1' })).toBeTruthy();
+  });
+
+  it('retries only the selected failed queue entry', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry failed queue entry failed-1' }));
+    expect(retryFailedQueueEntriesMock).toHaveBeenCalledWith(['failed-1']);
+  });
+
+  it('hides per-entry retry controls without update permission', () => {
+    state.canUpdate = false;
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Retry failed queue entry failed-1' })).toBeNull();
   });
 });

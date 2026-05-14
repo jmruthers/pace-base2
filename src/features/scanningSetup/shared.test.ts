@@ -4,6 +4,7 @@ import {
   deriveParticipantName,
   getDirectionBadge,
   getOfflineBadge,
+  getQueueSyncBadge,
   getResultBadge,
   getStatusBadge,
   validateScanPoint,
@@ -29,7 +30,30 @@ describe('BA12 shared mapping helpers', () => {
   it('maps result badge variants', () => {
     expect(getResultBadge('accepted')).toEqual({ label: 'Accepted', variant: 'solid-main-normal' });
     expect(getResultBadge('rejected')).toEqual({ label: 'Rejected', variant: 'solid-sec-muted' });
-    expect(getResultBadge('upload_conflict')).toEqual({ label: 'Conflict', variant: 'outline-acc-muted' });
+    expect(getResultBadge('upload_conflict')).toEqual({
+      label: 'Upload conflict',
+      variant: 'outline-acc-muted',
+    });
+  });
+
+  it('maps queue sync badges for BA14 statuses', () => {
+    expect(getQueueSyncBadge('pending')).toEqual({
+      label: 'Pending upload',
+      variant: 'solid-acc-normal',
+    });
+    expect(getQueueSyncBadge('syncing')).toEqual({
+      label: 'Uploading...',
+      variant: 'solid-sec-muted',
+      className: 'animate-pulse',
+    });
+    expect(getQueueSyncBadge('synced')).toEqual({
+      label: 'Uploaded',
+      variant: 'solid-main-normal',
+    });
+    expect(getQueueSyncBadge('failed')).toEqual({
+      label: 'Upload failed',
+      variant: 'outline-acc-muted',
+    });
   });
 
   it('derives participant name with preferred-name fallback chain', () => {

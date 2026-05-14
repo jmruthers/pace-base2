@@ -51,6 +51,7 @@ vi.mock('@solvera/pace-core/components', () => ({
 vi.mock('@solvera/pace-core/rbac', () => ({
   AccessDenied: () => <main>Access Denied</main>,
   useResolvedScope: () => resolvedScopeState,
+  useSecureSupabase: () => ({}),
   PagePermissionGuard: ({
     operation,
     fallback,
@@ -60,6 +61,11 @@ vi.mock('@solvera/pace-core/rbac', () => ({
     fallback?: React.ReactNode;
     children: React.ReactNode;
   }) => (operation === 'read' && !permissionState.allowRead ? <>{fallback}</> : <>{children}</>),
+}));
+
+vi.mock('@/features/scanningRuntime/sync/scanSyncWorker', () => ({
+  startScanSyncWorker: vi.fn(async () => undefined),
+  stopScanSyncWorker: vi.fn(() => undefined),
 }));
 
 vi.mock('./components/layout/AuthenticatedShell', () => ({

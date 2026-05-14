@@ -1,7 +1,7 @@
 /* eslint-disable max-lines-per-function, complexity, react-hooks/exhaustive-deps, max-lines */
 
 import { useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -55,13 +55,31 @@ import {
   getContextBadge,
   getDirectionBadge,
   getOfflineBadge,
+  getQueueSyncBadge,
   getResultBadge,
   getStatusBadge,
   validateScanPoint,
 } from '@/features/scanningSetup/shared';
 import type { ManifestContextType, ScanPointFormValues, ScanPointRow } from '@/features/scanningSetup/types';
+import {
+  getQueueEntriesByStatus,
+  getQueueStatusCounts,
+  retryFailedQueueEntries,
+  useScanSyncSnapshot,
+} from '@/features/scanningRuntime/sync/scanSyncWorker';
+import type { ScanQueueEntry } from '@/features/scanningRuntime/types';
 
 const MANIFEST_TYPES: ManifestContextType[] = ['site', 'activity', 'transport', 'meal'];
+
+function queueFailureReasonLabel(reason: string | null | undefined): string {
+  if (reason === 'manual_scan_no_card') {
+    return 'Manual scan has no card identifier in MVP';
+  }
+  if (reason == null || reason.length === 0) {
+    return 'Upload failed';
+  }
+  return reason;
+}
 
 function eventNameFromSelection(selectedEvent: unknown): string {
   if (selectedEvent != null && typeof selectedEvent === 'object' && 'name' in selectedEvent) {
@@ -361,6 +379,29 @@ export function ScanningSetupPage() {
     return map;
   }, [activityOptions, transportOptions]);
 
+  const { lastFlushAt } = useScanSyncSnapshot();
+  const scanPointIds = useMemo(() => scanPoints.map((row) => row.id), [scanPoints]);
+  const queueSummaryQuery = useQuery({
+    queryKey: ['ba14', 'queue-summary', scanPointIds, lastFlushAt],
+    queryFn: async () => {
+      const [counts, failedRows] = await Promise.all([
+        getQueueStatusCounts(scanPointIds),
+        getQueueEntriesByStatus(['failed'], scanPointIds),
+      ]);
+      return {
+        counts,
+        failedEntries: failedRows,
+      };
+    },
+  });
+  const queueCounts = queueSummaryQuery.data?.counts ?? {
+    pending: 0,
+    syncing: 0,
+    synced: 0,
+    failed: 0,
+  };
+  const queueFailedEntries = queueSummaryQuery.data?.failedEntries ?? [];
+
   const invalidateAll = async () => {
     await queryClient.invalidateQueries({ queryKey: ['ba12'] });
   };
@@ -512,6 +553,30 @@ export function ScanningSetupPage() {
     } finally {
       setManifestLoading((state) => ({ ...state, [contextType]: false }));
     }
+  };
+
+  const onRetryFailedEntry = async (entry: ScanQueueEntry) => {
+    if (entry.sync_status !== 'failed') {
+      return;
+    }
+    const summary = await retryFailedQueueEntries([entry.local_id]);
+    if (summary.skippedManualNoCard > 0) {
+      toast({
+        variant: 'destructive',
+        description: 'Manual scan entries cannot be uploaded in MVP without a card identifier.',
+      });
+      return;
+    }
+    const remaining = await getQueueEntriesByStatus(['failed'], scanPointIds);
+    const failedAfterRetry = remaining.length;
+    if (failedAfterRetry === 0) {
+      toast({ variant: 'success', description: 'Scan event re-uploaded successfully.' });
+      return;
+    }
+    toast({
+      variant: 'destructive',
+      description: 'Retry failed. Check your connection and try again.',
+    });
   };
 
   const scanPointColumns = useMemo<unknown[]>(
@@ -865,6 +930,68 @@ export function ScanningSetupPage() {
                         {manifestLoading[contextType] ? <LoadingSpinner /> : `Download ${contextType[0].toUpperCase()}${contextType.slice(1)} Manifest`}
                       </Button>
                     ))}
+                </CardContent>
+              </Card>
+            </section>
+
+            <section>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Queue upload status</CardTitle>
+                  <CardDescription>Shows local upload state for queue entries in this event.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  <nav className="grid grid-flow-col auto-cols-max gap-2" aria-label="Queue upload summary">
+                    <Badge variant={getQueueSyncBadge('pending').variant} role="status">
+                      {getQueueSyncBadge('pending').label}: {queueCounts.pending}
+                    </Badge>
+                    <Badge
+                      variant={getQueueSyncBadge('syncing').variant}
+                      className={getQueueSyncBadge('syncing').className}
+                      role="status"
+                    >
+                      {getQueueSyncBadge('syncing').label}: {queueCounts.syncing}
+                    </Badge>
+                    <Badge variant={getQueueSyncBadge('synced').variant} role="status">
+                      {getQueueSyncBadge('synced').label}: {queueCounts.synced}
+                    </Badge>
+                    <Badge variant={getQueueSyncBadge('failed').variant} role="status">
+                      {getQueueSyncBadge('failed').label}: {queueCounts.failed}
+                    </Badge>
+                  </nav>
+                  {canUpdate && queueCounts.failed > 0 ? (
+                    <ul className="grid gap-2">
+                      {queueFailedEntries.map((entry) => (
+                        <li
+                          key={entry.local_id}
+                          className="rounded-md border border-border"
+                        >
+                          <section className="grid grid-cols-[1fr_auto] items-center gap-2 px-3 py-2">
+                            <article className="grid">
+                              <small>
+                                Queue entry {entry.local_id}
+                              </small>
+                              <small>
+                                {queueFailureReasonLabel(entry.failure_reason)}
+                              </small>
+                            </article>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="small"
+                              onClick={() => {
+                                void onRetryFailedEntry(entry);
+                              }}
+                              aria-label={`Retry failed queue entry ${entry.local_id}`}
+                            >
+                              Retry
+                            </Button>
+                          </section>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {queueSummaryQuery.isLoading ? <small>Refreshing queue status...</small> : null}
                 </CardContent>
               </Card>
             </section>

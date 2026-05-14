@@ -39,7 +39,14 @@ import {
   rejectionLabel,
 } from '@/features/scanningRuntime/labels';
 import { buildQueueEntry, putScanQueueEntry } from '@/features/scanningRuntime/queue/scanQueueIdb';
-import type { ManualParticipantSearchRow, RuntimeRejectionReason } from '@/features/scanningRuntime/types';
+import { getQueueSyncBadge } from '@/features/scanningSetup/shared';
+import {
+  getQueueEntriesByStatus,
+  getQueueStatusCounts,
+  retryFailedQueueEntries,
+  useScanSyncSnapshot,
+} from '@/features/scanningRuntime/sync/scanSyncWorker';
+import type { ManualParticipantSearchRow, RuntimeRejectionReason, ScanQueueEntry } from '@/features/scanningRuntime/types';
 import { validateScan } from '@/features/scanningRuntime/validation/validateScan';
 
 type PanelState =
@@ -55,6 +62,16 @@ type PanelState =
     }
   | { kind: 'override_ok'; name: string; scannedAt: number }
   | { kind: 'eligibility_error'; message: string; scannedAt: number };
+
+function queueFailureReasonLabel(reason: string | null | undefined): string {
+  if (reason === 'manual_scan_no_card') {
+    return 'Manual scan has no card identifier in MVP';
+  }
+  if (reason == null || reason.length === 0) {
+    return 'Upload failed';
+  }
+  return reason;
+}
 
 function eventNameFromSelection(selectedEvent: unknown): string {
   if (selectedEvent != null && typeof selectedEvent === 'object' && 'name' in selectedEvent) {
@@ -111,6 +128,14 @@ function ScanningRuntimePageInner() {
   } | null>(null);
 
   const scanGenRef = useRef(0);
+  const { lastFlushAt } = useScanSyncSnapshot();
+  const [queueCounts, setQueueCounts] = useState({
+    pending: 0,
+    syncing: 0,
+    synced: 0,
+    failed: 0,
+  });
+  const [failedQueueEntries, setFailedQueueEntries] = useState<ScanQueueEntry[]>([]);
 
   const { scanPoint: scanPointMaybe, isLoading: scanPointLoading } = useScanPointRecord(scanPointId);
   const scanPoint = scanPointMaybe ?? null;
@@ -186,10 +211,32 @@ function ScanningRuntimePageInner() {
         focusInput();
         return false;
       }
+      if (scanPoint != null) {
+        const [counts, failedRows] = await Promise.all([
+          getQueueStatusCounts([scanPoint.id]),
+          getQueueEntriesByStatus(['failed'], [scanPoint.id]),
+        ]);
+        setQueueCounts(counts);
+        setFailedQueueEntries(failedRows);
+      }
       return true;
     },
-    [focusInput]
+    [focusInput, scanPoint]
   );
+
+  useEffect(() => {
+    if (scanPoint == null) {
+      return;
+    }
+    void (async () => {
+      const [counts, failedRows] = await Promise.all([
+        getQueueStatusCounts([scanPoint.id]),
+        getQueueEntriesByStatus(['failed'], [scanPoint.id]),
+      ]);
+      setQueueCounts(counts);
+      setFailedQueueEntries(failedRows);
+    })();
+  }, [lastFlushAt, scanPoint]);
 
   const processScan = useCallback(
     async (raw: string) => {
@@ -394,6 +441,37 @@ function ScanningRuntimePageInner() {
     setPanel({ kind: 'override_ok', name: selected.displayName, scannedAt: entry.scanned_at });
   }, [manualNotes, manualSelected, scanPoint, setManualResults, user, writeQueueOrToast]);
 
+  const handleRetryFailed = useCallback(async (entry: ScanQueueEntry) => {
+    if (scanPoint == null || entry.sync_status !== 'failed') {
+      return;
+    }
+    const summary = await retryFailedQueueEntries([entry.local_id]);
+    if (summary.skippedManualNoCard > 0) {
+      toast({
+        variant: 'destructive',
+        description: 'Manual scan entries cannot be uploaded in MVP without a card identifier.',
+      });
+      return;
+    }
+    const [counts, failedRows] = await Promise.all([
+      getQueueStatusCounts([scanPoint.id]),
+      getQueueEntriesByStatus(['failed'], [scanPoint.id]),
+    ]);
+    setQueueCounts(counts);
+    setFailedQueueEntries(failedRows);
+    if (failedRows.length === 0) {
+      toast({
+        variant: 'success',
+        description: 'Scan event re-uploaded successfully.',
+      });
+      return;
+    }
+    toast({
+      variant: 'destructive',
+      description: 'Retry failed. Check your connection and try again.',
+    });
+  }, [scanPoint]);
+
   if (secureSupabase == null) {
     return (
       <main className="grid min-h-screen place-items-center">
@@ -462,8 +540,23 @@ function ScanningRuntimePageInner() {
           <strong>{scanPoint.name}</strong>
           <small>{eventName}</small>
           <Badge variant="solid-sec-muted">{directionBadgeLabel(scanPoint.direction)}</Badge>
+          <nav className="grid grid-flow-col auto-cols-max gap-2" aria-label="Queue upload status">
+            <Badge variant={getQueueSyncBadge('pending').variant} role="status">
+              {getQueueSyncBadge('pending').label}: {queueCounts.pending}
+            </Badge>
+            <Badge
+              variant={getQueueSyncBadge('syncing').variant}
+              className={getQueueSyncBadge('syncing').className}
+              role="status"
+            >
+              {getQueueSyncBadge('syncing').label}: {queueCounts.syncing}
+            </Badge>
+            <Badge variant={getQueueSyncBadge('failed').variant} role="status">
+              {getQueueSyncBadge('failed').label}: {queueCounts.failed}
+            </Badge>
+          </nav>
         </section>
-        <section className="h-0 w-24 justify-self-end" aria-hidden />
+        <section className="h-0 w-24" aria-hidden />
       </header>
 
       <section className="mx-auto grid w-full max-w-[480px] gap-6 px-4 py-4 sm:px-4 sm:py-6">
@@ -565,6 +658,40 @@ function ScanningRuntimePageInner() {
           <Button type="button" variant="outline" onClick={() => setManualOpen(true)}>
             Manual scan
           </Button>
+        ) : null}
+
+        {canUpdateScanning && failedQueueEntries.length > 0 ? (
+          <Card>
+            <CardContent className="grid gap-2 pt-6">
+              <strong>Failed uploads</strong>
+              <ul className="grid gap-2">
+                {failedQueueEntries.map((entry) => (
+                  <li
+                    key={entry.local_id}
+                    className="rounded-md border border-border"
+                  >
+                    <section className="grid grid-cols-[1fr_auto] items-center gap-2 px-3 py-2">
+                      <article className="grid">
+                        <small>{entry.local_id}</small>
+                        <small>{queueFailureReasonLabel(entry.failure_reason)}</small>
+                      </article>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="small"
+                        onClick={() => {
+                          void handleRetryFailed(entry);
+                        }}
+                        aria-label={`Retry failed queue entry ${entry.local_id}`}
+                      >
+                        Retry
+                      </Button>
+                    </section>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         ) : null}
       </section>
 
