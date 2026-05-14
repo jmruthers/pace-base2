@@ -25,6 +25,7 @@ import { ActivitiesPage } from './pages/activities/ActivitiesPage';
 import { BookingsPage } from './pages/activities/BookingsPage';
 import { ActivityOfferingPage } from './pages/activities/ActivityOfferingPage';
 import { ScanningSetupPage } from './pages/scanning/ScanningSetupPage';
+import { ScanningTrackingPage } from './pages/scanning/ScanningTrackingPage';
 import {
   getShellProtectedRoutes,
 } from './config/baseRouteRegistry';
@@ -87,8 +88,6 @@ function App() {
           <Route element={<ProtectedAppLayout />}>
             <Route path="/" element={<Navigate to="/event-dashboard" replace />} />
 
-            <Route path="scanning/:scanPointId" element={<ScanningRuntimePage />} />
-
             <Route element={<AuthenticatedShell />}>
               {shellProtectedRoutes
                 .filter((route) => route.path !== '/' && route.path !== '*')
@@ -133,6 +132,8 @@ function App() {
                           <ActivityOfferingPage />
                         ) : route.path === '/scanning' ? (
                           <ScanningSetupPage />
+                        ) : route.path === '/scanning/tracking' ? (
+                          <ScanningTrackingPage />
                         ) : (
                           <FeaturePlaceholderPanel
                             title={route.label}
@@ -146,6 +147,7 @@ function App() {
 
               <Route path="*" element={<BaseNotFoundPage />} />
             </Route>
+            <Route path="scanning/:scanPointId" element={<ScanningRuntimePage />} />
           </Route>
         </Route>
       </Routes>

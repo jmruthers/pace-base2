@@ -139,6 +139,14 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     includeInNavigation: true,
   },
   {
+    path: '/scanning/tracking',
+    label: 'Tracking Dashboard',
+    pageName: 'scanning',
+    sliceId: 'scanning-tracking-dashboard',
+    includeInShell: true,
+    includeInNavigation: false,
+  },
+  {
     path: '/scanning/:scanPointId',
     label: 'Scan Runtime',
     pageName: 'scanning',

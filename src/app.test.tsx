@@ -131,6 +131,10 @@ vi.mock('./pages/scanning/ScanningSetupPage', () => ({
   ScanningSetupPage: () => <main>Scanning Setup Page</main>,
 }));
 
+vi.mock('./pages/scanning/ScanningTrackingPage', () => ({
+  ScanningTrackingPage: () => <main>Scanning Tracking Page</main>,
+}));
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -316,6 +320,20 @@ describe('BA00 route behavior', () => {
     renderAt('/scanning');
     expect(await screen.findByText('Shell Layout')).toBeTruthy();
     expect(await screen.findByText('Scanning Setup Page')).toBeTruthy();
+  });
+
+  it('renders scanning tracking route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/scanning/tracking');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Scanning Tracking Page')).toBeTruthy();
+  });
+
+  it('shows access denied for scanning tracking when read permission is denied', async () => {
+    authState.isAuthenticated = true;
+    permissionState.allowRead = false;
+    renderAt('/scanning/tracking');
+    expect(await screen.findByText('Access Denied')).toBeTruthy();
   });
 
   it('renders activity offering route inside shell when authenticated', async () => {

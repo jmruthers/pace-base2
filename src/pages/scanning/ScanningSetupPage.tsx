@@ -830,7 +830,7 @@ export function ScanningSetupPage() {
           </section>
           {canReadPage ? (
             <section className="grid justify-items-stretch sm:justify-items-end">
-              <Button type="button" variant="outline" onClick={() => navigate('/scanning/tracking')}>
+              <Button type="button" variant="default" onClick={() => navigate('/scanning/tracking')}>
                 View Tracking Dashboard
               </Button>
             </section>

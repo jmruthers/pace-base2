@@ -101,12 +101,13 @@ const state = vi.hoisted(() => ({
 }));
 
 const retryFailedQueueEntriesMock = vi.hoisted(() => vi.fn(async () => ({ retried: 1, skippedManualNoCard: 0 })));
+const navigateMock = vi.hoisted(() => vi.fn());
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>();
   return {
     ...actual,
-    useNavigate: () => vi.fn(),
+    useNavigate: () => navigateMock,
   };
 });
 
@@ -201,16 +202,23 @@ vi.mock('@solvera/pace-core/components', () => ({
     children,
     onClick,
     type,
+    variant,
     ariaLabel,
     'aria-label': ariaLabelAttr,
   }: {
     children: React.ReactNode;
     onClick?: () => void;
     type?: 'button' | 'submit';
+    variant?: string;
     ariaLabel?: string;
     'aria-label'?: string;
   }) => (
-    <button type={type ?? 'button'} onClick={onClick} aria-label={ariaLabelAttr ?? ariaLabel}>
+    <button
+      type={type ?? 'button'}
+      onClick={onClick}
+      aria-label={ariaLabelAttr ?? ariaLabel}
+      data-variant={variant}
+    >
       {children}
     </button>
   ),
@@ -327,6 +335,7 @@ describe('ScanningSetupPage', () => {
       },
     ];
     retryFailedQueueEntriesMock.mockClear();
+    navigateMock.mockClear();
   });
 
   afterEach(() => cleanup());
@@ -383,5 +392,13 @@ describe('ScanningSetupPage', () => {
     state.canUpdate = false;
     renderPage();
     expect(screen.queryByRole('button', { name: 'Retry failed queue entry failed-1' })).toBeNull();
+  });
+
+  it('renders default-variant tracking button and navigates to tracking page', () => {
+    renderPage();
+    const button = screen.getByRole('button', { name: 'View Tracking Dashboard' });
+    expect(button.getAttribute('data-variant')).toBe('default');
+    fireEvent.click(button);
+    expect(navigateMock).toHaveBeenCalledWith('/scanning/tracking');
   });
 });
