@@ -26,6 +26,7 @@ import { BookingsPage } from './pages/activities/BookingsPage';
 import { ActivityOfferingPage } from './pages/activities/ActivityOfferingPage';
 import { ScanningSetupPage } from './pages/scanning/ScanningSetupPage';
 import { ScanningTrackingPage } from './pages/scanning/ScanningTrackingPage';
+import { ReportsPage } from './pages/reports/ReportsPage';
 import {
   getShellProtectedRoutes,
 } from './config/baseRouteRegistry';
@@ -134,6 +135,8 @@ function App() {
                           <ScanningSetupPage />
                         ) : route.path === '/scanning/tracking' ? (
                           <ScanningTrackingPage />
+                        ) : route.path === '/reports' ? (
+                          <ReportsPage />
                         ) : (
                           <FeaturePlaceholderPanel
                             title={route.label}

@@ -135,6 +135,10 @@ vi.mock('./pages/scanning/ScanningTrackingPage', () => ({
   ScanningTrackingPage: () => <main>Scanning Tracking Page</main>,
 }));
 
+vi.mock('./pages/reports/ReportsPage', () => ({
+  ReportsPage: () => <main>Reports Page</main>,
+}));
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -333,6 +337,20 @@ describe('BA00 route behavior', () => {
     authState.isAuthenticated = true;
     permissionState.allowRead = false;
     renderAt('/scanning/tracking');
+    expect(await screen.findByText('Access Denied')).toBeTruthy();
+  });
+
+  it('renders reports route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/reports');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Reports Page')).toBeTruthy();
+  });
+
+  it('shows access denied for reports when read permission is denied', async () => {
+    authState.isAuthenticated = true;
+    permissionState.allowRead = false;
+    renderAt('/reports');
     expect(await screen.findByText('Access Denied')).toBeTruthy();
   });
 
