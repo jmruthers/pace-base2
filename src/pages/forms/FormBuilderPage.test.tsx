@@ -77,11 +77,19 @@ vi.mock('@solvera/pace-core/components', () => ({
 }));
 
 vi.mock('@solvera/pace-core/forms', () => ({
+  AuthoringIssueAlerts: ({ issues }: { issues: unknown[] }) =>
+    issues.length > 0 ? <section data-testid="authoring-issue-alerts" /> : null,
+  validateWorkflowAuthoringState: vi.fn(() => ({
+    isValid: true,
+    errors: [],
+    warnings: [],
+  })),
   WorkflowFormAuthoringShell: ({
     state,
     onStateChange,
     heading,
     disabled,
+    metadataAside,
     middleContent,
   }: {
     state: {
@@ -92,6 +100,7 @@ vi.mock('@solvera/pace-core/forms', () => ({
     onStateChange: (nextState: unknown) => void;
     heading: string;
     disabled?: boolean;
+    metadataAside?: React.ReactNode;
     middleContent?: React.ReactNode;
   }) => (
     <section>
@@ -113,6 +122,7 @@ vi.mock('@solvera/pace-core/forms', () => ({
       >
         Toggle workflow
       </article>
+      {metadataAside}
       {middleContent}
     </section>
   ),
@@ -207,6 +217,20 @@ describe('FormBuilderPage', () => {
     renderAt('/form-builder');
     expect(screen.getByText('Create Form')).toBeTruthy();
     expect(screen.getByText('Shell Enabled')).toBeTruthy();
+  });
+
+  it('renders Schedule in middleContent and Submission Settings in metadataAside only', () => {
+    renderAt('/form-builder');
+    expect(screen.getByRole('heading', { name: 'Schedule' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Submission Settings' })).toBeTruthy();
+    const submissionSection = screen.getByRole('heading', { name: 'Submission Settings' }).closest('header')
+      ?.parentElement;
+    expect(submissionSection?.textContent?.includes('Opens at')).toBe(false);
+    expect(submissionSection?.textContent?.includes('Closes at')).toBe(false);
+    const scheduleSection = screen.getByRole('heading', { name: 'Schedule' }).closest('header')?.parentElement;
+    expect(scheduleSection?.textContent?.includes('Opens at')).toBe(true);
+    expect(scheduleSection?.textContent?.includes('Closes at')).toBe(true);
+    expect(scheduleSection?.textContent?.includes('Max submissions')).toBe(false);
   });
 
   it('renders access denied when read permission is denied', () => {

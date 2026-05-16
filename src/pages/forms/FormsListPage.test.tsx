@@ -36,7 +36,6 @@ const state = vi.hoisted(() => ({
   toastMock: vi.fn(),
   deleteMutateAsync: vi.fn(async () => ({ deleted: true, response_count: 0, registration_binding_count: 0 })),
   invalidateQueries: vi.fn(),
-  clipboardWriteText: vi.fn(async () => undefined),
 }));
 
 const resolvedScopeState = vi.hoisted(() => ({
@@ -137,9 +136,13 @@ vi.mock('@solvera/pace-core/components', () => ({
   LoadingSpinner: () => <p>Loading Spinner</p>,
 }));
 
-vi.mock('@solvera/pace-core/forms', () => ({
-  buildWorkflowPreviewTarget: () => ({ path: '/forms/sample', reason: 'generic_slug_entrypoint' }),
-}));
+vi.mock('@solvera/pace-core/forms', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@solvera/pace-core/forms')>();
+  return {
+    ...actual,
+    buildWorkflowPreviewTarget: () => ({ path: '/forms/sample', reason: 'generic_slug_entrypoint' }),
+  };
+});
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>();
@@ -203,14 +206,9 @@ describe('FormsListPage', () => {
       registration_binding_count: 0,
     }));
     state.invalidateQueries = vi.fn();
-    state.clipboardWriteText = vi.fn(async () => undefined);
     guardPropsState.calls = [];
     vi.stubGlobal('open', vi.fn());
-    vi.stubGlobal('navigator', {
-      clipboard: {
-        writeText: state.clipboardWriteText,
-      },
-    });
+    vi.stubEnv('VITE_PORTAL_BASE_URL', 'https://portal.example.com');
   });
 
   it('shows no-event message and hides create button when no event selected', () => {
@@ -286,10 +284,39 @@ describe('FormsListPage', () => {
     renderPage();
 
     expect(screen.getByText('Camp Form')).toBeTruthy();
-    expect(screen.getByText('generic')).toBeTruthy();
+    expect(screen.getByText('Generic')).toBeTruthy();
+    const portalLink = screen.getByRole('link', { name: 'https://portal.example.com/forms/sample' });
+    expect(portalLink.getAttribute('href')).toBe('https://portal.example.com/forms/sample');
+    expect(portalLink.getAttribute('target')).toBe('_blank');
+    expect(portalLink.getAttribute('rel')).toBe('noopener noreferrer');
     const footer = screen.getByRole('contentinfo');
-    expect(footer.className.includes('grid-cols-4')).toBe(true);
+    expect(footer.className.includes('grid-cols-3')).toBe(true);
     expect(screen.queryByLabelText('Delete Camp Form')).toBeNull();
+    expect(screen.queryByText('You do not have permission to view this page.')).toBeNull();
+    expect(screen.queryByLabelText('Copy URL for Camp Form')).toBeNull();
+  });
+
+  it('omits portal url link when VITE_PORTAL_BASE_URL is not set', () => {
+    vi.stubEnv('VITE_PORTAL_BASE_URL', '');
+    state.formsData = [
+      {
+        id: 'form-1',
+        name: 'Camp Form',
+        slug: 'camp-form',
+        status: 'draft',
+        workflow_type: 'generic',
+        is_active: true,
+        is_primary_entrypoint: false,
+        opens_at: null,
+        closes_at: null,
+        created_at: null,
+        updated_at: null,
+      },
+    ];
+
+    renderPage();
+
+    expect(screen.queryByRole('link', { name: /portal\.example\.com/ })).toBeNull();
   });
 
   it('opens preview url when preview clicked', () => {
@@ -311,7 +338,37 @@ describe('FormsListPage', () => {
 
     renderPage();
     fireEvent.click(screen.getByLabelText('Preview Camp Form'));
-    expect(globalThis.open).toHaveBeenCalledTimes(1);
+    expect(globalThis.open).toHaveBeenCalledWith('https://portal.example.com/forms/sample', '_blank');
+  });
+
+  it('shows portal config toast when preview clicked without VITE_PORTAL_BASE_URL', () => {
+    vi.stubEnv('VITE_PORTAL_BASE_URL', '');
+    state.formsData = [
+      {
+        id: 'form-1',
+        name: 'Camp Form',
+        slug: 'camp-form',
+        status: 'draft',
+        workflow_type: 'generic',
+        is_active: true,
+        is_primary_entrypoint: false,
+        opens_at: null,
+        closes_at: null,
+        created_at: null,
+        updated_at: null,
+      },
+    ];
+
+    renderPage();
+    fireEvent.click(screen.getByLabelText('Preview Camp Form'));
+
+    expect(globalThis.open).not.toHaveBeenCalled();
+    expect(state.toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Portal URL is not configured. Set VITE_PORTAL_BASE_URL.',
+        variant: 'destructive',
+      })
+    );
   });
 
   it('renders status variants and date lines when populated', () => {
@@ -350,8 +407,7 @@ describe('FormsListPage', () => {
     expect(screen.getByText('published')).toBeTruthy();
     expect(screen.getByText('Closed Form')).toBeTruthy();
     expect(screen.getByText('closed')).toBeTruthy();
-    expect(screen.getByText('Opens: 10/01/2026')).toBeTruthy();
-    expect(screen.getByText('Closes: 20/01/2026')).toBeTruthy();
+    expect(screen.getByText('Opens: 10/01/2026 · Closes: 20/01/2026')).toBeTruthy();
     expect(screen.getByText('3 fields')).toBeTruthy();
   });
 

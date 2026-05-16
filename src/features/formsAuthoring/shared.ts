@@ -1,4 +1,5 @@
 import { buildWorkflowPreviewTarget, type WorkflowAuthoringState, type WorkflowType } from '@solvera/pace-core/forms';
+import { omitFieldMetadataFromDisplayOptions } from './stateHelpers';
 import type {
   FormBuilderRecord,
   RegistrationBindingDraft,
@@ -119,7 +120,7 @@ export function mapBuilderRecordToState(record: FormBuilderRecord): WorkflowAuth
       sortOrder: field.sort_order,
       isActive: field.is_active ?? true,
       isRequired: field.is_required ?? false,
-      displayOptions: field.display_options ?? undefined,
+      displayOptions: omitFieldMetadataFromDisplayOptions(field.display_options),
     })),
   };
 }

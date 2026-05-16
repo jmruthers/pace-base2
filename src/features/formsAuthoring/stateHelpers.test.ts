@@ -68,6 +68,26 @@ describe('formsAuthoring stateHelpers', () => {
     expect(unchecked[2]).toEqual({ typeId: 'type-3', checked: false, isDefault: false });
   });
 
+  it('uses fieldLabel over a stale label still present in displayOptions', () => {
+    const payload = buildFieldsRpcPayload([
+      {
+        id: 'field-1',
+        fieldKey: 'generic.name',
+        fieldType: 'text',
+        fieldLabel: 'Updated label',
+        sortOrder: 0,
+        isActive: true,
+        isRequired: false,
+        displayOptions: { label: 'Catalogue label', placeholder: 'Enter name' },
+      },
+    ]);
+    expect(payload[0]?.field_metadata).toEqual({
+      label: 'Updated label',
+      field_type: 'text',
+      placeholder: 'Enter name',
+    });
+  });
+
   it('builds field payload with fallback order and required defaults', () => {
     const payload = buildFieldsRpcPayload(createFields());
     expect(payload).toEqual([

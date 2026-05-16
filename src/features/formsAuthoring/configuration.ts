@@ -1,5 +1,6 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query';
 import { useSecureSupabase } from '@solvera/pace-core/rbac';
+import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
 import type { WorkflowAuthoringState } from '@solvera/pace-core/forms';
 import {
   buildDefinitionPayload,
@@ -57,11 +58,13 @@ function apiSuccess<T>(data: T): ApiResult<T> {
 }
 
 function apiFailure(code: string, fallbackMessage: string, error: unknown): ApiResult<never> {
+  const message =
+    error != null ? NormalizeSupabaseError(error).message : fallbackMessage;
   return {
     ok: false,
     error: {
       code,
-      message: error != null ? String(error) : fallbackMessage,
+      message: message.length > 0 ? message : fallbackMessage,
     },
   };
 }
@@ -139,14 +142,13 @@ async function fetchFormFields(
 async function fetchFormBindings(
   supabase: SupabaseLike,
   formId: string,
-  eventId: string
+  eventId: string,
+  organisationId: string | null
 ): Promise<ApiResult<FormRegistrationBindingRow[]>> {
-  // Contract name is fixed by backend slice BA03.
-  // eslint-disable-next-line pace-core-compliance/rpc-naming-pattern
-  const { data, error } = await supabase.rpc('app_base_form_registration_bindings_get', {
+  const { data, error } = await supabase.rpc('data_base_form_registration_bindings_get', {
     p_form_id: formId,
     p_event_id: eventId,
-    p_organisation_id: null,
+    p_organisation_id: organisationId,
   });
   if (error != null) {
     return apiFailure('form-bindings-read-error', 'Failed to load registration bindings', error);
@@ -275,6 +277,24 @@ async function deleteForm(
   });
 }
 
+export function builderRecordQueryKey(eventId: string, formId: string) {
+  return ['forms-authoring', 'builder-record', eventId, formId] as const;
+}
+
+/** Refreshes list/count caches and the single-form builder record after a successful save. */
+export async function invalidateFormsAuthoringAfterSave(
+  queryClient: QueryClient,
+  params: { eventId: string; formId: string }
+): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['forms-authoring', 'forms-list', params.eventId] }),
+    queryClient.invalidateQueries({ queryKey: ['forms-authoring', 'field-counts', params.eventId] }),
+    queryClient.invalidateQueries({
+      queryKey: builderRecordQueryKey(params.eventId, params.formId),
+    }),
+  ]);
+}
+
 export function useFormsList(eventId: string | null) {
   const secureSupabase = useSecureSupabase();
 
@@ -316,7 +336,7 @@ export function useFormBuilderRecord(eventId: string | null, formId: string | nu
   const secureSupabase = useSecureSupabase();
 
   return useQuery({
-    queryKey: ['forms-authoring', 'builder-record', eventId, formId],
+    queryKey: builderRecordQueryKey(eventId as string, formId as string),
     enabled: eventId != null && formId != null && secureSupabase != null,
     queryFn: async (): Promise<FormBuilderRecord> => {
       const supabase = asSupabaseClient(secureSupabase);
@@ -335,7 +355,12 @@ export function useFormBuilderRecord(eventId: string | null, formId: string | nu
 
       let bindings: FormRegistrationBindingRow[] = [];
       if (form.workflow_type === 'base_registration') {
-        const bindingsResult = await fetchFormBindings(supabase, formId as string, eventId as string);
+        const bindingsResult = await fetchFormBindings(
+          supabase,
+          formId as string,
+          eventId as string,
+          form.organisation_id ?? null
+        );
         if (!bindingsResult.ok) {
           throw new Error(bindingsResult.error.message);
         }

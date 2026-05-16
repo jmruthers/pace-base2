@@ -92,6 +92,22 @@ export function validateRequirementDrafts(rules: RequirementRuleDraft[]): Requir
   return { designatedOrgByRuleId };
 }
 
+export function moveRequirementDraft(
+  drafts: RequirementRuleDraft[],
+  localId: string,
+  direction: 'up' | 'down'
+): RequirementRuleDraft[] {
+  const index = drafts.findIndex((draft) => draft.localId === localId);
+  if (index < 0) {
+    return drafts;
+  }
+  const overIndex = direction === 'up' ? index - 1 : index + 1;
+  if (overIndex < 0 || overIndex >= drafts.length) {
+    return drafts;
+  }
+  return reorderRequirementDrafts(drafts, localId, drafts[overIndex]?.localId ?? null);
+}
+
 export function reorderRequirementDrafts(
   drafts: RequirementRuleDraft[],
   activeLocalId: string,

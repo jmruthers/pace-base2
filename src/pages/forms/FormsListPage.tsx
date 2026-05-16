@@ -23,7 +23,7 @@ import {
   LoadingSpinner,
 } from '@solvera/pace-core/components';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
-import { buildWorkflowPreviewTarget } from '@solvera/pace-core/forms';
+import { buildWorkflowPreviewTarget, workflowTypeDisplayLabel } from '@solvera/pace-core/forms';
 import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage, formatDate } from '@solvera/pace-core/utils';
 import { useDeleteFormMutation, useFormFieldCounts, useFormsList } from '@/features/formsAuthoring/configuration';
@@ -32,7 +32,6 @@ import { asCount } from '@/features/formsAuthoring/stateHelpers';
 import type { CoreFormListRow } from '@/features/formsAuthoring/types';
 
 const PORTAL_CONFIG_ERROR = 'Portal URL is not configured. Set VITE_PORTAL_BASE_URL.';
-const CLIPBOARD_ERROR = 'Could not copy URL to clipboard.';
 
 function iconSizeClass() {
   return 'size-4';
@@ -52,23 +51,6 @@ function PreviewIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={iconSizeClass()} aria-hidden>
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
       <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function CopyIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={iconSizeClass()} aria-hidden>
-      <rect x="9" y="9" width="13" height="13" rx="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={iconSizeClass()} aria-hidden>
-      <path d="m20 6-11 11-5-5" />
     </svg>
   );
 }
@@ -93,6 +75,20 @@ function statusVariant(status: CoreFormListRow['status']) {
     return 'outline-sec-muted';
   }
   return 'soft-sec-muted';
+}
+
+function formScheduleLine(form: Pick<CoreFormListRow, 'opens_at' | 'closes_at'>): string | null {
+  const parts: string[] = [];
+  if (form.opens_at != null) {
+    parts.push(`Opens: ${formatDate(form.opens_at)}`);
+  }
+  if (form.closes_at != null) {
+    parts.push(`Closes: ${formatDate(form.closes_at)}`);
+  }
+  if (parts.length === 0) {
+    return null;
+  }
+  return parts.join(' · ');
 }
 
 function fieldCountLabel(params: {
@@ -121,7 +117,6 @@ export function FormsListPage() {
   const fieldCountsQuery = useFormFieldCounts(selectedEventId, formsQuery.data);
   const deleteMutation = useDeleteFormMutation();
 
-  const [copiedFormId, setCopiedFormId] = useState<string | null>(null);
   const [pendingDeleteForm, setPendingDeleteForm] = useState<CoreFormListRow | null>(null);
   const [deleteBlockedMessage, setDeleteBlockedMessage] = useState<string | null>(null);
 
@@ -176,29 +171,6 @@ export function FormsListPage() {
       return;
     }
     window.open(url, '_blank');
-  };
-
-  const handleCopy = async (form: CoreFormListRow) => {
-    const url = withPortalUrl(form);
-    if (url == null) {
-      toast({
-        title: 'Portal URL Missing',
-        description: PORTAL_CONFIG_ERROR,
-        variant: 'destructive',
-      });
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiedFormId(form.id);
-      setTimeout(() => setCopiedFormId((current) => (current === form.id ? null : current)), 2000);
-    } catch {
-      toast({
-        title: 'Copy Failed',
-        description: CLIPBOARD_ERROR,
-        variant: 'destructive',
-      });
-    }
   };
 
   const handleConfirmDelete = async () => {
@@ -273,10 +245,13 @@ export function FormsListPage() {
             </CardContent>
           </Card>
         ) : (
-          <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {(formsQuery.data ?? []).map((form) => (
-              <Card key={form.id}>
-                <CardHeader className="grid gap-2">
+          <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {(formsQuery.data ?? []).map((form) => {
+              const scheduleLine = formScheduleLine(form);
+              const portalUrl = withPortalUrl(form);
+              return (
+              <Card key={form.id} className="grid h-full grid-rows-[1fr_auto]">
+                <CardHeader className="grid content-start gap-2">
                   <section className="grid gap-1 md:grid-cols-[1fr_auto] md:items-start">
                     <CardTitle>{form.name}</CardTitle>
                     <Badge variant={statusVariant(form.status)}>{form.status}</Badge>
@@ -287,12 +262,18 @@ export function FormsListPage() {
                     isCountsLoading: fieldCountsQuery.isLoading,
                     countError: fieldCountsQuery.error,
                   })}</CardDescription>
-                  <p>{form.workflow_type}</p>
-                  {form.opens_at != null ? <p>Opens: {formatDate(form.opens_at)}</p> : null}
-                  {form.closes_at != null ? <p>Closes: {formatDate(form.closes_at)}</p> : null}
+                  <p>{workflowTypeDisplayLabel(form.workflow_type)}</p>
+                  {scheduleLine != null ? <p>{scheduleLine}</p> : null}
+                  {portalUrl != null ? (
+                    <p className="break-all">
+                      <a href={portalUrl} target="_blank" rel="noopener noreferrer">
+                        {portalUrl}
+                      </a>
+                    </p>
+                  ) : null}
                 </CardHeader>
 
-                <CardFooter className="grid grid-cols-4 gap-2">
+                <CardFooter className="grid grid-cols-3 gap-2">
                   <Button
                     type="button"
                     aria-label={`Edit ${form.name}`}
@@ -302,9 +283,6 @@ export function FormsListPage() {
                   </Button>
                   <Button type="button" aria-label={`Preview ${form.name}`} onClick={() => handlePreview(form)}>
                     <PreviewIcon />
-                  </Button>
-                  <Button type="button" aria-label={`Copy URL for ${form.name}`} onClick={() => void handleCopy(form)}>
-                    {copiedFormId === form.id ? <CheckIcon /> : <CopyIcon />}
                   </Button>
                   <PagePermissionGuard pageName="forms" operation="update" scope={scope} fallback={null}>
                     <Button
@@ -317,7 +295,8 @@ export function FormsListPage() {
                   </PagePermissionGuard>
                 </CardFooter>
               </Card>
-            ))}
+            );
+            })}
           </section>
         )}
       </main>

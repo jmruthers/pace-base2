@@ -17,22 +17,6 @@ vi.mock('./RequirementConfigPanel', () => ({
   ),
 }));
 
-vi.mock('@dnd-kit/core', () => ({
-  DndContext: ({ children }: { children: ReactNode }) => <section>{children}</section>,
-  closestCenter: vi.fn(),
-  useSensors: vi.fn(() => []),
-}));
-
-vi.mock('@dnd-kit/sortable', () => ({
-  SortableContext: ({ children }: { children: ReactNode }) => <section>{children}</section>,
-  verticalListSortingStrategy: vi.fn(),
-  useSortable: () => ({
-    setNodeRef: vi.fn(),
-    attributes: {},
-    listeners: {},
-  }),
-}));
-
 vi.mock('@solvera/pace-core/components', () => ({
   Alert: ({ children }: { children: ReactNode }) => <section role="alert">{children}</section>,
   AlertTitle: ({ children }: { children: ReactNode }) => <h3>{children}</h3>,
@@ -93,8 +77,6 @@ function createProps(overrides: Partial<ComponentProps<typeof RequirementsDialog
       errorMessage: null,
       isPending: false,
     },
-    sensors: [] as never[],
-    onDragEnd: vi.fn(),
     data: {
       rows: [
         {
@@ -103,6 +85,14 @@ function createProps(overrides: Partial<ComponentProps<typeof RequirementsDialog
           check_type: 'payment' as const,
           sort_order: 0,
           is_automated: true,
+          config: null,
+        },
+        {
+          localId: 'req-2',
+          id: 'req-2',
+          check_type: 'referee' as const,
+          sort_order: 1,
+          is_automated: false,
           config: null,
         },
       ],
@@ -114,6 +104,7 @@ function createProps(overrides: Partial<ComponentProps<typeof RequirementsDialog
       onSelectedTypeToAddChange: vi.fn(),
       onAdd: vi.fn(),
       onRemove: vi.fn(),
+      onMoveRequirement: vi.fn(),
       onRequireAllGuardiansChange: vi.fn(),
       onReviewingOrgChange: vi.fn(),
       onSave: vi.fn(),
@@ -148,22 +139,24 @@ describe('RequirementsDialog', () => {
     expect(screen.getByText('Failed to load requirements')).toBeTruthy();
   });
 
-  it('renders edit list state with drag and remove controls', async () => {
+  it('renders edit list state with reorder and remove controls', async () => {
     const user = userEvent.setup();
     const onRemove = vi.fn();
+    const onMoveRequirement = vi.fn();
     const onAdd = vi.fn();
     const onSelectedTypeToAddChange = vi.fn();
     render(
       <RequirementsDialog
         {...createProps({
-          actions: { ...createProps().actions, onRemove, onAdd, onSelectedTypeToAddChange },
+          actions: { ...createProps().actions, onRemove, onMoveRequirement, onAdd, onSelectedTypeToAddChange },
         })}
       />
     );
 
     expect(screen.getByText('Requirements — Youth')).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: 'Reorder requirement' }));
-    await user.click(screen.getByRole('button', { name: 'Remove' }));
+    await user.click(screen.getByRole('button', { name: 'Move requirement 2 up' }));
+    expect(onMoveRequirement).toHaveBeenCalledWith('req-2', 'up');
+    await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
     expect(onRemove).toHaveBeenCalledWith('req-1');
     await user.selectOptions(screen.getByRole('combobox', { name: 'Select requirement type' }), 'payment');
     expect(onSelectedTypeToAddChange).toHaveBeenCalledWith('payment');

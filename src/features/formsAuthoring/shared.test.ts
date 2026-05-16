@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildDeleteBlockedMessage, deriveFormSlug, resolveEventSlug, toUtcMidnightIso } from './shared';
+import {
+  buildDeleteBlockedMessage,
+  deriveFormSlug,
+  mapBuilderRecordToState,
+  resolveEventSlug,
+  toUtcMidnightIso,
+} from './shared';
+import type { FormBuilderRecord } from './types';
 import { buildDefinitionPayload } from './stateHelpers';
 import type { WorkflowAuthoringState } from '@solvera/pace-core/forms';
 
@@ -59,6 +66,52 @@ describe('formsAuthoring shared helpers', () => {
         registrationBindingCount: 2,
       })
     ).toContain('3 submissions and 2 registration type bindings');
+  });
+
+  it('maps field_label to fieldLabel and strips label/field_type from displayOptions', () => {
+    const record: FormBuilderRecord = {
+      form: {
+        id: 'form-1',
+        name: 'Test',
+        title: null,
+        description: null,
+        slug: 'test',
+        status: 'draft',
+        workflow_type: 'generic',
+        access_mode: 'authenticated_member',
+        workflow_config: null,
+        is_active: true,
+        is_primary_entrypoint: false,
+        opens_at: null,
+        closes_at: null,
+        max_submissions: null,
+        confirmation_message: null,
+        event_id: 'event-1',
+        organisation_id: 'org-1',
+        owner_app_id: null,
+      },
+      fields: [
+        {
+          id: 'field-1',
+          form_id: 'form-1',
+          field_key: 'generic.name',
+          field_label: 'Saved label',
+          is_required: false,
+          is_active: true,
+          sort_order: 0,
+          display_options: {
+            label: 'Stale in JSON',
+            field_type: 'email',
+            placeholder: 'Name',
+          },
+        },
+      ],
+      bindings: [],
+    };
+    const state = mapBuilderRecordToState(record);
+    expect(state.fields[0]?.fieldLabel).toBe('Saved label');
+    expect(state.fields[0]?.fieldType).toBe('email');
+    expect(state.fields[0]?.displayOptions).toEqual({ placeholder: 'Name' });
   });
 
   it('strips max_submissions and confirmation_message from workflow_config in definition payload', () => {

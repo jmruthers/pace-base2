@@ -1,5 +1,3 @@
-import { DndContext, type DragEndEvent, closestCenter, useSensors } from '@dnd-kit/core';
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import {
   Alert,
   AlertDescription,
@@ -34,6 +32,7 @@ interface RequirementDialogActions {
   onSelectedTypeToAddChange: (value: string) => void;
   onAdd: () => void;
   onRemove: (localId: string) => void;
+  onMoveRequirement: (localId: string, direction: 'up' | 'down') => void;
   onRequireAllGuardiansChange: (localId: string, checked: boolean) => void;
   onReviewingOrgChange: (localId: string, value: string) => void;
   onSave: () => void;
@@ -53,32 +52,43 @@ interface RequirementsDialogProps {
   onStepChange: (step: DialogStep) => void;
   targetTypeName: string;
   state: RequirementDialogState;
-  sensors: ReturnType<typeof useSensors>;
-  onDragEnd: (event: DragEndEvent) => void;
   data: RequirementDialogData;
   actions: RequirementDialogActions;
 }
 
-interface SortableRequirementRowProps {
+interface RequirementRowProps {
   scope: { organisationId: string | null; eventId: string | null; appId?: string };
   rule: RequirementRuleDraft;
   index: number;
+  rowCount: number;
   reviewingOrganisations: Array<{ id: string; name: string; display_name: string | null }>;
   designatedOrgError: string | undefined;
   onRemove: (localId: string) => void;
+  onMoveRequirement: (localId: string, direction: 'up' | 'down') => void;
   onRequireAllGuardiansChange: (localId: string, checked: boolean) => void;
   onReviewingOrgChange: (localId: string, value: string) => void;
 }
 
-function SortableRequirementRow(props: SortableRequirementRowProps) {
-  const { setNodeRef, attributes, listeners } = useSortable({ id: props.rule.localId });
-
+function RequirementRow(props: RequirementRowProps) {
   return (
-    <article ref={setNodeRef} className="grid gap-2 rounded-md border p-3">
-      <header className="grid gap-2 md:grid-cols-[auto_auto_1fr_auto] md:items-center">
+    <article className="grid gap-2 rounded-md border p-3">
+      <header className="grid gap-2 md:grid-cols-[auto_auto_auto_1fr_auto] md:items-center">
         <p>{props.index + 1}</p>
-        <Button type="button" {...attributes} {...listeners} aria-label="Reorder requirement">
-          Drag
+        <Button
+          type="button"
+          aria-label={`Move requirement ${props.index + 1} up`}
+          disabled={props.index === 0}
+          onClick={() => props.onMoveRequirement(props.rule.localId, 'up')}
+        >
+          Up
+        </Button>
+        <Button
+          type="button"
+          aria-label={`Move requirement ${props.index + 1} down`}
+          disabled={props.index >= props.rowCount - 1}
+          onClick={() => props.onMoveRequirement(props.rule.localId, 'down')}
+        >
+          Down
         </Button>
         <p>{requirementTypeLabel(props.rule.check_type)}</p>
         <Button type="button" onClick={() => props.onRemove(props.rule.localId)}>
@@ -132,28 +142,23 @@ export function RequirementsDialog(props: RequirementsDialogProps) {
           </Alert>
         ) : (
           <article className="grid gap-3">
-            <DndContext sensors={props.sensors} collisionDetection={closestCenter} onDragEnd={props.onDragEnd}>
-              <SortableContext
-                items={props.data.rows.map((rule) => rule.localId)}
-                strategy={verticalListSortingStrategy}
-              >
-                <section className="grid gap-2">
-                  {props.data.rows.map((rule, index) => (
-                    <SortableRequirementRow
-                      key={rule.localId}
-                      scope={props.scope}
-                      rule={rule}
-                      index={index}
-                      reviewingOrganisations={props.data.reviewingOrganisations}
-                      designatedOrgError={props.data.designatedOrgErrors[rule.localId]}
-                      onRemove={props.actions.onRemove}
-                      onRequireAllGuardiansChange={props.actions.onRequireAllGuardiansChange}
-                      onReviewingOrgChange={props.actions.onReviewingOrgChange}
-                    />
-                  ))}
-                </section>
-              </SortableContext>
-            </DndContext>
+            <section className="grid gap-2">
+              {props.data.rows.map((rule, index) => (
+                <RequirementRow
+                  key={rule.localId}
+                  scope={props.scope}
+                  rule={rule}
+                  index={index}
+                  rowCount={props.data.rows.length}
+                  reviewingOrganisations={props.data.reviewingOrganisations}
+                  designatedOrgError={props.data.designatedOrgErrors[rule.localId]}
+                  onRemove={props.actions.onRemove}
+                  onMoveRequirement={props.actions.onMoveRequirement}
+                  onRequireAllGuardiansChange={props.actions.onRequireAllGuardiansChange}
+                  onReviewingOrgChange={props.actions.onReviewingOrgChange}
+                />
+              ))}
+            </section>
 
             <section className="grid gap-2 md:grid-cols-[1fr_auto]">
               <Select

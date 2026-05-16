@@ -16,7 +16,13 @@ import {
   LoadingSpinner,
   Textarea,
 } from '@solvera/pace-core/components';
-import { WorkflowFormAuthoringShell, type WorkflowAuthoringState } from '@solvera/pace-core/forms';
+import {
+  AuthoringIssueAlerts,
+  validateWorkflowAuthoringState,
+  WorkflowFormAuthoringShell,
+  type WorkflowAuthoringState,
+  type WorkflowAuthoringValidationIssue,
+} from '@solvera/pace-core/forms';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage } from '@solvera/pace-core/utils';
@@ -24,6 +30,7 @@ import {
   isPublishedForm,
   useFormBuilderRecord,
   useRegistrationTypes,
+  invalidateFormsAuthoringAfterSave,
   useSaveWorkflowFormMutation,
 } from '@/features/formsAuthoring/configuration';
 import {
@@ -56,10 +63,6 @@ interface EditorProps {
   registrationTypesError: Error | null;
 }
 
-function SaveHiddenShellWrapper({ children }: { children: React.ReactNode }) {
-  return <section className="[&>section>fieldset]:hidden">{children}</section>;
-}
-
 function FormBuilderEditor({
   initialState,
   initialBindings,
@@ -78,6 +81,7 @@ function FormBuilderEditor({
   const [state, setState] = useState<WorkflowAuthoringState>(initialState);
   const [bindings, setBindings] = useState<RegistrationBindingDraft[]>(initialBindings);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveValidationVisible, setSaveValidationVisible] = useState(false);
   const lastAutoGenSlugRef = useRef(initialState.metadata.slug);
   const persistedBindingsRef = useRef<RegistrationBindingDraft[]>(initialBindings);
 
@@ -86,6 +90,19 @@ function FormBuilderEditor({
   const maxSubmissions = workflowConfig.max_submissions;
   const confirmationMessage = workflowConfig.confirmation_message;
   const showRegistrationPanel = state.metadata.workflowType === 'base_registration';
+
+  const scheduleValidationIssues = useMemo((): WorkflowAuthoringValidationIssue[] => {
+    if (!saveValidationVisible) {
+      return [];
+    }
+    const result = validateWorkflowAuthoringState(state);
+    return [...result.errors, ...result.warnings].filter(
+      (issue) => issue.path === 'metadata.opensAt' || issue.path === 'metadata.closesAt'
+    );
+  }, [saveValidationVisible, state]);
+
+  const issuesAtSchedulePath = (path: 'metadata.opensAt' | 'metadata.closesAt') =>
+    scheduleValidationIssues.filter((issue) => issue.path === path);
 
   const visibleBindings = useMemo(
     () =>
@@ -138,15 +155,17 @@ function FormBuilderEditor({
 
     setIsSaving(true);
     try {
-      await saveMutation.mutateAsync({
+      const { formId } = await saveMutation.mutateAsync({
         state: nextState,
         bindings,
         eventId: selectedEventId,
         organisationId: selectedOrganisationId,
         userId: user?.id ?? null,
       });
-      await queryClient.invalidateQueries({ queryKey: ['forms-authoring', 'forms-list', selectedEventId] });
-      await queryClient.invalidateQueries({ queryKey: ['forms-authoring', 'field-counts', selectedEventId] });
+      await invalidateFormsAuthoringAfterSave(queryClient, {
+        eventId: selectedEventId,
+        formId,
+      });
       ShowSuccessMessage('Form saved successfully.', toast);
       navigate('/forms');
     } catch (error) {
@@ -155,6 +174,98 @@ function FormBuilderEditor({
       setIsSaving(false);
     }
   };
+
+  const submissionSettingsAside = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Submission Settings</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <section className="grid gap-1">
+          <Label>Max submissions</Label>
+          <Input
+            type="number"
+            min={1}
+            value={typeof maxSubmissions === 'number' ? String(maxSubmissions) : ''}
+            onChange={(value) => {
+              handleStateChange({
+                ...state,
+                metadata: {
+                  ...state.metadata,
+                  workflowConfig: {
+                    ...workflowConfig,
+                    max_submissions: parseNullableNumber(value),
+                  },
+                },
+              });
+            }}
+          />
+        </section>
+        <section className="grid gap-1">
+          <Label>Confirmation message</Label>
+          <Textarea
+            rows={3}
+            value={typeof confirmationMessage === 'string' ? confirmationMessage : ''}
+            onChange={(value) => {
+              handleStateChange({
+                ...state,
+                metadata: {
+                  ...state.metadata,
+                  workflowConfig: {
+                    ...workflowConfig,
+                    confirmation_message: value.trim().length > 0 ? value : null,
+                  },
+                },
+              });
+            }}
+          />
+        </section>
+        <p>Shown to participants after successful form submission.</p>
+      </CardContent>
+    </Card>
+  );
+
+  const scheduleMiddlePanel = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Schedule</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-3 md:grid-cols-2">
+        <fieldset className="grid min-w-0 gap-1 border-0 p-0">
+          <Label>Opens at</Label>
+          <DatePickerWithTimezone
+            value={toDateValue(state.metadata.opensAt)}
+            onChange={(value) => {
+              handleStateChange({
+                ...state,
+                metadata: {
+                  ...state.metadata,
+                  opensAt: toUtcMidnightIso(value),
+                },
+              });
+            }}
+          />
+          <AuthoringIssueAlerts issues={issuesAtSchedulePath('metadata.opensAt')} />
+        </fieldset>
+        <fieldset className="grid min-w-0 gap-1 border-0 p-0">
+          <Label>Closes at</Label>
+          <DatePickerWithTimezone
+            value={toDateValue(state.metadata.closesAt)}
+            onChange={(value) => {
+              handleStateChange({
+                ...state,
+                metadata: {
+                  ...state.metadata,
+                  closesAt: toUtcMidnightIso(value),
+                },
+              });
+            }}
+          />
+          <AuthoringIssueAlerts issues={issuesAtSchedulePath('metadata.closesAt')} />
+        </fieldset>
+      </CardContent>
+    </Card>
+  );
 
   const renderShell = (disabled: boolean) => (
     <WorkflowFormAuthoringShell
@@ -168,94 +279,13 @@ function FormBuilderEditor({
       eventSlug={eventSlug}
       saveLabel="Save Form"
       disabled={disabled || isSaving}
+      onSaveValidationAttempted={() => {
+        setSaveValidationVisible(true);
+      }}
+      metadataAside={submissionSettingsAside}
       middleContent={
         <section className="grid gap-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Schedule</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
-              <section className="grid gap-1">
-                <Label>Opens at</Label>
-                <DatePickerWithTimezone
-                  value={toDateValue(state.metadata.opensAt)}
-                  onChange={(value) => {
-                    handleStateChange({
-                      ...state,
-                      metadata: {
-                        ...state.metadata,
-                        opensAt: toUtcMidnightIso(value),
-                      },
-                    });
-                  }}
-                />
-              </section>
-              <section className="grid gap-1">
-                <Label>Closes at</Label>
-                <DatePickerWithTimezone
-                  value={toDateValue(state.metadata.closesAt)}
-                  onChange={(value) => {
-                    handleStateChange({
-                      ...state,
-                      metadata: {
-                        ...state.metadata,
-                        closesAt: toUtcMidnightIso(value),
-                      },
-                    });
-                  }}
-                />
-              </section>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Submission Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              <section className="grid gap-1">
-                <Label>Max submissions</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={typeof maxSubmissions === 'number' ? String(maxSubmissions) : ''}
-                  onChange={(value) => {
-                    handleStateChange({
-                      ...state,
-                      metadata: {
-                        ...state.metadata,
-                        workflowConfig: {
-                          ...workflowConfig,
-                          max_submissions: parseNullableNumber(value),
-                        },
-                      },
-                    });
-                  }}
-                />
-              </section>
-              <section className="grid gap-1">
-                <Label>Confirmation message</Label>
-                <Textarea
-                  rows={3}
-                  value={typeof confirmationMessage === 'string' ? confirmationMessage : ''}
-                  onChange={(value) => {
-                    handleStateChange({
-                      ...state,
-                      metadata: {
-                        ...state.metadata,
-                        workflowConfig: {
-                          ...workflowConfig,
-                          confirmation_message: value.trim().length > 0 ? value : null,
-                        },
-                      },
-                    });
-                  }}
-                />
-              </section>
-              <p>Shown to participants after successful form submission.</p>
-            </CardContent>
-          </Card>
-
+          {scheduleMiddlePanel}
           {showRegistrationPanel ? (
             <Card>
               <CardHeader>
@@ -323,7 +353,7 @@ function FormBuilderEditor({
       pageName="form-builder"
       operation="update"
       scope={scope}
-      fallback={<SaveHiddenShellWrapper>{renderShell(true)}</SaveHiddenShellWrapper>}
+      fallback={renderShell(true)}
     >
       {renderShell(false)}
     </PagePermissionGuard>
@@ -375,10 +405,10 @@ export function FormBuilderPage() {
 
   const editorKey = useMemo(() => {
     if (isEditMode) {
-      return `edit-${formId ?? 'none'}-${builderQuery.data?.form.id ?? 'pending'}`;
+      return `edit-${formId ?? 'none'}-${builderQuery.dataUpdatedAt}`;
     }
     return `create-${selectedEventId ?? 'none'}-${selectedOrganisationId ?? 'none'}`;
-  }, [builderQuery.data?.form.id, formId, isEditMode, selectedEventId, selectedOrganisationId]);
+  }, [builderQuery.dataUpdatedAt, formId, isEditMode, selectedEventId, selectedOrganisationId]);
 
   return (
     <PagePermissionGuard

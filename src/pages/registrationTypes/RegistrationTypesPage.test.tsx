@@ -123,35 +123,6 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
   };
 });
 
-vi.mock('@dnd-kit/core', () => ({
-  DndContext: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  PointerSensor: class {},
-  closestCenter: vi.fn(),
-  useSensor: vi.fn(),
-  useSensors: vi.fn(() => []),
-}));
-
-vi.mock('@dnd-kit/sortable', () => ({
-  SortableContext: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  arrayMove: <T,>(items: T[]) => items,
-  useSortable: () => ({
-    attributes: {},
-    listeners: {},
-    setNodeRef: vi.fn(),
-    transform: null,
-    transition: null,
-  }),
-  verticalListSortingStrategy: vi.fn(),
-}));
-
-vi.mock('@dnd-kit/utilities', () => ({
-  CSS: {
-    Transform: {
-      toString: () => '',
-    },
-  },
-}));
-
 vi.mock('@/features/registrationSetup/configuration', () => ({
   useRegistrationTypesList: () => ({
     isLoading: state.listLoading,

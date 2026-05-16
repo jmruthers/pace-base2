@@ -47,15 +47,28 @@ export function updateBindingCheckedState(
   return next;
 }
 
+/** Keys mirrored on `field_label` / `fieldType`; omit from `displayOptions` in authoring state. */
+export function omitFieldMetadataFromDisplayOptions(
+  displayOptions: Record<string, unknown> | null | undefined
+): Record<string, unknown> | undefined {
+  if (displayOptions == null) {
+    return undefined;
+  }
+  const rest = Object.fromEntries(
+    Object.entries(displayOptions).filter(([key]) => key !== 'label' && key !== 'field_type')
+  );
+  return Object.keys(rest).length > 0 ? rest : undefined;
+}
+
 export function buildFieldsRpcPayload(fields: WorkflowAuthoringState['fields']) {
   return fields.map((field, index) => ({
     field_key: field.fieldKey,
     sort_order: field.sortOrder ?? index,
     is_required: field.isRequired ?? false,
     field_metadata: {
+      ...(field.displayOptions ?? {}),
       label: field.fieldLabel,
       field_type: field.fieldType,
-      ...(field.displayOptions ?? {}),
     },
   }));
 }

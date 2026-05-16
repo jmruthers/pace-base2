@@ -69,8 +69,6 @@ export function RegistrationTypesPage() {
               : null,
           isPending: controller.upsertMutation.isPending,
         }}
-        sensors={controller.sensors}
-        onDragEnd={controller.handleRequirementDragEnd}
         data={{
           rows: controller.requirementDraftRows,
           reviewingOrganisations: controller.reviewingOrgsQuery.data ?? [],
@@ -81,6 +79,7 @@ export function RegistrationTypesPage() {
           onSelectedTypeToAddChange: controller.setSelectedRequirementTypeToAdd,
           onAdd: controller.addRequirement,
           onRemove: controller.removeRequirement,
+          onMoveRequirement: controller.moveRequirement,
           onRequireAllGuardiansChange: controller.updateRequireAllGuardians,
           onReviewingOrgChange: controller.updateReviewingOrganisation,
           onSave: () => void controller.saveRequirements(),

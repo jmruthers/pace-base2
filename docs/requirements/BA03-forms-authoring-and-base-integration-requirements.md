@@ -9,7 +9,7 @@
 
 ## 2. Overview
 
-This slice owns the two surfaces through which BASE operators author and manage workflow forms for an event: a forms list page and a form builder page. The forms list gives operators a card-grid view of all forms for the selected event, with actions to create, edit, preview, copy the portal URL, and delete forms. The form builder provides a full authoring surface for form metadata, fields, submission scheduling, and registration type bindings, built around the `WorkflowFormAuthoringShell` from pace-core2. All mutations go through RPC boundaries (`app_base_form_upsert`, `app_base_form_fields_replace`, `app_base_form_delete`, and registration-binding RPCs). The slice is scoped to BASE admin authoring only; participant-facing form submission surfaces are not in scope.
+This slice owns the two surfaces through which BASE operators author and manage workflow forms for an event: a forms list page and a form builder page. The forms list gives operators a card-grid view of all forms for the selected event, with actions to create, edit, preview, and delete forms, and a visible portal URL hyperlink on each card when configured. The form builder provides a full authoring surface for form metadata, fields, submission scheduling, and registration type bindings, built around the `WorkflowFormAuthoringShell` from pace-core2. All mutations go through RPC boundaries (`app_base_form_upsert`, `app_base_form_fields_replace`, `app_base_form_delete`, and registration-binding RPCs). The slice is scoped to BASE admin authoring only; participant-facing form submission surfaces are not in scope.
 
 ---
 
@@ -17,7 +17,7 @@ This slice owns the two surfaces through which BASE operators author and manage 
 
 ### 3.1 Forms List (`/forms`)
 
-**Purpose.** Give event operators a complete view of all workflow forms authored for the selected event, and provide the affordances to create new forms, edit or preview existing ones, copy their portal URLs, and delete them.
+**Purpose.** Give event operators a complete view of all workflow forms authored for the selected event, and provide the affordances to create new forms, edit or preview existing ones, open their portal URLs (via an in-card link or the Preview action), and delete them.
 
 **Surfaces.**
 - The `/forms` route rendered inside the BA00 authenticated shell.
@@ -55,10 +55,10 @@ This slice owns the two surfaces through which BASE operators author and manage 
 - The `/form-builder` route rendered inside the BA00 authenticated shell.
 - Create mode: navigated to from `/forms` "Create Form" button; URL is `/form-builder` (no query params).
 - Edit mode: navigated to from a form card's "Edit" action; URL is `/form-builder?formId={uuid}`.
-- `WorkflowFormAuthoringShell` with BASE-specific props (`heading`, `allowedWorkflowTypes`, `slugReadOnly`, `middleContent`).
+- `WorkflowFormAuthoringShell` with BASE-specific props (`heading`, `allowedWorkflowTypes`, `slugReadOnly`, `metadataAside`, `middleContent`).
 - A BASE-specific "Schedule" panel (inside `middleContent`) for `opens_at`/`closes_at`.
-- A BASE-specific "Submission Settings" panel (inside `middleContent`) for `max_submissions` and `confirmation_message`.
-- A BASE-specific `RegistrationTypeBindingPanel` (inside `middleContent`, shown only when `workflowType === 'base_registration'`) for managing `base_form_registration_type` rows.
+- A BASE-specific "Submission Settings" panel (via shell `metadataAside`, stacked full-width below Form metadata) for `max_submissions` and `confirmation_message`; fields stack in **one column** inside the card.
+- A BASE-specific `RegistrationTypeBindingPanel` (inside `middleContent`, after Schedule, shown only when `workflowType === 'base_registration'`) for managing `base_form_registration_type` rows.
 - A no-event blocking state that prevents the builder from rendering when no event is selected.
 
 **Boundaries.**
@@ -70,7 +70,7 @@ This slice owns the two surfaces through which BASE operators author and manage 
 **Architectural posture.**
 - The builder uses `WorkflowFormAuthoringShell` from `@solvera/pace-core/forms`. It does not compose `WorkflowFormMetadataEditor` and `WorkflowFormFieldEditor` directly; it uses the shell and customises it via the props listed in §9.2.
 - Save flow makes three sequential async calls: `app_base_form_upsert` → `app_base_form_fields_replace` → (if `base_registration`) registration-binding RPC write. Each failure aborts the sequence and shows a destructive toast.
-- Registration bindings are read/written via canonical backend RPCs (`app_base_form_registration_bindings_get`, `app_base_form_registration_bindings_replace`) scoped to form/event/organisation context.
+- Registration bindings are read via `data_base_form_registration_bindings_get` and written via `app_base_form_registration_bindings_replace`, scoped to form/event/organisation context (`p_organisation_id` must match the loaded form’s `organisation_id` on read).
 - `onStateChange` from the shell is intercepted in the builder page for slug auto-generation (new forms) and to pass updated state to local React state.
 
 **Page-level guards and evaluation ordering.**
@@ -111,43 +111,42 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 7. FL-PC-01 — Card title: the form's `name`.
 8. FL-PC-02 — Field count: displayed as "N fields" where N is the count of `core_form_fields` rows with `is_active = true` for that form (from the batch query, §6.7). While the count is loading, renders "— fields". If the count query fails, renders "? fields".
 9. FL-PC-03 — Status badge: rendered using `Badge` with variant per BR-01 (§6.1). Values: `draft`, `published`, `closed`.
-10. FL-PC-04 — Workflow type: displayed as a plain text label beneath the title (e.g. "base_registration", "generic"). No badge.
-11. FL-PC-05 — Opens at: when `opens_at` is non-null, displays a "Opens: {date}" line using `formatDate` from `@solvera/pace-core`. When `opens_at` is null, this line is not rendered.
-12. FL-PC-06 — Closes at: when `closes_at` is non-null, displays a "Closes: {date}" line using `formatDate`. When null, omitted.
-13. FL-PC-07 — Card action row: four icon buttons rendered in the card footer in the order: Edit, Preview, Copy URL, Delete. Each is a `Button` with an icon and a tooltip-style `aria-label`. Spacing: evenly distributed in a single row container (grid or flex).
-14. FL-PC-08 — Edit button: navigates to `/form-builder?formId={form.id}` using React Router `useNavigate`.
-15. FL-PC-09 — Preview button: opens the form's full portal URL in a new browser tab (`window.open(url, '_blank')`). Full URL constructed per §6.3.
-16. FL-PC-10 — Copy URL button: copies the form's full portal URL to the clipboard via `navigator.clipboard.writeText(url)`. On success, the button icon switches to a checkmark for 2 seconds then reverts. On clipboard API failure, shows a destructive toast: "Could not copy URL to clipboard." Visible on all forms regardless of status.
-17. FL-PC-11 — Delete button: opens a confirmation dialog (see FL-PA-03). Visible only when the user has `update` permission on `forms` (§10).
+10. FL-PC-04 — Workflow type: displayed as a plain text label beneath the title using `workflowTypeDisplayLabel` from `@solvera/pace-core/forms` (human-readable title case from the workflow type key). No badge.
+11. FL-PC-05 — Opens at / closes at schedule line: when **both** `opens_at` and `closes_at` are non-null, a single line MAY combine them as `Opens: {opens_date} · Closes: {closes_date}` (each segment uses `formatDate` from `@solvera/pace-core`). When only `opens_at` is non-null, render `Opens: {date}` only. When only `closes_at` is non-null, render `Closes: {date}` only. When both are null, the schedule line is not rendered.
+12. FL-PC-06 — Card action row: three icon buttons rendered in the card footer in the order: Edit, Preview, Delete. Each is a `Button` with an icon and a tooltip-style `aria-label`. Footer column count follows permission (two columns when Delete is hidden; three when Delete is visible). Spacing: evenly distributed in a single row grid.
+13. FL-PC-07 — Edit button: navigates to `/form-builder?formId={form.id}` using React Router `useNavigate`.
+14. FL-PC-08 — Preview button: opens the form's full portal URL in a new browser tab (`window.open(url, '_blank')`). Full URL constructed per §6.3.
+15. FL-PC-09 — Portal URL link: when `VITE_PORTAL_BASE_URL` is set (non-empty after trim), the full portal URL for the form is shown in the card body as plain text inside an `<a href={url}>` opening in a new tab (`target="_blank"`, `rel="noopener noreferrer"`). When the portal base URL is not configured, no URL link is rendered on the card (Preview still follows FL-EC-01).
+16. FL-PC-10 — Delete button: opens a confirmation dialog (see FL-PA-03). Visible only when the user has `update` permission on `forms` (§10).
 
 **Primary actions**
 
-18. FL-PA-01 — "Create Form" button: rendered in the page header area, right-aligned. Label: "Create Form". Navigates to `/form-builder` (no query params). Visible only when the user has `create` permission on `forms` (§10). Hidden when no event is selected.
-19. FL-PA-02 — Delete confirmation dialog: a `ConfirmationDialog` with `title="Delete form"`, `description="Are you sure you want to delete '{form.name}'? This action cannot be undone."`, `confirmLabel="Delete"`, `cancelLabel="Cancel"`, `variant="destructive"`. On cancel: dialog closes, no action taken.
-20. FL-PA-03 — Delete confirmation — on confirm: the `app_base_form_delete` RPC is called with the selected event's ID and the form's ID. While the RPC is in flight, the dialog's `isPending` prop is `true` (button disabled + loading indicator). On completion, the dialog closes.
-21. FL-PA-04 — Delete outcome — blocked: if the RPC returns `{ deleted: false, response_count, registration_binding_count }`, the confirmation dialog closes and a second information dialog opens with `title="Cannot delete form"` and a description per §6.5. The form list is not refreshed. The information dialog has only an "OK" button (uses `confirmLabel="OK"`, `cancelLabel` hidden by passing `cancelLabel={null}`).
+17. FL-PA-01 — "Create Form" button: rendered in the page header area, right-aligned. Label: "Create Form". Navigates to `/form-builder` (no query params). Visible only when the user has `create` permission on `forms` (§10). Hidden when no event is selected.
+18. FL-PA-02 — Delete confirmation dialog: a `ConfirmationDialog` with `title="Delete form"`, `description="Are you sure you want to delete '{form.name}'? This action cannot be undone."`, `confirmLabel="Delete"`, `cancelLabel="Cancel"`, `variant="destructive"`. On cancel: dialog closes, no action taken.
+19. FL-PA-03 — Delete confirmation — on confirm: the `app_base_form_delete` RPC is called with the selected event's ID and the form's ID. While the RPC is in flight, the dialog's `isPending` prop is `true` (button disabled + loading indicator). On completion, the dialog closes.
+20. FL-PA-04 — Delete outcome — blocked: if the RPC returns `{ deleted: false, response_count, registration_binding_count }`, the confirmation dialog closes and a second information dialog opens with `title="Cannot delete form"` and a description per §6.5. The form list is not refreshed. The information dialog has only an "OK" button (uses `confirmLabel="OK"`, `cancelLabel` hidden by passing `cancelLabel={null}`).
 
     > **Verified (2026-05-01):** `ConfirmationDialog` does not support a single-button mode — `cancelLabel` is always rendered unconditionally. Implement the blocking dialog using `Dialog`, `DialogPortal`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, and `Button` from pace-core2 directly (all are exports of the `ConfirmationDialog` module's internal `Dialog.js` — verify the public export path in §9 at build time).
 
-22. FL-PA-05 — Delete outcome — success: if the RPC returns `{ deleted: true }`, the confirmation dialog closes, the form card is removed from the list (optimistically or via list refetch), and a success toast fires: "Form deleted successfully."
-23. FL-PA-06 — Delete outcome — RPC error: the confirmation dialog closes, a destructive toast fires with the normalised error message via `HandleMutationError`.
+21. FL-PA-05 — Delete outcome — success: if the RPC returns `{ deleted: true }`, the confirmation dialog closes, the form card is removed from the list (optimistically or via list refetch), and a success toast fires: "Form deleted successfully."
+22. FL-PA-06 — Delete outcome — RPC error: the confirmation dialog closes, a destructive toast fires with the normalised error message via `HandleMutationError`.
 
 **Permission-conditional rendering**
 
-24. FL-PR-01 — The page is wrapped in `PagePermissionGuard` with `pageName="forms"`, `operation="read"`, `scope={{ organisationId, eventId, appId }}`. If denied, `<AccessDenied />` renders and no page content is shown.
-25. FL-PR-02 — The "Create Form" button is wrapped in `PagePermissionGuard` with `pageName="forms"`, `operation="create"`, `scope={{ organisationId, eventId, appId }}`, `fallback={null}`. Hidden if denied.
-26. FL-PR-03 — The Delete button on each card is wrapped in `PagePermissionGuard` with `pageName="forms"`, `operation="update"`, `scope={{ organisationId, eventId, appId }}`, `fallback={null}`. Hidden if denied. (The delete RPC uses the `update` permission key per §10.)
+23. FL-PR-01 — The page is wrapped in `PagePermissionGuard` with `pageName="forms"`, `operation="read"`, `scope={{ organisationId, eventId, appId }}`. If denied, `<AccessDenied />` renders and no page content is shown.
+24. FL-PR-02 — The "Create Form" button is wrapped in `PagePermissionGuard` with `pageName="forms"`, `operation="create"`, `scope={{ organisationId, eventId, appId }}`, `fallback={null}`. Hidden if denied.
+25. FL-PR-03 — The Delete button on each card is wrapped in `PagePermissionGuard` with `pageName="forms"`, `operation="update"`, `scope={{ organisationId, eventId, appId }}`, `fallback={null}`. Hidden if denied. (The delete RPC uses the `update` permission key per §10.)
 
 **Navigation**
 
-27. FL-NV-01 — "Create Form" navigates to `/form-builder`. Event context is maintained by the shell across the navigation.
-28. FL-NV-02 — "Edit" on a form card navigates to `/form-builder?formId={form.id}`.
+26. FL-NV-01 — "Create Form" navigates to `/form-builder`. Event context is maintained by the shell across the navigation.
+27. FL-NV-02 — "Edit" on a form card navigates to `/form-builder?formId={form.id}`.
 
 **Edge cases and constraints**
 
-29. FL-EC-01 — If `VITE_PORTAL_BASE_URL` is undefined or empty, the Preview and Copy URL buttons are rendered but clicking either shows a destructive toast: "Portal URL is not configured. Set VITE_PORTAL_BASE_URL." No navigation or clipboard write occurs.
-30. FL-EC-02 — Event slug availability: if `selectedEvent.slug` is undefined, the portal URL is constructed using a slug derived from `selectedEvent.event_name` using the slug derivation algorithm in §6.2. The derivation is applied at render time and is not shown to the user.
-31. FL-EC-03 — Forms where `is_active = false` are still displayed in the list — the admin surface shows all forms regardless of active state. The status badge shows `draft`, `published`, or `closed` and is the primary visibility indicator.
+28. FL-EC-01 — If `VITE_PORTAL_BASE_URL` is undefined or empty, the Preview button is still rendered; clicking it shows a destructive toast: "Portal URL is not configured. Set VITE_PORTAL_BASE_URL." No in-card portal link is shown and no navigation occurs.
+29. FL-EC-02 — Event slug availability: if `selectedEvent.slug` is undefined, the portal URL is constructed using a slug derived from `selectedEvent.event_name` using the slug derivation algorithm in §6.2. The derivation is applied at render time and is not shown to the user.
+30. FL-EC-03 — Forms where `is_active = false` are still displayed in the list — the admin surface shows all forms regardless of active state. The status badge shows `draft`, `published`, or `closed` and is the primary visibility indicator.
 
 ---
 
@@ -155,75 +154,75 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 
 **Page entry**
 
-32. FB-PE-01 — **Create mode** (no `formId` query param): on entry, the builder renders with the shell in an empty state. Initial `WorkflowAuthoringState` is set per §6.8. The page heading reads "Create Form". No data fetches are required before the shell renders. `useUnifiedAuth().selectedEventId` and `selectedOrganisationId` are populated into `state.metadata.eventId` and `state.metadata.organisationId` respectively.
-33. FB-PE-02 — **Edit mode** (`?formId={uuid}` query param present): on entry, the builder shows a loading state while it fetches the saved `core_forms` row and its `core_form_fields` rows in parallel. If `workflowType === 'base_registration'`, a third fetch loads the saved form registration bindings for the form via registration-binding RPCs. The page heading reads "Edit Form" in this mode.
-34. FB-PE-03 — The URL for create mode is `/form-builder`. The URL for edit mode is `/form-builder?formId={uuid}`. The builder reads the `formId` param from the URL via React Router's `useSearchParams`.
+31. FB-PE-01 — **Create mode** (no `formId` query param): on entry, the builder renders with the shell in an empty state. Initial `WorkflowAuthoringState` is set per §6.8. The page heading reads "Create Form". No data fetches are required before the shell renders. `useUnifiedAuth().selectedEventId` and `selectedOrganisationId` are populated into `state.metadata.eventId` and `state.metadata.organisationId` respectively.
+32. FB-PE-02 — **Edit mode** (`?formId={uuid}` query param present): on entry, the builder shows a loading state while it fetches the saved `core_forms` row and its `core_form_fields` rows in parallel. If `workflowType === 'base_registration'`, a third fetch loads bindings via `data_base_form_registration_bindings_get` with `p_organisation_id` set from the loaded form row’s `organisation_id`. The page heading reads "Edit Form" in this mode.
+33. FB-PE-03 — The URL for create mode is `/form-builder`. The URL for edit mode is `/form-builder?formId={uuid}`. The builder reads the `formId` param from the URL via React Router's `useSearchParams`.
 
 **Loading states**
 
-35. FB-LS-01 — In edit mode, while the form data fetches are in flight, the content area renders a centred `LoadingSpinner` with the caption "Loading form…". The shell does not render during this loading phase. No page-level h1 is rendered above the spinner.
+34. FB-LS-01 — In edit mode, while the form data fetches are in flight, the content area renders a centred `LoadingSpinner` with the caption "Loading form…". The shell does not render during this loading phase. No page-level h1 is rendered above the spinner.
 
 **No-event state**
 
-36. FB-NV-01 — When no event context is available (`selectedEvent` is null from `useEvents()` or `selectedEventId` is null from auth context), the shell does not render. A `Card` is shown with the message: "Select an event from the header before creating or editing a form." No page-level h1 is rendered above the card — the BA00 shell header provides navigation context. This state takes precedence over the loading state and the shell.
+35. FB-NV-01 — When no event context is available (`selectedEvent` is null from `useEvents()` or `selectedEventId` is null from auth context), the shell does not render. A `Card` is shown with the message: "Select an event from the header before creating or editing a form." No page-level h1 is rendered above the card — the BA00 shell header provides navigation context. This state takes precedence over the loading state and the shell.
 
 **Error states**
 
-37. FB-ER-01 — If the form fetch fails in edit mode (form not found, network error, or RLS denial), the loading state ends and an error card renders in place of the shell: a destructive `Alert` with the normalised error message. The user can navigate back to `/forms` via the "Back to Forms" link that appears below the alert.
-38. FB-ER-02 — If the `base_registration_type` fetch fails for the binding panel, the `RegistrationTypeBindingPanel` renders with the error state (see §5.2 — Binding panel error) and does not block the rest of the builder from rendering.
+36. FB-ER-01 — If the form fetch fails in edit mode (form not found, network error, or RLS denial), the loading state ends and an error card renders in place of the shell: a destructive `Alert` with the normalised error message. The user can navigate back to `/forms` via the "Back to Forms" link that appears below the alert.
+37. FB-ER-02 — If the `base_registration_type` fetch fails for the binding panel, the `RegistrationTypeBindingPanel` renders with the error state (see §5.2 — Binding panel error) and does not block the rest of the builder from rendering.
 
 **Primary content — shell and metadata**
 
-39. FB-PC-01 — `WorkflowFormAuthoringShell` renders with these BASE-specific props:
+38. FB-PC-01 — `WorkflowFormAuthoringShell` renders with these BASE-specific props:
     - `heading`: "Create Form" (create mode) or "Edit Form" (edit mode).
     - `subheading`: "Define this form's metadata, fields, and submission settings."
     - `allowedWorkflowTypes`: the `BASE_WORKFLOW_TYPES` constant (§6.6) — all types except `org_signup`.
     - `slugReadOnly`: `true` when `state.metadata.status === 'published'`, `false` otherwise.
-    - `middleContent`: the `<BaseFormExtensions>` composite panel (§4.2 FB-PC-05).
+    - `metadataAside`: the Submission Settings `Card` (§4.2 FB-PC-07), rendered full-width below shell Form metadata; the submission card uses a **single-column** stack (**Max submissions** → **Confirmation message** → helper text).
+    - `middleContent`: the remaining `<BaseFormExtensions>` composite panel (§4.2 FB-PC-05).
     - `onSave`: the builder's save handler (§6.9).
     - `onStateChange`: the builder's intercepting state handler (§6.10).
     - `eventSlug`: the event slug string (from `selectedEvent.slug` or derived per §6.2).
     - `saveLabel`: "Save Form".
-40. FB-PC-02 — The shell's embedded `WorkflowFormMetadataEditor` renders the following fields (supplied by the shell, not composed separately): Name, Slug (read-only when `status='published'` via `slugReadOnly`), Description, Workflow type (filtered to `BASE_WORKFLOW_TYPES`), Access mode, Status, Primary entrypoint checkbox, Active checkbox.
-41. FB-PC-03 — The shell's embedded `WorkflowFormFieldEditor` renders below the metadata editor (and below the `middleContent` slot). It shows all fields in the current `state.fields` array. Default field type is `text`; default field key is `generic.field_N` (generated by the editor). "Add field" appends a new field. "Remove field" removes it from the array.
-42. FB-PC-04 — The shell's validation summary renders automatically via the shell. When `validateWorkflowAuthoringState(state).isValid` is `false`, the Save button is disabled and the validation summary shows the error list. When valid, the summary shows a "Ready" alert.
+39. FB-PC-02 — The shell's embedded `WorkflowFormMetadataEditor` renders the following fields (supplied by the shell, not composed separately) in a responsive two-column grid inside the Form metadata card (`md` and up; **Description** spans full width): Name, Slug (read-only when `status='published'` via `slugReadOnly`), Description, Workflow type (filtered to `BASE_WORKFLOW_TYPES`), Access mode, Status, Primary entrypoint checkbox, Active checkbox.
+40. FB-PC-03 — The shell's embedded `WorkflowFormFieldEditor` renders below the metadata editor (and below the `middleContent` slot). Each field row uses a **drag handle** and **move up/down** controls to set `sortOrder` (no manual sort-order input). **Field** (catalogue picker) and **Label** inputs are shown per row; the field is chosen via `WorkflowFieldCataloguePicker` with **filter-inside-dropdown** search (no separate page-level catalogue search) and occupies **half the row width** on `md+` breakpoints. Selecting a catalogue row syncs **`fieldType`** from the catalogue and **`fieldLabel`** when the label is empty or still a generated placeholder. **`fieldType` is not shown** for catalogue-backed keys (type is derived from the catalogue). **`generic.*` keys** expose a constrained type `Select` (`text`, `textarea`, `address`). **Display options JSON is not authored in this UI** (existing `displayOptions` on loaded forms are preserved on save). Rows use a compact **two-column** layout on `md+` breakpoints.
+41. FB-PC-04 — The shell evaluates `validateWorkflowAuthoringState(state)` continually for save gating, but **does not** show errors or destructive validation chrome until the user **attempts Save** (`Save`/`Save Form`). On that attempt, if invalid, **`onSave` is not called**, and issues render **inline**: metadata issues appear next to matching `WorkflowFormMetadataEditor` controls (paths under `metadata.*`), field issues beside the affected field (`fields` / `fields.N.*`). Shell-level **`missing_scope`/`unknown_field_type` warnings follow the same visibility rule.** There is **no page-top error list**. Any issue that cannot yet be keyed to shipped controls renders in an **“Additional checks”** card beneath the Fields editor until the slice maps it.
 
-**Primary content — middleContent panels**
+**Primary content — extensions (`metadataAside` / `middleContent`)**
 
-43. FB-PC-05 — The `middleContent` slot renders three panels in vertical order:
+42. FB-PC-05 — The builder exposes **Submission Settings** through the shell **`metadataAside`** prop (full-width stacked below Form metadata — see FB-PC-01). The `middleContent` slot renders panels in vertical order:
     1. "Schedule" panel — always visible.
-    2. "Submission Settings" panel — always visible.
-    3. `RegistrationTypeBindingPanel` — visible only when `state.metadata.workflowType === 'base_registration'`.
-44. FB-PC-06 — **Schedule panel**: a `Card` with title "Schedule". Contains two date inputs side by side:
+    2. `RegistrationTypeBindingPanel` — visible only when `state.metadata.workflowType === 'base_registration'`.
+43. FB-PC-06 — **Schedule panel**: a `Card` with title "Schedule". Contains two date inputs side by side:
     - "Opens at" — `DatePickerWithTimezone` with `value` (Date | null) and `onChange`. Maps to `state.metadata.opensAt` (stored as ISO 8601 string; convert to/from `Date` at the input boundary per §6.11). Optional.
     - "Closes at" — same component. Maps to `state.metadata.closesAt`. Optional.
     When either value changes, `onStateChange` is called with the updated ISO string in `metadata.opensAt` or `metadata.closesAt`.
-45. FB-PC-07 — **Submission Settings panel**: a `Card` with title "Submission Settings". Contains:
+44. FB-PC-07 — **Submission Settings panel** (passed as shell `metadataAside`, FB-PC-01): a `Card` with title "Submission Settings". `CardContent` is a vertical stack (`gap-4`): **Max submissions**, then **Confirmation message**, then helper text. Contains:
     - "Max submissions" — number `Input`, min 1, optional. Maps to `state.metadata.workflowConfig.max_submissions`. When blank/cleared, the value is `null` in `workflowConfig`.
     - "Confirmation message" — `Textarea`, optional. Maps to `state.metadata.workflowConfig.confirmation_message`. Helper text: "Shown to participants after successful form submission."
-46. FB-PC-08 — **RegistrationTypeBindingPanel** (shown only when `workflowType === 'base_registration'`): a `Card` with title "Registration Type Bindings". Renders a list of all active `base_registration_type` rows for the current event (fetched on panel mount). Each row shows: a checkbox (bound/unbound), the type `name`, and a radio button for "Set as default" (enabled only on checked rows). State of the panel is maintained in local React state (`bindings: { typeId: string, isDefault: boolean }[]`) and is passed to the save handler on Save (§6.9). Full binding panel spec in §5.2.
+45. FB-PC-08 — **RegistrationTypeBindingPanel** (shown only when `workflowType === 'base_registration'`): a `Card` with title "Registration Type Bindings". Renders a list of all active `base_registration_type` rows for the current event (fetched on panel mount). Each row shows: a checkbox (bound/unbound), the type `name`, and a radio button for "Set as default" (enabled only on checked rows). State of the panel is maintained in local React state (`bindings: { typeId: string, isDefault: boolean }[]`) and is passed to the save handler on Save (§6.9). Full binding panel spec in §5.2.
 
 **Primary actions — save**
 
-47. FB-PA-01 — Save button: rendered by the shell (`saveLabel="Save Form"`). Disabled when `validateWorkflowAuthoringState(state).isValid` is `false`, or when `isSaving === true` (the page tracks save in-flight state and passes `disabled={isSaving}` to the shell, preventing double-submit). When clicked, the builder's `onSave` handler fires.
-48. FB-PA-02 — On save success: the builder navigates to `/forms` via React Router. A success toast fires: "Form saved successfully." (toast fires before navigation so it appears on the list page).
-49. FB-PA-03 — On save error: a destructive toast fires with the normalised error message. The builder stays on `/form-builder`; the state is unchanged. The user can retry.
+46. FB-PA-01 — Save button: rendered by the shell (`saveLabel="Save Form"`). Disabled only when the shell receives **`disabled={true}`** (in pace-base: `isSaving === true`, via `disabled={disabled || isSaving}`). Authoring validity alone never disables Save. When clicked, **`onSave`** runs **only when** `validateWorkflowAuthoringState(state).isValid` is **`true`.** Otherwise the shell exposes deferred inline errors **(FB-PC-04)** without calling `onSave`.
+47. FB-PA-02 — On save success: the builder navigates to `/forms` via React Router. A success toast fires: "Form saved successfully." (toast fires before navigation so it appears on the list page).
+48. FB-PA-03 — On save error: a destructive toast fires with the normalised error message. The builder stays on `/form-builder`; the state is unchanged. The user can retry.
 
 **Permission-conditional rendering**
 
-50. FB-PR-01 — The page is wrapped in `PagePermissionGuard` with `pageName="form-builder"`, `operation="read"`, `scope={{ organisationId, eventId, appId }}`. If denied, `<AccessDenied />` renders.
-51. FB-PR-02 — The Save button is wrapped additionally in `PagePermissionGuard` with `pageName="form-builder"`, `operation="update"`, `fallback={null}`. If denied, the Save button is hidden. The metadata and field editors remain visible (read-only effect via `disabled={true}` on the shell when the user does not have update permission).
+49. FB-PR-01 — The page is wrapped in `PagePermissionGuard` with `pageName="form-builder"`, `operation="read"`, `scope={{ organisationId, eventId, appId }}`. If denied, `<AccessDenied />` renders.
+50. FB-PR-02 — The Save button is wrapped additionally in `PagePermissionGuard` with `pageName="form-builder"`, `operation="update"`, `fallback={null}`. If denied, the Save button is hidden. The metadata and field editors remain visible (read-only effect via `disabled={true}` on the shell when the user does not have update permission).
 
 **Navigation**
 
-52. FB-NV-01 — After a successful save, the builder navigates to `/forms` with React Router.
-53. FB-NV-02 — The "Back to Forms" link in the error state (FB-ER-01) navigates to `/forms`.
+51. FB-NV-01 — After a successful save, the builder navigates to `/forms` with React Router.
+52. FB-NV-02 — The "Back to Forms" link in the error state (FB-ER-01) navigates to `/forms`.
 
 **Edge cases and constraints**
 
-54. FB-EC-01 — In edit mode, if `formId` does not match any `core_forms` row scoped to the current event (the upsert RPC enforces event scope), the form fetch returns null or an error, and the error state (FB-ER-01) renders.
-55. FB-EC-02 — When `workflowType` changes away from `base_registration`, the binding panel unmounts. The `bindings` state is reset. If the user switches back to `base_registration`, the binding panel mounts fresh and re-fetches the available types (existing DB bindings for this form are also re-fetched in edit mode).
-56. FB-EC-03 — The `workflowConfig` field passed to the upsert RPC includes `returnUrl`, `preSubmissionChecks`, and all other keys in `state.metadata.workflowConfig`. The `max_submissions` and `confirmation_message` keys are extracted from `workflowConfig` and sent as top-level keys in `p_definition` — they are not stored inside the `workflow_config` JSON column (see §7.2 write contract).
+53. FB-EC-01 — In edit mode, if `formId` does not match any `core_forms` row scoped to the current event (the upsert RPC enforces event scope), the form fetch returns null or an error, and the error state (FB-ER-01) renders.
+54. FB-EC-02 — When `workflowType` changes away from `base_registration`, the binding panel unmounts. The `bindings` state is reset. If the user switches back to `base_registration`, the binding panel mounts fresh and re-fetches the available types (existing DB bindings for this form are also re-fetched in edit mode via `data_base_form_registration_bindings_get`).
+55. FB-EC-03 — The `workflowConfig` field passed to the upsert RPC includes `returnUrl`, `preSubmissionChecks`, and all other keys in `state.metadata.workflowConfig`. The `max_submissions` and `confirmation_message` keys are extracted from `workflowConfig` and sent as top-level keys in `p_definition` — they are not stored inside the `workflow_config` JSON column (see §7.2 write contract).
 
 ---
 
@@ -248,11 +247,12 @@ Applied in the forms list card header on every `Badge` rendering the form status
 ### BR-02 — `opens_at` / `closes_at` date display
 
 - Both dates are stored as `timestamptz` and must be formatted for display using `formatDate` from `@solvera/pace-core`.
-- If `opens_at` is null, the "Opens:" line is not rendered on the form card.
-- If `closes_at` is null, the "Closes:" line is not rendered.
-- Both lines are display-only on the list page.
+- The list card MAY show a single combined line when both dates are set (see FL-PC-05); equivalently, separate lines satisfy the same rule as long as each segment follows the rules below.
+- If `opens_at` is null, no `Opens:` segment appears on the form card.
+- If `closes_at` is null, no `Closes:` segment appears on the form card.
+- Schedule lines are display-only on the list page.
 
-### BR-03 — Portal URL construction (preview and copy)
+### BR-03 — Portal URL construction (preview and in-card link)
 
 Inputs: `form` (a forms list row with `workflow_type`, `slug`, `is_primary_entrypoint`), `eventSlug` (string), `VITE_PORTAL_BASE_URL` (string, no trailing slash).
 
@@ -314,8 +314,8 @@ slug = name.toLowerCase()
 ```
 
 Edge cases:
-- Empty or whitespace name → slug = `""` (empty; shell validation will reject it)
-- Name produces a slug that fails `/^[a-z0-9]+(?:-[a-z0-9]+)*$/` → the shell validation summary will surface the error
+- Empty or whitespace name → slug = `""` (empty; `validateWorkflowAuthoringState` flags `invalid_slug`; inline alerts appear beside **Slug** once Save is attempted — **§4.2 FB-PA-01 / FB-PC-04**.)
+- Name produces a slug that fails `/^[a-z0-9]+(?:-[a-z0-9]+)*$/` → `invalid_slug` appears **beside Slug** after Save is attempted (**FB-PC-04**).
 
 ### BR-06 — Slug lock rule
 
@@ -628,13 +628,13 @@ supabase
 
 Result: array of available registration types for the event.
 
-**Registration bindings read** (used by `RegistrationTypeBindingPanel` in edit mode, in parallel with form detail)
+**Registration bindings read** (used by `RegistrationTypeBindingPanel` in edit mode, after form detail is loaded)
 
 ```
-supabase.rpc('app_base_form_registration_bindings_get', {
+supabase.rpc('data_base_form_registration_bindings_get', {
   p_form_id: formId,
   p_event_id: selectedEventId,
-  p_organisation_id: selectedOrganisationId ?? null,
+  p_organisation_id: loadedForm.organisation_id ?? selectedOrganisationId ?? null,
 })
 ```
 
@@ -757,11 +757,11 @@ Before implementation, verify:
 3. `core_forms.workflow_type` is `text NOT NULL`.
 4. `core_form_fields.field_key` is `text NOT NULL` (no `table_name` or `column_name`).
 5. `base_form_registration_type` exists with columns: `id`, `form_id`, `registration_type_id`, `event_id`, `organisation_id`, `sort_order`, `is_default`.
-6. `app_base_form_upsert`, `app_base_form_fields_replace`, `app_base_form_delete`, `app_base_form_registration_bindings_get`, and `app_base_form_registration_bindings_replace` all exist with the signatures in §7.1/§7.2.
+6. `app_base_form_upsert`, `app_base_form_fields_replace`, `app_base_form_delete`, `data_base_form_registration_bindings_get`, and `app_base_form_registration_bindings_replace` all exist with the signatures in §7.1/§7.2.
 7. `app_base_form_upsert` writes `status`, `is_primary_entrypoint`, `is_active`, `opens_at`, `closes_at`, `max_submissions`, `confirmation_message` from `p_definition` (Q12 DB fix applied).
 8. Confirm the BASE event type shape: verify `useEvents().selectedEvent` exposes a `slug` property or only `event_name`.
 9. **VERIFIED (2026-05-01):** `ConfirmationDialog` does not support single-button mode — `cancelLabel` is always rendered. Use `Dialog` sub-components directly for the blocking delete dialog. Verify the public export path of `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter` at build time.
-10. **VERIFIED (2026-05-02):** `WorkflowFormAuthoringShell` accepts `heading` (required), `subheading` (required), `middleContent?`, `allowedWorkflowTypes` (required), and `slugReadOnly?`. The shell forwards `slugReadOnly` to `WorkflowFormMetadataEditor`, which enforces read-only slug behaviour for published forms when enabled.
+10. **VERIFIED (2026-05-02):** `WorkflowFormAuthoringShell` accepts `heading` (required), `subheading` (required), `metadataAside?`, `middleContent?`, `allowedWorkflowTypes` (required), and `slugReadOnly?`. The shell forwards `slugReadOnly` to `WorkflowFormMetadataEditor`, which enforces read-only slug behaviour for published forms when enabled.
 
 ### 8.4 Domain reference
 
@@ -776,7 +776,8 @@ Bounded context: BA03 of `BASE-architecture.md`. `core_forms` and `core_form_fie
 | Symbol | Import policy | Why used in BA03 |
 |---|---|---|
 | `WorkflowFormAuthoringShell` | Scoped `@solvera/pace-core/forms` exception path | Canonical authoring shell |
-| `buildWorkflowPreviewTarget` | Scoped `@solvera/pace-core/forms` exception path | Preview/copy URL path construction |
+| `buildWorkflowPreviewTarget` | Scoped `@solvera/pace-core/forms` exception path | Preview URL path construction and in-card portal links |
+| `workflowTypeDisplayLabel` | Scoped `@solvera/pace-core/forms` exception path | Human-readable workflow type label on `/forms` cards |
 | `PagePermissionGuard` / `useSecureSupabase` | Default root import where available; scoped `@solvera/pace-core/rbac` allowed as exception path | Guard + data/RPC boundaries |
 | `DatePickerWithTimezone` | Default root import; allow scoped exception if required by export location | Schedule inputs |
 | `HandleMutationError` | Default root import | Error handling contract |
@@ -814,11 +815,11 @@ Each criterion traces to one or more Functional Specification items. Do not pre-
 **Forms list — happy paths**
 
 - [ ] Given a user with `read:page.forms` and an event selected, when they navigate to `/forms`, then the page renders the "Forms" h1, the "Create Form" button (if they also have `create` permission), and a card grid of all forms for the event in descending creation order. (FL-PE-01, FL-PE-02, FL-PA-01)
-- [ ] Given the forms list renders, when data loads, then each form card shows: form name, field count ("N fields"), status badge with correct colour, workflow type, and opens_at / closes_at when non-null. (FL-PC-01–06, BR-01, BR-02)
-- [ ] Given a form card with `opens_at = null` and `closes_at = null`, when the card renders, then neither "Opens:" nor "Closes:" lines appear. (BR-02)
-- [ ] Given a user with `update:page.forms`, when they click the Preview button on a form card, then the portal URL opens in a new browser tab. (FL-PC-09, BR-03)
-- [ ] Given a user clicks the Copy URL button on a form card, when the clipboard write succeeds, then the button icon shows a checkmark for 2 seconds. (FL-PC-10)
-- [ ] Given `VITE_PORTAL_BASE_URL` is not set, when the user clicks Preview or Copy URL, then a destructive toast appears: "Portal URL is not configured. Set VITE_PORTAL_BASE_URL." (FL-EC-01)
+- [ ] Given the forms list renders, when data loads, then each form card shows: form name, field count ("N fields"), status badge with correct colour, workflow type label (`workflowTypeDisplayLabel`), schedule line per FL-PC-05 when dates are set, and portal URL link when `VITE_PORTAL_BASE_URL` is set. (FL-PC-01–06, BR-01, BR-02)
+- [ ] Given a form card with `opens_at = null` and `closes_at = null`, when the card renders, then neither an `Opens:` nor a `Closes:` segment appears in the schedule area. (BR-02, FL-PC-05)
+- [ ] Given a user with `update:page.forms`, when they click the Preview button on a form card, then the portal URL opens in a new browser tab. (FL-PC-08, BR-03)
+- [ ] Given `VITE_PORTAL_BASE_URL` is set, when the forms list renders, then each card shows the full portal URL as an in-card hyperlink that opens in a new tab. (FL-PC-09, BR-03)
+- [ ] Given `VITE_PORTAL_BASE_URL` is not set, when the user clicks Preview on a form card, then a destructive toast appears: "Portal URL is not configured. Set VITE_PORTAL_BASE_URL." (FL-EC-01)
 
 **Forms list — delete**
 
@@ -835,7 +836,7 @@ Each criterion traces to one or more Functional Specification items. Do not pre-
 
 **Form builder — create mode**
 
-- [ ] Given a user with `read:page.form-builder`, when they navigate to `/form-builder` (no formId), then the shell renders immediately with "Create Form" as the heading, all fields empty, and the Save button disabled (empty name fails validation). (FB-PE-01, BR-11)
+- [ ] Given a user with `read:page.form-builder`, when they navigate to `/form-builder` (no formId), then the shell renders immediately with "Create Form" as the heading, all fields empty, and Save is enabled; authoring errors stay hidden until **Save Form** is attempted (**FB-PE-01, FB-PA-01, FB-PC-04, BR-11**).
 - [ ] Given a user types a form name in create mode, when the name changes, then the slug field auto-populates with a derived value matching the slug derivation algorithm. (BR-05, BR-13)
 - [ ] Given a user fills in valid form metadata and at least one field, when they click "Save Form", then `app_base_form_upsert` is called, then `app_base_form_fields_replace` is called with the form's ID, a success toast fires, and the page navigates to `/forms`. (FB-PA-01–02, BR-14)
 - [ ] Given `workflowType = 'base_registration'` is selected, when the builder renders, then the Registration Type Binding Panel appears with all active types for the event listed as checkboxes. (FB-PC-08)
@@ -861,7 +862,7 @@ Each criterion traces to one or more Functional Specification items. Do not pre-
 - Verify create/edit save flow and ordered RPC chaining.
 - Verify registration binding panel visibility/persistence for `base_registration` only.
 - Verify schedule persistence and list rendering updates.
-- Verify preview/copy URL and permission-denied states.
+- Verify preview, in-card portal URL when configured, and permission-denied states.
 
 ## 13. Testing requirements
 

@@ -134,7 +134,7 @@ describe('useRegistrationTypesPageController', () => {
     expect(result.current.eligibilityDrafts).toEqual([]);
   });
 
-  it('reorders requirements on drag end after opening requirements dialog', () => {
+  it('reorders requirements when move up is used after opening requirements dialog', () => {
     mocks.getQueryData.mockReturnValue([
       { id: 'req-1', check_type: 'payment', sort_order: 0, is_automated: true, config: null },
       { id: 'req-2', check_type: 'referee', sort_order: 1, is_automated: false, config: null },
@@ -147,10 +147,7 @@ describe('useRegistrationTypesPageController', () => {
     });
 
     act(() => {
-      result.current.handleRequirementDragEnd({
-        active: { id: 'req-2' },
-        over: { id: 'req-1' },
-      } as never);
+      result.current.moveRequirement('req-2', 'up');
     });
 
     expect(result.current.requirementDraftRows.map((entry) => entry.localId)).toEqual(['req-2', 'req-1']);

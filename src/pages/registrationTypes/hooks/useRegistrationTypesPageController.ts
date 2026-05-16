@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { PointerSensor, type DragEndEvent, useSensor, useSensors } from '@dnd-kit/core';
 import { useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { useResolvedScope } from '@solvera/pace-core/rbac';
 import { HandleMutationError, ShowSuccessMessage } from '@solvera/pace-core/utils';
@@ -24,7 +23,7 @@ import {
 import {
   buildUpsertPayloadForRequirementsSave,
   buildUpsertPayloadForTypeSave,
-  reorderRequirementDrafts,
+  moveRequirementDraft,
   validateRegistrationTypeDraft,
   validateRequirementDrafts,
 } from '@/features/registrationSetup/stateHelpers';
@@ -92,8 +91,6 @@ export function useRegistrationTypesPageController() {
   );
   const membershipTypesQuery = useMembershipTypesForEvent(selectedEventId, typeDialogOpen);
   const reviewingOrgsQuery = useReviewingOrganisationsForEvent(selectedEventId, requirementsDialogOpen);
-
-  const sensors = useSensors(useSensor(PointerSensor));
 
   const listRows = listQuery.data?.types ?? [];
   const eligibilityCounts = listQuery.data?.eligibilityCountsByTypeId ?? {};
@@ -274,11 +271,9 @@ export function useRegistrationTypesPageController() {
     }
   };
 
-  const handleRequirementDragEnd = (event: DragEndEvent) => {
+  const moveRequirement = (localId: string, direction: 'up' | 'down') => {
     const sourceRules = requirementDrafts.length > 0 ? requirementDrafts : requirementDraftRows;
-    const overLocalId = event.over == null ? null : String(event.over.id);
-    const reordered = reorderRequirementDrafts(sourceRules, String(event.active.id), overLocalId);
-    setRequirementDrafts(reordered);
+    setRequirementDrafts(moveRequirementDraft(sourceRules, localId, direction));
   };
 
   const addRequirement = () => {
@@ -367,7 +362,6 @@ export function useRegistrationTypesPageController() {
     requirementsQuery,
     membershipTypesQuery,
     reviewingOrgsQuery,
-    sensors,
     typeDialogOpen,
     setTypeDialogOpen,
     typeDialogStep,
@@ -394,7 +388,7 @@ export function useRegistrationTypesPageController() {
     updateEligibilityRuleType,
     updateEligibilityRuleValue,
     saveType,
-    handleRequirementDragEnd,
+    moveRequirement,
     addRequirement,
     removeRequirement,
     updateRequireAllGuardians,
