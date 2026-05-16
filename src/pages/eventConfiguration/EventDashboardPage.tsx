@@ -213,6 +213,8 @@ function eventNumberField(selectedEvent: EventLike | null, fieldName: keyof Even
   return null;
 }
 
+const EVENT_LOGO_BUCKET = 'public-files';
+
 export function EventDashboardPage() {
   const { selectedEvent } = useEvents();
   const { selectedEventId } = useUnifiedAuth();
@@ -256,7 +258,7 @@ export function EventDashboardPage() {
             <CardHeader className="grid gap-3 lg:grid-cols-[1fr_auto]">
               <section className="grid gap-2">
                 <CardTitle>{eventName}</CardTitle>
-                <CardDescription className="grid gap-2">
+                <article className="grid gap-2">
                   <p className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
                     <Calendar className="size-4" />
                     {eventDate != null ? formatDate(eventDate) : 'No date set'}
@@ -266,7 +268,7 @@ export function EventDashboardPage() {
                     <MapPinIcon className="size-4" />
                     {eventVenue ?? 'No venue set'}
                   </p>
-                </CardDescription>
+                </article>
               </section>
 
               <section className="grid w-full place-items-center lg:w-64">
@@ -274,7 +276,7 @@ export function EventDashboardPage() {
                   <FileDisplay
                     fileReference={logoRef}
                     supabase={storageSupabase}
-                    bucket="files"
+                    bucket={EVENT_LOGO_BUCKET}
                     variant="inline"
                     className="h-48 w-full object-contain"
                     label="Event logo"

@@ -15,6 +15,9 @@ const shellState = vi.hoisted(() => ({
 }));
 
 const navigateMock = vi.hoisted(() => vi.fn());
+const paceLayoutState = vi.hoisted(() => ({
+  lastProps: null as Record<string, unknown> | null,
+}));
 
 vi.mock('react-router-dom', () => ({
   Outlet: () => <main>Shell outlet</main>,
@@ -35,21 +38,25 @@ vi.mock('@solvera/pace-core/components', () => ({
     children,
     onUserMenuSignOut,
     onUserMenuChangePassword,
+    ...props
   }: {
     children: React.ReactNode;
     onUserMenuSignOut: () => Promise<void>;
     onUserMenuChangePassword: () => void;
-  }) => (
-    <main>
-      <section role="button" tabIndex={0} onClick={() => void onUserMenuSignOut()}>
-        Sign out
-      </section>
-      <section role="button" tabIndex={0} onClick={onUserMenuChangePassword}>
-        Change password
-      </section>
-      {children}
-    </main>
-  ),
+  }) => {
+    paceLayoutState.lastProps = props;
+    return (
+      <main>
+        <section role="button" tabIndex={0} onClick={() => void onUserMenuSignOut()}>
+          Sign out
+        </section>
+        <section role="button" tabIndex={0} onClick={onUserMenuChangePassword}>
+          Change password
+        </section>
+        {children}
+      </main>
+    );
+  },
   Dialog: ({
     open,
     children,
@@ -95,6 +102,7 @@ describe('AuthenticatedShell', () => {
     shellState.updatePassword.mockReset();
     shellState.updatePassword.mockImplementation(async () => ({}));
     navigateMock.mockReset();
+    paceLayoutState.lastProps = null;
   });
 
   afterEach(() => {
@@ -130,7 +138,7 @@ describe('AuthenticatedShell', () => {
     render(<AuthenticatedShell />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
-    expect(screen.getByRole('heading', { name: 'Change password' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Submit password' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Submit password' }));
 
@@ -138,7 +146,7 @@ describe('AuthenticatedShell', () => {
       expect(shellState.updatePassword).toHaveBeenCalledWith('valid-password');
     });
     await waitFor(() => {
-      expect(screen.queryByRole('heading', { name: 'Change password' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Submit password' })).toBeNull();
     });
   });
 
@@ -155,6 +163,17 @@ describe('AuthenticatedShell', () => {
     await waitFor(() => {
       expect(shellState.updatePassword).toHaveBeenCalledWith('valid-password');
     });
-    expect(screen.getByRole('heading', { name: 'Change password' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Submit password' })).toBeTruthy();
+  });
+
+  it('enables context selector with organisations and events', () => {
+    render(<AuthenticatedShell />);
+
+    expect(paceLayoutState.lastProps).toMatchObject({
+      showContextSelector: true,
+      showOrganisations: true,
+      showEvents: true,
+      enforcePermissions: true,
+    });
   });
 });

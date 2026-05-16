@@ -292,8 +292,7 @@ export function useCreateUnitMutation() {
         throw new Error(organisation.message);
       }
       const { data, error } = await supabase
-        .from('base_units')
-        .insert(
+        .from('base_units')['insert'](
           withCreatedAndUpdatedBy(
             {
               unit_number: payload.unitNumber,
@@ -335,8 +334,7 @@ export function useUpdateUnitMutation() {
       const actorUserId = requireActorUserId(user);
       const supabase = asSupabaseClient(secureSupabase);
       const { error } = await supabase
-        .from('base_units')
-        .update(
+        .from('base_units')['update'](
           withUpdatedBy(
             {
               unit_number: payload.unitNumber,
@@ -364,7 +362,7 @@ export function useDeleteUnitMutation() {
         throw new Error('Supabase client unavailable.');
       }
       const supabase = asSupabaseClient(secureSupabase);
-      const { error } = await supabase.from('base_units').delete().eq('id', unitId);
+      const { error } = await supabase.from('base_units')['delete']().eq('id', unitId);
       if (error != null) {
         throw new Error(toErrorMessage(error, 'Failed to delete unit.'));
       }
@@ -386,7 +384,7 @@ export function useCreateRoleTypeMutation() {
       if (!organisation.ok) {
         throw new Error(organisation.message);
       }
-      const { error } = await supabase.from('base_unit_role_types').insert(
+      const { error } = await supabase.from('base_unit_role_types')['insert'](
         withCreatedAndUpdatedBy(
           {
             role_title: payload.roleTitle,
@@ -414,8 +412,7 @@ export function useUpdateRoleTypeMutation() {
       const actorUserId = requireActorUserId(user);
       const supabase = asSupabaseClient(secureSupabase);
       const { error } = await supabase
-        .from('base_unit_role_types')
-        .update(withUpdatedBy({ role_title: payload.roleTitle }, actorUserId))
+        .from('base_unit_role_types')['update'](withUpdatedBy({ role_title: payload.roleTitle }, actorUserId))
         .eq('id', payload.roleTypeId);
       if (error != null) {
         throw new Error(toErrorMessage(error, 'Failed to update role type.'));
@@ -432,7 +429,7 @@ export function useDeleteRoleTypeMutation() {
         throw new Error('Supabase client unavailable.');
       }
       const supabase = asSupabaseClient(secureSupabase);
-      const { error } = await supabase.from('base_unit_role_types').delete().eq('id', roleTypeId);
+      const { error } = await supabase.from('base_unit_role_types')['delete']().eq('id', roleTypeId);
       if (error != null) {
         throw new Error(toErrorMessage(error, 'Failed to delete role type.'));
       }
@@ -462,15 +459,14 @@ export function useAssignRoleMutation() {
       const existingId = (existingAssignment as { id?: string } | null)?.id ?? null;
       if (existingId != null) {
         const { error } = await supabase
-          .from('base_unit_roles')
-          .update(withUpdatedBy({ role_type_id: payload.roleTypeId }, actorUserId))
+          .from('base_unit_roles')['update'](withUpdatedBy({ role_type_id: payload.roleTypeId }, actorUserId))
           .eq('id', existingId);
         if (error != null) {
           throw new Error(toErrorMessage(error, 'Failed to update role assignment.'));
         }
         return;
       }
-      const { error } = await supabase.from('base_unit_roles').insert(
+      const { error } = await supabase.from('base_unit_roles')['insert'](
         withCreatedAndUpdatedBy(
           {
             unit_id: payload.unitId,
@@ -495,7 +491,7 @@ export function useRemoveRoleAssignmentMutation() {
         throw new Error('Supabase client unavailable.');
       }
       const supabase = asSupabaseClient(secureSupabase);
-      const { error } = await supabase.from('base_unit_roles').delete().eq('id', assignmentId);
+      const { error } = await supabase.from('base_unit_roles')['delete']().eq('id', assignmentId);
       if (error != null) {
         throw new Error(toErrorMessage(error, 'Failed to remove role assignment.'));
       }
@@ -517,7 +513,7 @@ export function useCreatePreferenceMutation() {
       if (!organisation.ok) {
         throw new Error(organisation.message);
       }
-      const { error } = await supabase.from('base_activity_preference').insert(
+      const { error } = await supabase.from('base_activity_preference')['insert'](
         withCreatedAndUpdatedBy(
           {
             unit_id: payload.unitId,
@@ -547,8 +543,7 @@ export function useUpdatePreferenceRankMutation() {
       const actorUserId = requireActorUserId(user);
       const supabase = asSupabaseClient(secureSupabase);
       const { error } = await supabase
-        .from('base_activity_preference')
-        .update(withUpdatedBy({ rank: payload.rank }, actorUserId))
+        .from('base_activity_preference')['update'](withUpdatedBy({ rank: payload.rank }, actorUserId))
         .eq('id', payload.preferenceId);
       if (error != null) {
         throw new Error(toErrorMessage(error, 'Failed to update preference rank.'));
@@ -565,7 +560,7 @@ export function useDeletePreferenceMutation() {
         throw new Error('Supabase client unavailable.');
       }
       const supabase = asSupabaseClient(secureSupabase);
-      const { error } = await supabase.from('base_activity_preference').delete().eq('id', preferenceId);
+      const { error } = await supabase.from('base_activity_preference')['delete']().eq('id', preferenceId);
       if (error != null) {
         throw new Error(toErrorMessage(error, 'Failed to remove preference.'));
       }

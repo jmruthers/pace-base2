@@ -45,10 +45,11 @@ The navigation items array is defined in BA00 but rendered by `PaceAppLayout`. B
 
 - Root-first import policy applies in BA00 bootstrap/shell wiring: `@solvera/pace-core` is the default import surface for consuming app code. Scoped entrypoints (`@solvera/pace-core/components`, `/providers`, `/hooks`, `/rbac`, `/types`) are exception paths used only when the root export does not expose the symbol or a documented advanced/performance/migration case requires it.
 - The Supabase client is created once in `main.tsx` using `createClient` from `@supabase/supabase-js` with env vars `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
-- `setupRBAC(supabaseClient)` from `@solvera/pace-core/rbac` is called immediately after client creation, before `createRoot().render()`.
+- `setupRBAC` from `@solvera/pace-core/rbac` is called immediately after client creation, before `createRoot().render()`, with strict options `{ appName: 'BASE', getAppId }`.
+- `getAppId` is resolved by BA00 bootstrap wiring via a resolver that queries `data_rbac_apps_list` for the authenticated user and returns the active app id for canonical app name `BASE`.
 - Provider nesting (outermost → innermost): `QueryClientProvider` → `BrowserRouter` → `UnifiedAuthProvider` → `[AuthBridge]` → `OrganisationServiceProvider` → `EventServiceProvider` → app routes.
 - `OrganisationServiceProvider` requires `user` and `session` props (in addition to `supabaseClient`). Because these values come from `useUnifiedAuth()`, a thin bridge component named `AuthBridge` is rendered inside `UnifiedAuthProvider`. `AuthBridge` consumes `useUnifiedAuth()` and passes `user` and `session` as props to `OrganisationServiceProvider`.
-- No RPC calls, schema mutations, or RLS changes are introduced by this slice.
+- This slice introduces no schema mutations or RLS changes. It consumes existing RBAC read contracts during bootstrap (for app-id resolution) and does not own write-side RPC contracts.
 - `enforcePermissions` on `PaceAppLayout` must never be set to `false`.
 
 ### Page-level guards and evaluation ordering
@@ -322,7 +323,8 @@ These must be non-null strings passed to `PaceAppLayout` at all times while the 
 - BA00 redirects authenticated users from `/` to `/event-dashboard` (owned by BA01 route ownership contract). BA00 does not import or render any BA01 component.
 - All other slices render within BA00's `PaceAppLayout` `Outlet`. BA00 provides the shell; they provide the content.
 
-**No write contracts, no RLS changes, no RPC calls are owned by this slice.**
+**No write contracts and no RLS changes are owned by this slice.**
+BA00 may consume existing RBAC read RPC contracts as part of bootstrap app-id resolution.
 
 ---
 
@@ -352,7 +354,7 @@ These must be non-null strings passed to `PaceAppLayout` at all times while the 
 
 ### 9.2 Slice-specific caveats only
 
-- `setupRBAC(supabaseClient)` runs immediately after client creation and before render.
+- `setupRBAC(supabaseClient, { appName: 'BASE', getAppId })` runs immediately after client creation and before render.
 - `OrganisationServiceProvider` receives `user/session` from `useUnifiedAuth()` through `AuthBridge`.
 - Keep `PaceAppLayout` permission enforcement enabled.
 - `/` is a redirect-only root entrypoint; it does not render feature content and is not page-guarded.
@@ -425,7 +427,8 @@ Given an authenticated user whose nav item lacks a matching `read` permission in
 ## §14 Build execution rules
 
 - Scope is `/login`, `/`, and `*` plus bootstrap/provider wiring they require.
-- No schema/RPC/RLS/Edge-function changes.
+- No schema/RLS/Edge-function changes.
+- Bootstrap may consume existing RBAC read RPCs used by `getAppId`; do not introduce new backend write contracts in this slice.
 - Stop on missing exports or RBAC page registrations.
 - Preserve bootstrap order: client -> `setupRBAC` -> providers -> render.
 

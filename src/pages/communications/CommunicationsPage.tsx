@@ -40,6 +40,7 @@ import {
   type CommunicationPoolMode,
   type CommunicationFilters,
 } from '@/features/communications/shared';
+import { APP_NAME } from '@/config/appName';
 
 export function CommunicationsPage() {
   const { selectedEventId, selectedOrganisationId } = useUnifiedAuth();
@@ -129,7 +130,7 @@ function CommunicationsPageContent({
 
   const adapter = useCommSendAdapter({
     organisationId: effectiveOrganisationId,
-    sourceApp: 'base',
+    sourceApp: APP_NAME,
     sourceContextType: 'event',
     sourceContextId: selectedEventId,
   });
@@ -326,7 +327,7 @@ function CommunicationsPageContent({
       <CommComposer
         adapter={wrappedAdapter}
         organisationId={effectiveOrganisationId}
-        sourceApp="base"
+        sourceApp={APP_NAME}
         recipientPool={recipientPool}
         rbac={commRbacContext}
         draft={draftState.draft}

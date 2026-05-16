@@ -448,8 +448,7 @@ export function createReportingTemplateStore(params: {
       if (template.id != null) {
         payload.updated_by = userId;
         const { data, error } = await supabase
-          .from('core_report_template')
-          .update(payload)
+          .from('core_report_template')['update'](payload)
           .eq('id', template.id)
           .select(
             'id, name, description, is_private, created_by, event_id, organisation_id, app_id, domain_id, selected_fields, filters, sort_config, column_config, created_at'
@@ -463,8 +462,7 @@ export function createReportingTemplateStore(params: {
 
       payload.created_by = userId;
       const { data, error } = await supabase
-        .from('core_report_template')
-        .insert(payload)
+        .from('core_report_template')['insert'](payload)
         .select(
           'id, name, description, is_private, created_by, event_id, organisation_id, app_id, domain_id, selected_fields, filters, sort_config, column_config, created_at'
         )
@@ -476,8 +474,7 @@ export function createReportingTemplateStore(params: {
     },
     deleteTemplate: async (templateId): Promise<void> => {
       const { error } = await supabase
-        .from('core_report_template')
-        .delete()
+        .from('core_report_template')['delete']()
         .eq('id', templateId)
         .eq('event_id', eventId);
       if (error != null) {

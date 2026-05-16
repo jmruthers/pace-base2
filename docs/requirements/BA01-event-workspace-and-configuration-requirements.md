@@ -57,6 +57,7 @@ This slice owns the authenticated organiser's entry surface for working inside a
 - Import policy is root-first for consuming apps: use `@solvera/pace-core` as the default import surface. Scoped entrypoints (for example `/rbac`, `/hooks`, `/components`, `/forms`) are exception-only and used only when the root export does not expose the required symbol or a documented advanced/performance/migration case requires the scoped path.
 - Form implementation uses pace-core form surfaces (`Form` component contract + `useZodForm` from `@solvera/pace-core/hooks`). BA01 consuming-app implementation code must not directly import `react-hook-form` or `zod`; use pace-core form contracts and BA01 form modules.
 - Mutation goes through BA01-owned mutation hooks/services that use the secure Supabase boundary (`useSecureSupabase()`); writes target the documented `core_events` update contract; no schema changes are introduced by this slice.
+- BA01 uses one canonical secure-client path for configuration read, save, and logo pointer persistence. Route-level manual `fromSupabaseClient(...)` construction is not allowed.
 - File operations use `FileUpload` and `FileDisplay` from `@solvera/pace-core/components`. `FileUpload` requires the `supabase` prop sourced from `useSecureSupabase()`. `FileDisplay` accepts a `fileReference: FileReference` (resolved via the event pointer model in §6.13) or a direct `url`; it does not accept scoping props. When no `FileReference` exists, the logo fallback (initials abbreviation per §6.5) is rendered separately — `FileDisplay` is not rendered. After a successful upload, `onUploadSuccess` provides `FileUploadResult.file_reference`; BA01 then persists `core_events.logo_id` to that reference id and only then updates local `logoRef` state from the same file reference. No `key`-prop re-mount pattern is required.
 - Address input uses `AddressField` from `@solvera/pace-core/forms`. Wire with `control={form.control}`, `name="event_venue"`, `meta={{ id: 'event_venue', fieldType: 'address', label: 'Event Venue', required: false }}`, and `provider={createGoogleMapsJsAddressProviderAdapter()}`. The form field value type is `AddressValue | undefined`. Serialize to a string in the save handler per §6.3.
 - Date input uses `DatePickerWithTimezone` from `@solvera/pace-core/components` with props `value` (Date | null) and `onChange` ((date: Date) => void). Do not pass `showTimezoneSelector` — the default date-only mode is correct for `event_date`. The caller is responsible for converting the selected `Date` to midnight UTC in the save payload per §6.2.
@@ -88,7 +89,7 @@ Items numbered with prefix `D-` belong to the Event Dashboard surface; items pre
 7. D-PC-02 — Start date with a Calendar icon, formatted via `formatDate` from `@solvera/pace-core` (e.g. "5 Apr 2026"). When `event_date` is null, displays "No date set".
 8. D-PC-03 — End date displayed alongside start date, computed per the rule in §6.1. When start date is null, no end date is shown. Single-day events display only the start date.
 9. D-PC-04 — Venue with a MapPin icon, rendered as plain text from `event_venue`.
-10. D-PC-05 — Event logo on the right-hand side of the card. A `logoRef: FileReference | null` state is loaded on dashboard entry via the pointer model in §6.13 (`core_events.logo_id` -> `core_file_references.id`, constrained to `is_public = true`). When `logoRef` is not null, render `<FileDisplay fileReference={logoRef} supabase={secureSupabase} bucket="files" variant="inline" className="h-48 w-full" label="Event logo" />`. In the current pace-core contract, `variant="inline"` renders an inline download/view link container (not an `<img>` element). When `logoRef` is null, render the fallback placeholder per D-PC-06.
+10. D-PC-05 — Event logo on the right-hand side of the card. A `logoRef: FileReference | null` state is loaded on dashboard entry via the pointer model in §6.13 (`core_events.logo_id` -> `core_file_references.id`, constrained to `is_public = true`). When `logoRef` is not null, render `FileDisplay` with `bucket="public-files"`. In the current pace-core contract, `variant="inline"` renders an inline download/view link container (not an `<img>` element). When `logoRef` is null, render the fallback placeholder per D-PC-06.
 11. D-PC-06 — When no logo `FileReference` exists, render a centred placeholder container (same dimensions as the logo area) containing the 3-letter abbreviation generated per the rule in §6.5. The abbreviation is displayed in a styled pill or avatar element — not via `FileDisplay`.
 
 **Primary content — Nav cards grid**
@@ -120,7 +121,6 @@ Items numbered with prefix `D-` belong to the Event Dashboard surface; items pre
 ### 4.2 Event Configuration — `/configuration`
 
 **Page entry**
-21. C-PE-01 — On entry, the page renders inside the authenticated BA00 shell. The URL is `/configuration`. The page reads the selected event from `useEvents()` and fetches the event row from `core_events` via `useSecureSupabase()`.
 21. C-PE-01 — On entry, the page renders inside the authenticated BA00 shell. The URL is `/configuration`. The page reads the selected event from `useEvents()` and obtains configuration data through BA01-owned read hooks/services that encapsulate secure Supabase access.
 
 **Loading states**
@@ -128,9 +128,10 @@ Items numbered with prefix `D-` belong to the Event Dashboard surface; items pre
 
 **Empty / no-context states**
 23. C-NC-01 — When no event is selected (no `selectedEvent` from `useEvents()`), the form does not render. Instead, a single message renders: "No event selected. Choose an event from the header to begin."
+24. C-NC-02 — If RBAC scope is not fully resolved for the selected event (`organisationId`, matching `eventId`, and `appId`), the page remains in a blocked/loading state and must not issue configuration or logo queries.
 
 **Error states**
-24. C-ER-01 — If the event read fails (network error, RLS denial that resolved past the page guard, missing row), the page renders an error message in place of the form: a destructive-variant alert with the normalised error message (obtained via `NormalizeSupabaseError(error).message`) and no further form content. The page header card still renders.
+25. C-ER-01 — If the event read fails (network error, RLS denial that resolved past the page guard, missing row), the page renders an error message in place of the form: a destructive-variant alert with the normalised error message (obtained via `NormalizeSupabaseError(error).message`) and no further form content. The page header card still renders.
 
 **Primary content — page header card**
 25. C-PC-01 — At the top of the form area, a card renders containing a title "Event Configuration" prefixed with a Calendar icon, plus a one-line subtitle reading `"Editing: {event_name}"` where `{event_name}` is the loaded event's name.
@@ -151,7 +152,7 @@ The card's content body contains the following fields, in the order listed, grou
 36. C-PC-12 — Field "Event is visible". Switch (boolean), default true. Maps to `core_events.is_visible`.
 
 **Primary content — Event Styling card**
-37. C-PC-13 — A two-column section (per §6.11). Left column: logo display area managed per §6.13. When `logoRef` (state) is not null, render `<FileDisplay fileReference={logoRef} supabase={secureSupabase} bucket="files" variant="inline" className="h-48 w-full" label="Event logo" />`. In the current pace-core contract, `variant="inline"` renders an inline download/view link container (not an `<img>` element). When `logoRef` is null, render a styled fallback placeholder (same dimensions) containing the abbreviated event name per §6.5. Right column: logo upload via `FileUpload` (wrapped in `PagePermissionGuard pageName="configuration" operation="update" fallback={null}`).
+37. C-PC-13 — A two-column section (per §6.11). Left column: logo display area managed per §6.13. When `logoRef` (state) is not null, render `FileDisplay` with `bucket="public-files"`. In the current pace-core contract, `variant="inline"` renders an inline download/view link container (not an `<img>` element). When `logoRef` is null, render a styled fallback placeholder (same dimensions) containing the abbreviated event name per §6.5. Right column: logo upload via `FileUpload` (wrapped in `PagePermissionGuard pageName="configuration" operation="update" fallback={null}`).
 38. C-PC-14 — Below the logo section: field "Event Colours (JSON)". Multi-line textarea (4 rows initial). Helper text reads "Enter valid JSON format for event colours". Placeholder reads `{"primary": "#000000", "secondary": "#ffffff"}`. Validation rule per §6.8.
 
 **Primary actions**
@@ -159,7 +160,7 @@ The card's content body contains the following fields, in the order listed, grou
 40. C-PA-02 — On click of "Save": form values are validated via the BA01 validation contract in §6.6 (implemented through pace-core form patterns). If invalid: a destructive toast appears with title "Validation Error" and the formatted validation error as the body; submission aborts; field-level errors are surfaced inline beneath the failing fields. If valid: the values are written to `core_events` via BA01 mutation hooks/services that encapsulate `useSecureSupabase()` per §6.9. While the write is in flight, the button label becomes "Saving…" and the button is disabled.
 41. C-PA-03 — On successful save: a success-variant toast appears with title "Success" and body "Event saved successfully!". The form values remain populated with the saved data; the page does not reload event data from the database.
 42. C-PA-04 — On save error: call `HandleMutationError(error, 'event-configuration-save', toast)` which normalises the error and fires a destructive-variant toast automatically. The form remains editable; the user can retry.
-43. C-PA-05 — On logo upload via the `FileUpload` control: `onUploadSuccess` fires with `FileUploadResult`; BA01 persists `core_events.logo_id = result.file_reference.id` immediately (service/hook layer), then sets local state `setLogoRef(result.file_reference)` so `FileDisplay` re-renders. If pointer persistence fails, BA01 does not apply local logo state and shows an error. A success-variant toast "Logo uploaded successfully!" appears after pointer persistence succeeds. `onUploadError` fires with an `Error` object on failure; show a destructive toast "Failed to upload logo: {error.message}"; the previously-displayed logo (existing `logoRef` state) remains unchanged.
+43. C-PA-05 — On logo upload via the `FileUpload` control: `onUploadSuccess` fires with `FileUploadResult`; BA01 persists `core_events.logo_id = result.file_reference.id` via `secureSupabase.rpc('app_event_logo_pointer_update', ...)` immediately (service/hook layer), then sets local state `setLogoRef(result.file_reference)` so `FileDisplay` re-renders. If pointer persistence fails, BA01 does not apply local logo state and shows an error. A success-variant toast "Logo uploaded successfully!" appears after pointer persistence succeeds. `onUploadError` fires with an `Error` object on failure; show a destructive toast "Failed to upload logo: {error.message}"; the previously-displayed logo (existing `logoRef` state) remains unchanged.
 
 **Secondary actions**
 44. N/A — There are no secondary actions on this surface in this slice.
@@ -176,8 +177,8 @@ The card's content body contains the following fields, in the order listed, grou
 48. C-NV-01 — The page does not navigate away on save. The configuration page is reachable from the shell sidebar; navigation back to the dashboard is via the shell, not via in-page links.
 
 **Edge cases and constraints**
-49. C-EC-01 — If `event_id` resolves but `organisation_id` cannot be derived from the loaded event, `FileDisplay` and `FileUpload` still render. `FileDisplay` uses `fileReference` resolved through the pointer read (`core_events.logo_id` -> `core_file_references.id` with `is_public = true`), keyed by `selectedEventId` and not requiring `organisation_id`. `FileUpload` uses `record_id={eventId}`, `event_id={eventId}`, `organisation_id={organisationId}`, and `app_id={appId}` per the current pace-core `FileUploadOptions` contract. The `organisationId: null` in the `PagePermissionGuard` scope may affect update-permission checks, but does not hide the file controls. If `appId` is still unresolved after RBAC scope loading, the `FileUpload` renders a static notice per C-EC-02.
-50. C-EC-02 — While RBAC scope is loading, the `FileUpload` control renders a static notice "Loading app configuration…". If scope loading completes and `appId` remains unresolved, render "App configuration unavailable." instead of the upload UI; other form fields remain editable.
+49. C-EC-01 — If RBAC scope is unresolved or mismatched for the selected event, BA01 does not render editable configuration controls and does not run configuration/logo reads.
+50. C-EC-02 — While RBAC scope is loading, the route shows a blocked/loading state. If scope loading completes without a valid `{ organisationId, eventId, appId }` tuple, the route shows a recoverable context message and requires the user to re-select organisation/event.
 51. C-EC-03 — Stale or concurrent edits are not specially handled in this slice (last write wins). The slice does not surface optimistic-locking errors.
 52. C-EC-04 — Empty / null handling: every optional field accepts an empty input which is normalised to null in the database write. `event_name` is required and rejects empty / whitespace-only values.
 
@@ -211,7 +212,7 @@ The card's content body contains the following fields, in the order listed, grou
 ### 6.4 Logo upload constraints
 - **Accepted MIME types:** `image/*` (via `accept="image/*"` prop on `FileUpload`).
 - **Maximum file size:** 5 MB (`5 * 1024 * 1024` bytes; via `maxSize` prop on `FileUpload`).
-- **FileUpload required props:** `supabase` (storage-capable Supabase client), `bucket="files"`, `table_name="core_events"`, `record_id={eventId}`, `organisation_id={organisationId}`, `event_id={eventId}`, `app_id={appId}`, `category="event_logos"`. `is_public={true}` remains optional. `folder` and `pageContext` are optional telemetry metadata and are not required for canonical key generation.
+- **FileUpload required props:** `supabase` (storage-capable Supabase client), `bucket="public-files"`, `table_name="core_events"`, `record_id={eventId}`, `organisation_id={organisationId}`, `event_id={eventId}`, `app_id={appId}`, `category="event_logos"`. `is_public={true}` remains optional. `folder` and `pageContext` are optional telemetry metadata and are not required for canonical key generation.
 - **Validation:** files exceeding the size limit or with non-image MIME types are rejected by the `FileUpload` component before any mutation; `logoRef` state is not updated.
 - **Display update after upload:** in the `onUploadSuccess` callback, call `setLogoRef(result.file_reference)`. `FileDisplay` re-renders with the new `FileReference` automatically — no `key` re-mount or artificial delay required.
 - **Upload error:** `onUploadError` callback receives `(error: Error)`. Show a destructive toast: `"Failed to upload logo: {error.message}"`; `logoRef` state unchanged.
@@ -277,10 +278,10 @@ Select renders these as `SelectItem` rows in the order shown. The field is requi
   1. Run Zod validation per §6.6. On failure, surface inline errors and "Validation Error" toast; abort.
   2. Run colours JSON validation per §6.8. On failure, abort.
   3. Build the update payload: validated field values. Apply the midnight-UTC transform to `event_date` (per §6.2). Serialise `event_venue` from `AddressValue | undefined` to `string | null` (per §6.3): `event_venue: formValues.event_venue?.formattedAddress ?? null`. Append `updated_at = new Date().toISOString()` and `updated_by = user.id` (from `useUnifiedAuth().user.id`).
-  4. Invoke the BA01 save mutation hook/service, which performs `secureSupabase.from('core_events').update(payload).eq('event_id', eventId).select('event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, registration_scope, event_colours, is_visible, description, updated_at, updated_by')`.
+  4. Invoke the BA01 save mutation hook/service, which performs `secureSupabase.rpc('app_event_configuration_update', ...)` with explicit `event_id`, `organisation_id`, `app_id`, and payload fields. The RPC evaluates permission and updates `core_events` in the same transaction.
   5. On error: call `HandleMutationError(error, 'event-configuration-save', toast)` — normalises the error and fires a destructive-variant toast automatically. Form values unchanged.
   6. On success: show a success toast "Event saved successfully!" via `ShowSuccessMessage('Event saved successfully!', toast)`. Form values remain as submitted (no DB re-fetch required).
-- **Note:** No client-side permission pre-flight is performed. `PagePermissionGuard` hides the save button when update permission is denied; RLS enforces the constraint at the server level.
+- **Diagnostics note:** Zero-row `.single()` outcomes are treated as scoped permission/context failures and include scoped diagnostics (`eventId`, `organisationId`, `scopeEventId`, `appId`) in error metadata for operational triage.
 
 ### 6.10 Permission action keys and convention
 - Convention: `'<action>:page.<page-name>'`. This string is constructed internally by `PagePermissionGuard` from its `pageName` and `operation` props — do not construct or pass it directly.
@@ -315,8 +316,8 @@ Select renders these as `SelectItem` rows in the order shown. The field is requi
   1. Read `core_events.logo_id` for the selected event id.
   2. If `logo_id` is non-null, read that exact `core_file_references` row by `id` with `is_public = true`.
   If `logo_id` is null, stale, or points to a non-public/missing row, set `logoRef` to `null` and render fallback.
-- **Pointer write on upload:** after successful `FileUpload`, BA01 updates `core_events.logo_id` to the uploaded `result.file_reference.id` in the BA01 service/hook layer. Only after pointer persistence succeeds should local `logoRef` be updated from `result.file_reference`.
-- **Display:** pass `logoRef` to `FileDisplay` as `fileReference={logoRef}` with `supabase={secureSupabase}`, `bucket="files"`, `variant="inline"`, and `label="Event logo"`. `variant="inline"` renders an inline download/view link container rather than an embedded image element. When `logoRef` is null, render the abbreviation fallback per §6.5.
+- **Pointer write on upload:** after successful `FileUpload`, BA01 updates `core_events.logo_id` to the uploaded `result.file_reference.id` via `app_event_logo_pointer_update` RPC in the BA01 service/hook layer. Only after pointer persistence succeeds should local `logoRef` be updated from `result.file_reference`.
+- **Display:** pass `logoRef` to `FileDisplay` as `fileReference={logoRef}` with `supabase={secureSupabase}`, `bucket="public-files"`, `variant="inline"`, and `label="Event logo"`. `variant="inline"` renders an inline download/view link container rather than an embedded image element. When `logoRef` is null, render the abbreviation fallback per §6.5.
 - **Error handling:** if the `core_file_references` query fails, set `logoRef` to null (show the abbreviation fallback). This is a non-blocking failure — the main page content remains usable. No error toast for this specific failure.
 
 ## 7. API / Contract
@@ -352,10 +353,10 @@ Select renders these as `SelectItem` rows in the order shown. The field is requi
 ### 7.2 Write contracts
 
 **Event update** (triggered by save action on `/configuration`)
-- Target: BA01 mutation hook/service backed by `useSecureSupabase().from('core_events').update(payload).eq('event_id', eventId).select('event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, registration_scope, event_colours, is_visible, description, updated_at, updated_by')`.
+- Target: BA01 mutation hook/service backed by `useSecureSupabase().rpc('app_event_configuration_update', ...)` with explicit `p_event_id`, `p_organisation_id`, `p_app_id`, and validated payload fields.
 - Allowed update columns (the editable scope owned by this slice): `event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, registration_scope, event_colours, is_visible, description, updated_at, updated_by`.
 - **Disallowed columns** (must not be in the update payload at all): `event_id, organisation_id, public_readable, event_billing, event_catering_email, event_news, event_rounddown, event_youthmultiplier, participant_blurb, participant_admin_email, participant_website_url, created_at, created_by`.
-- Success outcome: a single updated row returned with the select columns listed above. Form values stay populated with the saved data; no re-fetch.
+- Success outcome: a single updated row returned by RPC (first row payload) with the select columns listed above. Form values stay populated with the saved data; no re-fetch.
 - Failure outcomes:
   - RLS / permission failure → standard Supabase error → friendly error message via formatter.
   - Network failure → standard error → friendly error message.
@@ -364,7 +365,7 @@ Select renders these as `SelectItem` rows in the order shown. The field is requi
 **Logo file upload** (triggered by `FileUpload` selection)
 - The `FileUpload` component handles the upload using the following props:
   - `supabase` (from `useSecureSupabase()`) — required
-  - `bucket="files"` — required
+  - `bucket="public-files"` — required
   - `table_name="core_events"` — required, snake_case
   - `record_id={eventId}` — required, snake_case (`eventId` from `useUnifiedAuth().selectedEventId`)
   - `organisation_id={organisationId}` — required, snake_case
@@ -518,7 +519,8 @@ Each criterion traces to one or more Functional Specification items. Do not pre-
 ## 14. Build execution rules
 
 - Scope is strictly `/event-dashboard` and `/configuration`.
-- No schema/RPC/RLS changes in this slice.
+- No schema or RLS changes in this slice.
+- Existing BA01 write contracts use consumed RPC interfaces (`app_event_configuration_update`, `app_event_logo_pointer_update`) and do not introduce new backend objects from this slice.
 - Stop on missing required columns/exports.
 - Do not repair sibling routes from this slice.
 

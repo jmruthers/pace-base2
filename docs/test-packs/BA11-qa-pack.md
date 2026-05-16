@@ -1,55 +1,37 @@
-# BA11 — Activity booking operations and oversight — QA pack
+# BA11 QA Pack
 
-Manual verification aligned with [BA11-booking-operations-oversight-requirements.md](../requirements/BA11-booking-operations-oversight-requirements.md) §12.
+## Slice metadata
 
-## Prerequisites
+- slice_id: BA11
+- app: pace-base2
+- requirement_path: docs/requirements/BA11-booking-operations-oversight-requirements.md
 
-- Authenticated organiser with appropriate RBAC for `bookings` page.
-- Event selected in shell; use non-empty booking data per BA18 / slice QA setup where applicable.
+## Manual frontend scenarios
 
-## Read surface
+| scenario_id | requirement_ref | route_or_screen | preconditions | test_steps | expected_result | result | notes |
+|---|---|---|---|---|---|---|---|
+| S-01 | AC-01 | /oversight | an event with bookings, the booking list loads and displays correct status badges, participant names, session names, and offering names | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given an event with bookings, the booking list loads and displays correct status badges, participant names, session names, and offering names. | Pass/Fail | - |
+| S-02 | AC-02 | /oversight | status = 'confirmed', the row shows Badge variant='solid-main-normal' "Confirmed" | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given status = 'confirmed', the row shows Badge variant='solid-main-normal' "Confirmed". | Pass/Fail | - |
+| S-03 | AC-03 | /oversight | status = 'waitlisted', the row shows Badge variant='outline-acc-muted' "Waitlisted" and the Promote row action is visible ( | 1) Open `/oversight`. 2) User has update:page.bookings). 3) Observe the resulting UI/system response. | Given status = 'waitlisted', the row shows Badge variant='outline-acc-muted' "Waitlisted" and the Promote row action is visible (when user has update:page.bookings). | Pass/Fail | - |
+| S-04 | AC-04 | /oversight | status = 'cancelled', the row shows Badge variant='outline-sec-muted' "Cancelled" and no Cancel or Promote actions are visible | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given status = 'cancelled', the row shows Badge variant='outline-sec-muted' "Cancelled" and no Cancel or Promote actions are visible. | Pass/Fail | - |
+| S-05 | AC-05 | /oversight | no event selected, the page shows the no-event-selected Card and the DataTable does not render | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given no event selected, the page shows the no-event-selected Card and the DataTable does not render. | Pass/Fail | - |
+| S-06 | AC-06 | /oversight | read:page.bookings denied, the route renders AccessDenied | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given read:page.bookings denied, the route renders AccessDenied. | Pass/Fail | - |
+| S-07 | AC-07 | /oversight | a Supabase client null state, the page renders a centred LoadingSpinner | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given a Supabase client null state, the page renders a centred LoadingSpinner. | Pass/Fail | - |
+| S-08 | AC-08 | /oversight | a booking fetch failure, the page renders an Alert variant="destructive" with a Retry control | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given a booking fetch failure, the page renders an Alert variant="destructive" with a Retry control. | Pass/Fail | - |
+| S-09 | AC-09 | /oversight | the user lacks create:page.bookings, the "Book on behalf" button is not rendered | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given the user lacks create:page.bookings, the "Book on behalf" button is not rendered. | Pass/Fail | - |
+| S-10 | AC-10 | /oversight | the user lacks update:page.bookings, the Promote row action is not rendered | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given the user lacks update:page.bookings, the Promote row action is not rendered. | Pass/Fail | - |
+| S-11 | AC-11 | /oversight | the user lacks delete:page.bookings, the Cancel row action is not rendered | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given the user lacks delete:page.bookings, the Cancel row action is not rendered. | Pass/Fail | - |
+| S-12 | AC-12 | /oversight | the create-on-behalf form is submitted with no override flags, the RPC is called without override parameters | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given the create-on-behalf form is submitted with no override flags, the RPC is called without override parameters. | Pass/Fail | - |
+| S-13 | AC-13 | /oversight | an override checkbox is checked, the Override Dialog fires before the RPC is called; the confirm button is disabled until override reason is non-empty | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given an override checkbox is checked, the Override Dialog fires before the RPC is called; the confirm button is disabled until override reason is non-empty. | Pass/Fail | - |
+| S-14 | AC-14 | /oversight | override reason text is supplied and confirmed, the RPC is called with p_override_reason and p_override_by populated; override_at is set server-side (not by client) | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given override reason text is supplied and confirmed, the RPC is called with p_override_reason and p_override_by populated; override_at is set server-side (not by client). | Pass/Fail | - |
+| S-15 | AC-15 | /oversight | the Cancel confirmation is confirmed, the cancel RPC is called and the booking row updates to cancelled | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given the Cancel confirmation is confirmed, the cancel RPC is called and the booking row updates to cancelled. | Pass/Fail | - |
+| S-16 | AC-16 | /oversight | the Promote dialog is confirmed and capacity is available, the booking is promoted to confirmed | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given the Promote dialog is confirmed and capacity is available, the booking is promoted to confirmed. | Pass/Fail | - |
+| S-17 | AC-17 | /oversight | the Promote dialog is triggered | 1) Open `/oversight`. 2) The session is at capacity, the Override Dialog fires requiring an override reason. 3) Observe the resulting UI/system response. | Given the Promote dialog is triggered when the session is at capacity, the Override Dialog fires requiring an override reason. | Pass/Fail | - |
+| S-18 | AC-18 | /oversight | the participant selector, only base_application rows with status = 'approved' for the current event appear | 1) Open `/oversight`. 2) Perform the interaction described by this scenario. 3) Observe the resulting UI/system response. | Given the participant selector, only base_application rows with status = 'approved' for the current event appear. | Pass/Fail | - |
 
-1. Open `/activities/bookings`. Confirm **Bookings** heading, event name, and subtitle about managing bookings.
-2. With bookings present, confirm **Activity Bookings** table columns: Participant, Offering, Session, Status, Source, Booked, Actions.
-3. Confirm status badges: Confirmed (solid main), Waitlisted (outline acc muted), Cancelled (outline sec muted).
-4. Confirm **initial order** by booked_at descending (newest first).
+## Test run summary
 
-## Filters and search
-
-5. Apply **status** filter (e.g. Confirmed); only matching rows remain.
-6. Apply **session** and **offering** filters; list narrows correctly.
-7. Use **search** across participant, offering, and session display text.
-
-## Shell states
-
-8. **No event:** Deselect event — blocking Card *No event selected*; table and *Book on behalf* absent; no list fetch.
-9. **Access denied:** User without `read:page.bookings` sees `AccessDenied`.
-10. **Transient Supabase client:** Until secure client ready, centred loading spinner (no error toast).
-
-## Errors
-
-11. Simulate list fetch failure — destructive `Alert` with normalised message and **Retry** refetches.
-
-## Permission-conditional UI
-
-12. Without `create:page.bookings`: *Book on behalf* hidden.
-13. Without `update:page.bookings`: **Promote** hidden on waitlisted rows.
-14. Without `delete:page.bookings`: **Cancel** hidden on confirmable rows.
-
-## Mutations (requires RPCs on dev-db)
-
-_Block until `app_base_activity_booking_create` and `app_base_activity_booking_cancel` are deployed._
-
-15. **Book on behalf:** Approved applications only in Participant select; sessions grouped by offering; non-override path calls create RPC without override fields; success toast *Booking created*.
-16. **Override path:** With any override checkbox, Override dialog opens first; confirm disabled until non-empty reason; success *Booking created with override*.
-17. **Cancel:** Dialog copy and confirm; cancel RPC with `source = admin`; success *Booking cancelled*; row updates.
-18. **Already cancelled race:** After another session cancels same booking, confirming cancel yields destructive toast *This booking has already been cancelled.* and list refresh.
-19. **Promote (capacity available):** Confirm dialog; create RPC with `p_promote_from_waitlist` true; success *Participant promoted to confirmed*.
-20. **Promote (at capacity):** Override dialog *Override capacity and promote*; *Promote with override* after reason; RPC with capacity override flags.
-21. **Override audit:** After override-path success, row shows `override_reason` / `override_by`; `override_at` set server-side (not from client).
-
-## Automated coverage
-
-- Unit: `src/features/bookingOversight/shared.test.ts`, `configuration.test.ts`.
-- Page: `src/pages/activities/BookingsPage.test.tsx`.
-- Route: `src/app.test.tsx` (bookings path).
+- overall result: [Pass | Fail]
+- failed scenarios: -
+- defect links: N/A
+- retest needed: [Yes/No]

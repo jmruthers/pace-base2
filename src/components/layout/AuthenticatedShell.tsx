@@ -4,15 +4,13 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   LoadingSpinner,
   PaceAppLayout,
   PasswordChangeForm,
 } from '@solvera/pace-core/components';
 import { AccessDenied } from '@solvera/pace-core/rbac';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
-import { APP_NAME } from '@/App';
+import { APP_NAME } from '@/config/appName';
 import { getShellNavigationItems } from '@/config/baseRouteRegistry';
 
 const NAV_ITEMS = [...getShellNavigationItems()];
@@ -80,9 +78,6 @@ export function AuthenticatedShell() {
 
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change password</DialogTitle>
-          </DialogHeader>
           <DialogBody>
             <PasswordChangeForm
               onSubmit={handlePasswordSubmit}

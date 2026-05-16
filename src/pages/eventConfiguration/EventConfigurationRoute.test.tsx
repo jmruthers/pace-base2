@@ -424,10 +424,17 @@ describe('EventConfigurationRoute', () => {
     });
   });
 
-  it('routes save failures through the mutation error helper', async () => {
+  it('routes save failures through the mutation error helper with original Supabase error object', async () => {
+    const postgrestError = {
+      code: 'PGRST301',
+      message: 'JSON object requested, multiple (or no) rows returned',
+      details: 'Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row',
+      hint: null,
+      status: 406,
+    };
     routeState.saveMutation = {
       mutateAsync: vi.fn(async () => {
-        throw new Error('save failed');
+        throw postgrestError;
       }),
       isPending: false,
     };
@@ -438,11 +445,27 @@ describe('EventConfigurationRoute', () => {
 
     await waitFor(() => {
       expect(routeState.handleMutationError).toHaveBeenCalledWith(
-        expect.any(Error),
+        postgrestError,
         'event-configuration-save',
         routeState.toast
       );
     });
+  });
+
+  it('blocks save before mutation when required RBAC context is missing', async () => {
+    routeState.appId = null;
+
+    render(<EventConfigurationRoute />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Required RBAC context is unavailable. Re-select your organisation and event.')
+      ).toBeTruthy();
+      expect(routeState.saveMutation.mutateAsync).not.toHaveBeenCalled();
+    });
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    expect(routeState.handleMutationError).not.toHaveBeenCalled();
+    expect(routeState.toast).not.toHaveBeenCalled();
   });
 
   it('shows required JSON validation toast copy for event colours parse failures', async () => {
@@ -489,6 +512,9 @@ describe('EventConfigurationRoute', () => {
         eventId: 'event-1',
         logoId: 'logo-ref-1',
         userId: 'user-1',
+        organisationId: 'org-1',
+        scopeEventId: 'event-1',
+        appId: 'base',
       });
       expect(routeState.fileDisplayProps).toMatchObject({
         fileReference: { id: 'logo-ref-1', is_public: true },
@@ -496,7 +522,7 @@ describe('EventConfigurationRoute', () => {
     });
   });
 
-  it('keeps logo upload available when organisation id is unresolved', () => {
+  it('blocks configuration UI when organisation id is unresolved', () => {
     routeState.selectedOrganisationId = null;
     routeState.eventQuery = {
       ...routeState.eventQuery,
@@ -508,13 +534,16 @@ describe('EventConfigurationRoute', () => {
 
     render(<EventConfigurationRoute />);
 
-    expect(screen.getByRole('button', { name: 'Upload logo' })).toBeTruthy();
+    expect(
+      screen.getByText('Required RBAC context is unavailable. Re-select your organisation and event.')
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Upload logo' })).toBeNull();
   });
 
   it('passes FileDisplay bucket and label when a logo reference exists', () => {
     routeState.logoRef = {
       id: 'ref-1',
-      file_metadata: { bucket: 'files', fileName: 'logo.png' },
+      file_metadata: { bucket: 'public-files', fileName: 'logo.png' },
       is_public: true,
       file_path: 'configuration/event_logos/logo.png',
     };
@@ -523,7 +552,7 @@ describe('EventConfigurationRoute', () => {
 
     expect(screen.getByText('Logo Preview')).toBeTruthy();
     expect(routeState.fileDisplayProps).toMatchObject({
-      bucket: 'files',
+      bucket: 'public-files',
       label: 'Event logo',
       variant: 'inline',
     });

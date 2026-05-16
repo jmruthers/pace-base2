@@ -9,17 +9,11 @@ import type { EventConfigurationFormValues } from './types';
 const mocks = vi.hoisted(() => {
   const secureSupabaseState: {
     client: {
+      rpc: (name: string, params: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
       from: (table: string) => {
         select: (...args: unknown[]) => {
           eq: (...args: unknown[]) => {
             single: () => Promise<{ data: unknown; error: unknown }>;
-          };
-        };
-        update: (payload: Record<string, unknown>) => {
-          eq: (...args: unknown[]) => {
-            select: (...args: unknown[]) => {
-              single: () => Promise<{ data: unknown; error: unknown }>;
-            };
           };
         };
       };
@@ -79,21 +73,30 @@ describe('eventConfiguration configuration hooks', () => {
     expect(result.enabled).toBe(false);
   });
 
+  it('includes scope discriminators in event configuration query key', () => {
+    const result = useEventConfigurationRecord('event-1', {
+      organisationId: 'org-1',
+      eventId: 'event-1',
+      appId: 'app-1',
+    }) as unknown as { queryKey: unknown[] };
+    expect(result.queryKey).toEqual([
+      'event-configuration-record',
+      'event-1',
+      'org-1',
+      'event-1',
+      'app-1',
+    ]);
+  });
+
   it('query function resolves with record when supabase read succeeds', async () => {
     mocks.secureSupabaseState.client = {
+      rpc: async () => ({ data: null, error: null }),
       from: () => ({
         select: () => ({
           eq: () => ({
             single: async () => ({
               data: { event_name: 'Camp', event_days: 2, registration_scope: 'hierarchy' },
               error: null,
-            }),
-          }),
-        }),
-        update: () => ({
-          eq: () => ({
-            select: () => ({
-              single: async () => ({ data: null, error: null }),
             }),
           }),
         }),
@@ -112,17 +115,11 @@ describe('eventConfiguration configuration hooks', () => {
 
   it('query function throws when supabase read returns an error', async () => {
     mocks.secureSupabaseState.client = {
+      rpc: async () => ({ data: null, error: null }),
       from: () => ({
         select: () => ({
           eq: () => ({
             single: async () => ({ data: null, error: 'read failed' }),
-          }),
-        }),
-        update: () => ({
-          eq: () => ({
-            select: () => ({
-              single: async () => ({ data: null, error: null }),
-            }),
           }),
         }),
       }),
@@ -131,7 +128,7 @@ describe('eventConfiguration configuration hooks', () => {
     const query = useEventConfigurationRecord('event-1') as unknown as {
       queryFn: () => Promise<unknown>;
     };
-    await expect(query.queryFn()).rejects.toThrow('read failed');
+    await expect(query.queryFn()).rejects.toBe('read failed');
   });
 
   it('mutation throws when secure supabase is unavailable', async () => {
@@ -145,22 +142,17 @@ describe('eventConfiguration configuration hooks', () => {
     ).rejects.toThrow('Supabase client is not available');
   });
 
-  it('mutation returns saved row when supabase update succeeds', async () => {
+  it('mutation returns saved row when configuration RPC succeeds', async () => {
+    const rpc = vi.fn(async () => ({
+      data: [{ event_name: 'Saved Event', updated_by: 'user-1' }],
+      error: null,
+    }));
     mocks.secureSupabaseState.client = {
+      rpc,
       from: () => ({
         select: () => ({
           eq: () => ({
             single: async () => ({ data: null, error: null }),
-          }),
-        }),
-        update: () => ({
-          eq: () => ({
-            select: () => ({
-              single: async () => ({
-                data: { event_name: 'Saved Event', updated_by: 'user-1' },
-                error: null,
-              }),
-            }),
           }),
         }),
       }),
@@ -177,6 +169,105 @@ describe('eventConfiguration configuration hooks', () => {
       event_name: 'Saved Event',
       updated_by: 'user-1',
     });
+    expect(rpc).toHaveBeenCalledWith(
+      'app_event_configuration_update',
+      expect.objectContaining({
+        p_event_id: 'event-1',
+      })
+    );
+  });
+
+  it('mutation preserves original PostgREST-style 406 error object', async () => {
+    const postgrestError = {
+      code: 'PGRST301',
+      message: 'JSON object requested, multiple (or no) rows returned',
+      details: 'Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row',
+      hint: null,
+      status: 406,
+    };
+
+    mocks.secureSupabaseState.client = {
+      rpc: async () => ({ data: null, error: postgrestError }),
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: async () => ({ data: null, error: null }),
+          }),
+        }),
+      }),
+    };
+
+    const mutation = useSaveEventConfiguration() as { mutateAsync: (params: unknown) => Promise<unknown> };
+    await expect(
+      mutation.mutateAsync({
+        eventId: 'event-1',
+        userId: 'user-1',
+        values: createValues(),
+      })
+    ).rejects.toBe(postgrestError);
+  });
+
+  it('mutation throws scoped zero-row diagnostics when update returns no row', async () => {
+    mocks.secureSupabaseState.client = {
+      rpc: async () => ({ data: [], error: null }),
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: async () => ({ data: null, error: null }),
+          }),
+        }),
+      }),
+    };
+
+    const mutation = useSaveEventConfiguration() as { mutateAsync: (params: unknown) => Promise<unknown> };
+    await expect(
+      mutation.mutateAsync({
+        eventId: 'event-1',
+        userId: 'user-1',
+        organisationId: 'org-1',
+        scopeEventId: 'event-1',
+        appId: 'app-1',
+        values: createValues(),
+      })
+    ).rejects.toMatchObject({
+      code: 'configuration-save-no-row',
+      category: 'permission_or_policy',
+      details: {
+        eventId: 'event-1',
+        organisationId: 'org-1',
+        scopeEventId: 'event-1',
+        appId: 'app-1',
+      },
+    });
+  });
+
+  it('mutation uses secure supabase RPC write path', async () => {
+    const secureRpc = vi.fn(async () => ({
+      data: [{ event_name: 'Saved Event' }],
+      error: null,
+    }));
+    const secureFrom = vi.fn(() => ({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data: null, error: null }),
+        }),
+      }),
+    }));
+    mocks.secureSupabaseState.client = { rpc: secureRpc, from: secureFrom };
+
+    const mutation = useSaveEventConfiguration() as { mutateAsync: (params: unknown) => Promise<unknown> };
+    await mutation.mutateAsync({
+      eventId: 'event-1',
+      userId: 'user-1',
+      values: createValues({ event_name: 'Saved Event' }),
+    });
+
+    expect(secureRpc).toHaveBeenCalledWith(
+      'app_event_configuration_update',
+      expect.objectContaining({
+        p_event_id: 'event-1',
+      })
+    );
   });
 
   it('logo pointer mutation throws when secure supabase is unavailable', async () => {
@@ -190,22 +281,17 @@ describe('eventConfiguration configuration hooks', () => {
     ).rejects.toThrow('Supabase client is not available');
   });
 
-  it('logo pointer mutation updates core_events.logo_id when supabase update succeeds', async () => {
+  it('logo pointer mutation updates core_events.logo_id when RPC succeeds', async () => {
+    const rpc = vi.fn(async () => ({
+      data: [{ event_id: 'event-1', logo_id: 'logo-ref-1' }],
+      error: null,
+    }));
     mocks.secureSupabaseState.client = {
+      rpc,
       from: () => ({
         select: () => ({
           eq: () => ({
             single: async () => ({ data: null, error: null }),
-          }),
-        }),
-        update: () => ({
-          eq: () => ({
-            select: () => ({
-              single: async () => ({
-                data: { event_id: 'event-1', logo_id: 'logo-ref-1' },
-                error: null,
-              }),
-            }),
           }),
         }),
       }),
@@ -222,5 +308,12 @@ describe('eventConfiguration configuration hooks', () => {
       event_id: 'event-1',
       logo_id: 'logo-ref-1',
     });
+    expect(rpc).toHaveBeenCalledWith(
+      'app_event_logo_pointer_update',
+      expect.objectContaining({
+        p_event_id: 'event-1',
+        p_logo_id: 'logo-ref-1',
+      })
+    );
   });
 });

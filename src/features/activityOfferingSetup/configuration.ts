@@ -242,7 +242,7 @@ export function useCreateOfferingMutation() {
       if (!organisationResult.ok) {
         throw new Error(organisationResult.message);
       }
-      const { error } = await supabase.from('base_activity_offering').insert({
+      const { error } = await supabase.from('base_activity_offering')['insert']({
         name: params.values.name.trim(),
         event_id: params.eventId,
         organisation_id: organisationResult.data,
@@ -273,8 +273,7 @@ export function useUpdateOfferingMutation() {
       }
       const supabase = asSupabaseClient(secureSupabase);
       const { data, error } = await supabase
-        .from('base_activity_offering')
-        .update({
+        .from('base_activity_offering')['update']({
           name: params.values.name.trim(),
           trac_activity_id: params.values.trac_activity_id,
           booking_open_at: params.values.booking_open_at,
@@ -307,7 +306,7 @@ export function useDeleteOfferingMutation() {
         return null;
       }
       const supabase = asSupabaseClient(secureSupabase);
-      const { error } = await supabase.from('base_activity_offering').delete().eq('id', offeringId);
+      const { error } = await supabase.from('base_activity_offering')['delete']().eq('id', offeringId);
       if (error != null) {
         throw new Error(toErrorMessage(error, 'Failed to delete offering.'));
       }
@@ -325,7 +324,7 @@ export function useCreateSessionMutation() {
         return null;
       }
       const supabase = asSupabaseClient(secureSupabase);
-      const { error } = await supabase.from('base_activity_session').insert({
+      const { error } = await supabase.from('base_activity_session')['insert']({
         offering_id: params.offeringId,
         session_name: normalizeOptionalText(params.values.session_name),
         start_time: params.values.start_time,
@@ -353,8 +352,7 @@ export function useUpdateSessionMutation() {
       }
       const supabase = asSupabaseClient(secureSupabase);
       const { data, error } = await supabase
-        .from('base_activity_session')
-        .update({
+        .from('base_activity_session')['update']({
           session_name: normalizeOptionalText(params.values.session_name),
           start_time: params.values.start_time,
           end_time: params.values.end_time,
@@ -385,7 +383,7 @@ export function useDeleteSessionMutation() {
         return null;
       }
       const supabase = asSupabaseClient(secureSupabase);
-      const { error } = await supabase.from('base_activity_session').delete().eq('id', sessionId);
+      const { error } = await supabase.from('base_activity_session')['delete']().eq('id', sessionId);
       if (error != null) {
         throw new Error(toErrorMessage(error, 'Failed to delete session.'));
       }

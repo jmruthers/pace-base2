@@ -72,12 +72,21 @@ async function fetchEventLogoReference(
   return { ok: true, data: (logoReferenceResult.data as EventLogoReference) ?? null };
 }
 
-export function useEventLogoReference(eventId: string | null) {
+export function useEventLogoReference(
+  eventId: string | null,
+  scopeKey?: { organisationId: string | null; eventId: string | null; appId: string | null }
+) {
   const secureSupabase = useSecureSupabase();
 
   return useQuery({
-    queryKey: ['event-logo-reference', eventId],
-    enabled: eventId != null,
+    queryKey: [
+      'event-logo-reference',
+      eventId,
+      scopeKey?.organisationId ?? null,
+      scopeKey?.eventId ?? null,
+      scopeKey?.appId ?? null,
+    ],
+    enabled: eventId != null && secureSupabase != null,
     queryFn: async () => {
       const result = await fetchEventLogoReference(secureSupabase, eventId as string);
       return result.ok ? result.data : null;

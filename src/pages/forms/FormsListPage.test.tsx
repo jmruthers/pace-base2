@@ -46,6 +46,10 @@ const resolvedScopeState = vi.hoisted(() => ({
   isLoading: false,
 }));
 
+const guardPropsState = vi.hoisted(() => ({
+  calls: [] as Array<Record<string, unknown>>,
+}));
+
 vi.mock('@solvera/pace-core/hooks', () => ({
   useEvents: () => ({ selectedEvent: state.selectedEvent }),
   useUnifiedAuth: () => ({
@@ -62,11 +66,13 @@ vi.mock('@solvera/pace-core/rbac', () => ({
     operation,
     fallback,
     children,
+    ...props
   }: {
     operation: 'read' | 'create' | 'update';
     fallback?: React.ReactNode;
     children: React.ReactNode;
-  }) => {
+  } & Record<string, unknown>) => {
+    guardPropsState.calls.push({ operation, fallback, ...props });
     const allowed =
       operation === 'read'
         ? state.allowRead
@@ -198,6 +204,7 @@ describe('FormsListPage', () => {
     }));
     state.invalidateQueries = vi.fn();
     state.clipboardWriteText = vi.fn(async () => undefined);
+    guardPropsState.calls = [];
     vi.stubGlobal('open', vi.fn());
     vi.stubGlobal('navigator', {
       clipboard: {
@@ -238,6 +245,24 @@ describe('FormsListPage', () => {
     renderPage();
     expect(screen.getByText('Access Denied')).toBeTruthy();
     state.allowRead = true;
+  });
+
+  it('passes non-null organisation scope into forms read guard when event is selected', () => {
+    state.selectedEventId = 'event-1';
+    resolvedScopeState.organisationId = 'org-1';
+    resolvedScopeState.eventId = 'event-1';
+    resolvedScopeState.appId = 'base-app';
+    renderPage();
+
+    const readGuardCall = guardPropsState.calls.find((call) => call.operation === 'read');
+    expect(readGuardCall).toMatchObject({
+      pageName: 'forms',
+      scope: {
+        organisationId: 'org-1',
+        eventId: 'event-1',
+        appId: 'base-app',
+      },
+    });
   });
 
   it('renders form cards with action row and hides delete when update denied', () => {

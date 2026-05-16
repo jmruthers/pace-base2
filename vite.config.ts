@@ -1,22 +1,21 @@
-import path from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import path from 'path';
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    tailwindcss(),
+    react(),
+  ],
+  optimizeDeps: {
+    include: ['cookie', 'set-cookie-parser'],
+    exclude: ['@solvera/pace-core', 'react-router-dom'],
+  },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(process.cwd(), 'src'),
     },
     dedupe: ['react', 'react-dom', 'react-router-dom'],
-  },
-  // Do not exclude react-router-dom: its ESM chunks import `cookie` with named
-  // exports; the `cookie` package is CJS-only, so it must be pre-bundled for
-  // correct interop in the browser.
-  optimizeDeps: {
-    include: ['react', 'react-dom', 'react/jsx-runtime'],
-    exclude: ['@solvera/pace-core'],
   },
 });

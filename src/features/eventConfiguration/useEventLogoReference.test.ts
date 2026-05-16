@@ -69,6 +69,21 @@ describe('useEventLogoReference', () => {
     expect(result.enabled).toBe(false);
   });
 
+  it('includes scope discriminators in logo reference query key', () => {
+    const result = useEventLogoReference('event-1', {
+      organisationId: 'org-1',
+      eventId: 'event-1',
+      appId: 'app-1',
+    }) as unknown as { queryKey: unknown[] };
+    expect(result.queryKey).toEqual([
+      'event-logo-reference',
+      'event-1',
+      'org-1',
+      'event-1',
+      'app-1',
+    ]);
+  });
+
   it('returns null without file lookup when logo_id is null', async () => {
     mocks.state.logoId = null;
 

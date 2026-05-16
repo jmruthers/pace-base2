@@ -18,7 +18,12 @@ const captured = vi.hoisted(
 vi.mock('./App', () => ({
   __esModule: true,
   default: () => <main>Mock App</main>,
-  APP_NAME: 'base',
+}));
+
+vi.mock('@/config/appName', () => ({
+  APP_NAME: 'BASE',
+  isCanonicalAppName: (appName: string) =>
+    appName.length > 0 && appName.trim() === appName && appName === appName.toUpperCase(),
 }));
 
 vi.mock('@supabase/supabase-js', () => ({
@@ -89,7 +94,7 @@ describe('main bootstrap wiring', () => {
     vi.unstubAllEnvs();
   });
 
-  it('calls setupRBAC with appName base and app resolver before app bootstraps', async () => {
+  it('calls setupRBAC with canonical uppercase appName and app resolver before app bootstraps', async () => {
     await bootstrapMain();
     expect(createClientMock).toHaveBeenCalledWith(
       'https://example.supabase.co',
@@ -99,7 +104,7 @@ describe('main bootstrap wiring', () => {
     expect(setupRBACMock).toHaveBeenCalledWith(
       mockSupabaseClient,
       expect.objectContaining({
-        appName: 'base',
+        appName: 'BASE',
         getAppId: expect.any(Function),
       })
     );

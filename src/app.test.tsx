@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { MemoryRouter, Navigate, Outlet } from 'react-router-dom';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { BASE_ROUTE_REGISTRY, getShellNavigationItems } from './config/baseRouteRegistry';
@@ -60,7 +60,12 @@ vi.mock('@solvera/pace-core/rbac', () => ({
     operation?: 'read' | 'update';
     fallback?: React.ReactNode;
     children: React.ReactNode;
-  }) => (operation === 'read' && !permissionState.allowRead ? <>{fallback}</> : <>{children}</>),
+  }) => {
+    if (operation === 'read' && resolvedScopeState.isLoading) {
+      return null;
+    }
+    return operation === 'read' && !permissionState.allowRead ? <>{fallback}</> : <>{children}</>;
+  },
 }));
 
 vi.mock('@/features/scanningRuntime/sync/scanSyncWorker', () => ({
@@ -247,6 +252,28 @@ describe('BA00 route behavior', () => {
     renderAt('/event-dashboard');
 
     expect(await screen.findByText('Access Denied')).toBeTruthy();
+  });
+
+  it('does not show transient access denied while scope is still loading', async () => {
+    authState.isAuthenticated = true;
+    permissionState.allowRead = true;
+    resolvedScopeState.isLoading = true;
+
+    const view = renderAt('/event-dashboard');
+    expect(screen.queryByText('Access Denied')).toBeNull();
+    expect(screen.queryByText('Event Dashboard Page')).toBeNull();
+
+    resolvedScopeState.isLoading = false;
+    view.rerender(
+      <MemoryRouter initialEntries={['/event-dashboard']}>
+        <App />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Event Dashboard Page')).toBeTruthy();
+    });
+    expect(screen.queryByText('Access Denied')).toBeNull();
   });
 
   it('shows access denied for scanning runtime when read permission is denied', async () => {

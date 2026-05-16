@@ -33,7 +33,11 @@ import {
   type UseFormReturn,
 } from '@solvera/pace-core/forms';
 import { useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
-import { PagePermissionGuard, useResolvedScope, useStorageCapableClient } from '@solvera/pace-core/rbac';
+import {
+  PagePermissionGuard,
+  useResolvedScope,
+  useStorageCapableClient,
+} from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage } from '@solvera/pace-core/utils';
 import {
   useEventConfigurationRecord,
@@ -56,6 +60,8 @@ interface ConfigurationFieldsProps {
 interface EventStylingFieldsProps {
   readOnly: boolean;
 }
+
+const EVENT_LOGO_BUCKET = 'public-files';
 
 function numberFromInput(value: string, fallback: number): number {
   const next = Number(value);
@@ -240,7 +246,9 @@ function ConfigurationFields({ methods, readOnly }: ConfigurationFieldsProps) {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select registration scope" />
+                <SelectValue placeholder="Select registration scope">
+                  {registrationScopeLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="org_only">Org only</SelectItem>
@@ -298,8 +306,20 @@ export function EventConfigurationRoute() {
   const storageSupabase = useStorageCapableClient();
   const { selectedEventId, user } = useUnifiedAuth();
   const { organisationId, eventId, appId, isLoading: isScopeLoading } = useResolvedScope();
-  const eventQuery = useEventConfigurationRecord(selectedEventId);
-  const { data: logoRefFromQuery, refetch: refetchLogo } = useEventLogoReference(selectedEventId);
+  const hasRequiredRbacContext =
+    organisationId != null &&
+    eventId != null &&
+    selectedEventId != null &&
+    eventId === selectedEventId &&
+    appId != null;
+  const scopedEventId = hasRequiredRbacContext ? selectedEventId : null;
+  const scopeKey = {
+    organisationId: organisationId ?? null,
+    eventId: eventId ?? null,
+    appId: appId ?? null,
+  };
+  const eventQuery = useEventConfigurationRecord(scopedEventId, scopeKey);
+  const { data: logoRefFromQuery, refetch: refetchLogo } = useEventLogoReference(scopedEventId, scopeKey);
   const saveMutation = useSaveEventConfiguration();
   const saveLogoPointerMutation = useSaveEventLogoPointer();
   const [uploadedLogoRef, setUploadedLogoRef] = useState<typeof logoRefFromQuery>(null);
@@ -319,7 +339,20 @@ export function EventConfigurationRoute() {
     );
   }
 
-  if (eventQuery.isLoading) {
+  if (!hasRequiredRbacContext) {
+    return (
+      <main className="grid min-h-[40vh] place-items-center gap-2">
+        {isScopeLoading ? <LoadingSpinner /> : null}
+        <p>
+          {isScopeLoading
+            ? 'Resolving RBAC scope…'
+            : 'Required RBAC context is unavailable. Re-select your organisation and event.'}
+        </p>
+      </main>
+    );
+  }
+
+  if (eventQuery.isLoading || eventQuery.isPending) {
     return (
       <main className="grid min-h-[40vh] place-items-center gap-2">
         <LoadingSpinner />
@@ -364,6 +397,9 @@ export function EventConfigurationRoute() {
               eventId: selectedEventId,
               userId: user?.id ?? null,
               values,
+              organisationId,
+              scopeEventId: eventId,
+              appId,
             });
             ShowSuccessMessage('Event saved successfully!', toast);
           } catch (error) {
@@ -427,7 +463,7 @@ export function EventConfigurationRoute() {
                       <FileDisplay
                         fileReference={logoRef}
                         supabase={storageSupabase}
-                        bucket="files"
+                        bucket={EVENT_LOGO_BUCKET}
                         variant="inline"
                         className="h-48 w-full object-contain"
                         label="Event logo"
@@ -447,7 +483,7 @@ export function EventConfigurationRoute() {
                       ) : (
                         <FileUpload
                           supabase={storageSupabase}
-                          bucket="files"
+                          bucket={EVENT_LOGO_BUCKET}
                           table_name="core_events"
                           record_id={selectedEventId}
                           organisation_id={uploadOrganisationId ?? ''}
@@ -477,6 +513,9 @@ export function EventConfigurationRoute() {
                                 eventId: selectedEventId,
                                 logoId,
                                 userId: user?.id ?? null,
+                                organisationId,
+                                scopeEventId: eventId,
+                                appId,
                               })
                               .then(() => {
                                 setUploadedLogoRef(result.file_reference);

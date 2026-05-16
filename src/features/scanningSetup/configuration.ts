@@ -474,7 +474,7 @@ export function useCreateScanPointMutation() {
         throw new Error('A resource is required for this context type.');
       }
       const supabase = asSupabaseClient(secureSupabase);
-      const { error } = await supabase.from('base_scan_point').insert({
+      const { error } = await supabase.from('base_scan_point')['insert']({
         name: input.name.trim(),
         event_id: input.eventId,
         organisation_id: input.organisationId,
@@ -509,8 +509,7 @@ export function useUpdateScanPointMutation() {
       }
       const supabase = asSupabaseClient(secureSupabase);
       const { data, error } = await supabase
-        .from('base_scan_point')
-        .update({
+        .from('base_scan_point')['update']({
           name: input.name.trim(),
           context_type: input.context_type,
           direction: input.direction,
@@ -543,8 +542,7 @@ export function useSetScanPointActiveMutation() {
       }
       const supabase = asSupabaseClient(secureSupabase);
       const { data, error } = await supabase
-        .from('base_scan_point')
-        .update({
+        .from('base_scan_point')['update']({
           is_active: input.isActive,
           updated_by: input.userId,
         })

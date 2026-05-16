@@ -29,6 +29,10 @@ const resolvedScopeState = vi.hoisted(() => ({
   isLoading: false,
 }));
 
+const guardPropsState = vi.hoisted(() => ({
+  lastProps: null as Record<string, unknown> | null,
+}));
+
 vi.mock('react-router-dom', () => ({
   Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
     <a
@@ -62,7 +66,10 @@ vi.mock('@solvera/pace-core/rbac', () => ({
   AccessDenied: () => <main>Access Denied</main>,
   useStorageCapableClient: () => ({}),
   useResolvedScope: () => resolvedScopeState,
-  PagePermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  PagePermissionGuard: (props: Record<string, unknown>) => {
+    guardPropsState.lastProps = props;
+    return <>{props.children as React.ReactNode}</>;
+  },
 }));
 
 vi.mock('@solvera/pace-core/utils', async (importOriginal) => {
@@ -100,6 +107,7 @@ describe('EventDashboardPage', () => {
     };
     dashboardState.logoRef = null;
     dashboardState.fileDisplayProps = null;
+    guardPropsState.lastProps = null;
   });
 
   it('shows no-event guidance when no event is selected', () => {
@@ -140,7 +148,7 @@ describe('EventDashboardPage', () => {
   it('passes FileDisplay bucket and label when a logo reference exists', () => {
     dashboardState.logoRef = {
       id: 'ref-1',
-      file_metadata: { bucket: 'files', fileName: 'logo.png' },
+      file_metadata: { bucket: 'public-files', fileName: 'logo.png' },
       is_public: true,
       file_path: 'configuration/event_logos/logo.png',
     };
@@ -149,10 +157,24 @@ describe('EventDashboardPage', () => {
 
     expect(screen.getByText('Logo')).toBeTruthy();
     expect(dashboardState.fileDisplayProps).toMatchObject({
-      bucket: 'files',
+      bucket: 'public-files',
       label: 'Event logo',
       variant: 'inline',
     });
     expect(dashboardState.fileDisplayProps?.supabase).toBeTruthy();
+  });
+
+  it('passes event dashboard guard scope with resolved app id', () => {
+    render(<EventDashboardPage />);
+
+    expect(guardPropsState.lastProps).toMatchObject({
+      pageName: 'event-dashboard',
+      operation: 'read',
+      scope: {
+        organisationId: 'org-1',
+        eventId: 'event-1',
+        appId: 'base-app',
+      },
+    });
   });
 });

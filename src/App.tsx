@@ -9,6 +9,7 @@ import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pa
 import { useSecureSupabase } from '@solvera/pace-core/rbac';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AuthenticatedShell } from './components/layout/AuthenticatedShell';
+import { APP_NAME } from '@/config/appName';
 import { BaseNotFoundPage } from './pages/shell/BaseNotFoundPage';
 import { FeaturePlaceholderPanel } from '@/components/shell/FeaturePlaceholderPanel';
 import { ScanningRuntimePage } from './pages/scanning/ScanningRuntimePage';
@@ -31,8 +32,6 @@ import {
   getShellProtectedRoutes,
 } from './config/baseRouteRegistry';
 import { startScanSyncWorker, stopScanSyncWorker } from '@/features/scanningRuntime/sync/scanSyncWorker';
-
-export const APP_NAME = 'BASE';
 
 const shellProtectedRoutes = getShellProtectedRoutes();
 
