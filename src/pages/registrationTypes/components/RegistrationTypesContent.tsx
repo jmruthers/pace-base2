@@ -9,13 +9,12 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-  Label,
   LoadingSpinner,
-  Switch,
 } from '@solvera/pace-core/components';
 import { PagePermissionGuard } from '@solvera/pace-core/rbac';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
-import { formatCurrencyFromCents } from '@/features/registrationSetup/shared';
+import { Trash2 } from '@solvera/pace-core/icons';
+import { formatCurrencyFromCents } from '@/features/registrationSetup/presentation';
 import type { RegistrationTypeRow } from '@/features/registrationSetup/types';
 
 function statusVariant(isActive: boolean) {
@@ -32,10 +31,9 @@ interface RegistrationTypesContentProps {
   listQuery: { isLoading: boolean; error: unknown };
   rows: RegistrationTypeRow[];
   eligibilityCounts: Record<string, number>;
-  activeOverrides: Record<string, boolean>;
   onEdit: (row: RegistrationTypeRow) => void;
-  onOpenRequirements: (row: RegistrationTypeRow) => void;
-  onToggleActive: (row: RegistrationTypeRow, checked: boolean) => void;
+  deleteCheckingTypeId: string | null;
+  onRequestDelete: (row: RegistrationTypeRow) => void;
 }
 
 export function RegistrationTypesContent(props: RegistrationTypesContentProps) {
@@ -77,12 +75,12 @@ export function RegistrationTypesContent(props: RegistrationTypesContentProps) {
   }
 
   return (
-    <article className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+    <article className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
       {props.rows.map((row) => {
-        const isActive = props.activeOverrides[row.id] ?? row.is_active;
+        const isActive = row.is_active;
         return (
-          <Card key={row.id}>
-            <CardHeader className="grid gap-2">
+          <Card key={row.id} className="grid h-full grid-rows-[1fr_auto]">
+            <CardHeader className="grid content-start gap-2">
               <article className="grid gap-1 md:grid-cols-[1fr_auto] md:items-start">
                 <CardTitle>{row.name}</CardTitle>
                 <Badge variant={statusVariant(isActive)}>{statusLabel(isActive)}</Badge>
@@ -91,10 +89,14 @@ export function RegistrationTypesContent(props: RegistrationTypesContentProps) {
                 <p className="line-clamp-2">{row.description}</p>
               ) : null}
               <p>{`${props.eligibilityCounts[row.id] ?? 0} eligibility rules`}</p>
-              {row.capacity != null ? <p>{`Capacity ${row.capacity}`}</p> : null}
-              {row.cost != null ? <p>{`Cost ${formatCurrencyFromCents(row.cost)}`}</p> : null}
+              {row.capacity != null || row.cost != null ? (
+                <section className="grid grid-flow-col auto-cols-max gap-x-6 gap-y-1">
+                  {row.capacity != null ? <p>{`Capacity ${row.capacity}`}</p> : null}
+                  {row.cost != null ? <p>{`Cost ${formatCurrencyFromCents(row.cost)}`}</p> : null}
+                </section>
+              ) : null}
             </CardHeader>
-            <CardFooter className="grid grid-cols-1 gap-2 md:grid-cols-3">
+            <CardFooter className="grid grid-flow-col auto-cols-max gap-2">
               <PagePermissionGuard pageName="registration-types" operation="update" scope={props.scope} fallback={null}>
                 <Button type="button" onClick={() => props.onEdit(row)}>
                   Edit
@@ -103,22 +105,16 @@ export function RegistrationTypesContent(props: RegistrationTypesContentProps) {
               <PagePermissionGuard pageName="registration-types" operation="update" scope={props.scope} fallback={null}>
                 <Button
                   type="button"
-                  onClick={() => props.onOpenRequirements(row)}
-                  disabled={row.id.trim().length === 0}
+                  aria-label={`Delete ${row.name}`}
+                  disabled={props.deleteCheckingTypeId === row.id}
+                  onClick={() => props.onRequestDelete(row)}
                 >
-                  Manage requirements
+                  {props.deleteCheckingTypeId === row.id ? (
+                    <LoadingSpinner decorative className="size-4" />
+                  ) : (
+                    <Trash2 aria-hidden className="size-4" />
+                  )}
                 </Button>
-              </PagePermissionGuard>
-              <PagePermissionGuard pageName="registration-types" operation="update" scope={props.scope} fallback={null}>
-                <Label className="grid gap-1">
-                  Registration type active
-                  <Switch
-                    aria-label="Registration type active"
-                    checked={isActive}
-                    disabled={props.selectedEventId == null}
-                    onChange={(checked) => props.onToggleActive(row, checked)}
-                  />
-                </Label>
               </PagePermissionGuard>
             </CardFooter>
           </Card>

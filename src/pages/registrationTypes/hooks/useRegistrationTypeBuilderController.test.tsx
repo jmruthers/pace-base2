@@ -2,7 +2,7 @@
 
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useRegistrationTypesPageController } from './useRegistrationTypesPageController';
+import { useRegistrationTypeBuilderController } from './useRegistrationTypeBuilderController';
 
 const mocks = vi.hoisted(() => {
   const toast = vi.fn();
@@ -12,7 +12,8 @@ const mocks = vi.hoisted(() => {
   const getQueryData = vi.fn();
   const refetchRequirements = vi.fn(async () => ({ data: [] as unknown[] }));
   const upsertMutateAsync = vi.fn(async () => 'type-1');
-  const activeMutateAsync = vi.fn(async () => ({ registration_type_id: 'type-1', is_active: true }));
+  const setSearchParams = vi.fn();
+  let registrationTypeId: string | null = null;
 
   const listData = {
     types: [
@@ -44,8 +45,27 @@ const mocks = vi.hoisted(() => {
     getQueryData,
     refetchRequirements,
     upsertMutateAsync,
-    activeMutateAsync,
+    setSearchParams,
+    get registrationTypeId() {
+      return registrationTypeId;
+    },
+    set registrationTypeId(value: string | null) {
+      registrationTypeId = value;
+    },
     listData,
+  };
+});
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return {
+    ...actual,
+    useSearchParams: () => [
+      {
+        get: (key: string) => (key === 'registrationTypeId' ? mocks.registrationTypeId : null),
+      },
+      mocks.setSearchParams,
+    ],
   };
 });
 
@@ -92,9 +112,6 @@ vi.mock('@/features/registrationSetup/configuration', () => ({
     isPending: false,
     mutateAsync: mocks.upsertMutateAsync,
   }),
-  useSetRegistrationTypeActiveMutation: () => ({
-    mutateAsync: mocks.activeMutateAsync,
-  }),
   useRequirementsForType: () => ({
     data: [],
     isLoading: false,
@@ -109,8 +126,9 @@ vi.mock('@/features/registrationSetup/configuration', () => ({
   }),
 }));
 
-describe('useRegistrationTypesPageController', () => {
+describe('useRegistrationTypeBuilderController', () => {
   beforeEach(() => {
+    mocks.registrationTypeId = null;
     mocks.toast.mockClear();
     mocks.showSuccess.mockClear();
     mocks.handleMutationError.mockClear();
@@ -118,59 +136,47 @@ describe('useRegistrationTypesPageController', () => {
     mocks.getQueryData.mockReset();
     mocks.refetchRequirements.mockClear();
     mocks.upsertMutateAsync.mockClear();
-    mocks.activeMutateAsync.mockClear();
+    mocks.setSearchParams.mockClear();
   });
 
-  it('opens create dialog with reset draft and edit step', () => {
-    const { result } = renderHook(() => useRegistrationTypesPageController());
-
-    act(() => {
-      result.current.openCreateDialog();
-    });
-
-    expect(result.current.typeDialogOpen).toBe(true);
-    expect(result.current.typeDialogStep).toBe('edit');
+  it('starts with empty draft in create mode', () => {
+    const { result } = renderHook(() => useRegistrationTypeBuilderController());
     expect(result.current.typeDraft.name).toBe('');
-    expect(result.current.eligibilityDrafts).toEqual([]);
+    expect(result.current.workflowEnabled).toBe(false);
   });
 
-  it('reorders requirements when move up is used after opening requirements dialog', () => {
+  it('reorders requirements when move up is used in edit mode', async () => {
+    mocks.registrationTypeId = 'type-1';
     mocks.getQueryData.mockReturnValue([
       { id: 'req-1', check_type: 'payment', sort_order: 0, is_automated: true, config: null },
       { id: 'req-2', check_type: 'referee', sort_order: 1, is_automated: false, config: null },
     ]);
-    const { result } = renderHook(() => useRegistrationTypesPageController());
-    const row = mocks.listData.types[0];
+    const { result } = renderHook(() => useRegistrationTypeBuilderController());
 
-    act(() => {
-      result.current.openRequirementsDialog(row);
+    await act(async () => {
+      await Promise.resolve();
     });
 
     act(() => {
-      result.current.moveRequirement('req-2', 'up');
+      result.current.reorderRequirement('req-2', 'req-1');
     });
 
     expect(result.current.requirementDraftRows.map((entry) => entry.localId)).toEqual(['req-2', 'req-1']);
-    expect(result.current.requirementDraftRows.map((entry) => entry.sort_order)).toEqual([0, 1]);
   });
 
-  it('keeps type dialog in edit step and populates validation errors when save data is invalid', async () => {
-    const { result } = renderHook(() => useRegistrationTypesPageController());
-
-    act(() => {
-      result.current.openCreateDialog();
-    });
+  it('populates validation errors when save data is invalid', async () => {
+    const { result } = renderHook(() => useRegistrationTypeBuilderController());
 
     await act(async () => {
       await result.current.saveType();
     });
 
-    expect(result.current.typeDialogStep).toBe('edit');
     expect(result.current.typeValidationErrors.name).toBe('Name is required.');
     expect(mocks.upsertMutateAsync).not.toHaveBeenCalled();
   });
 
-  it('surfaces designated organisation validation when saving invalid requirements', async () => {
+  it('surfaces designated organisation validation when saving invalid workflow', async () => {
+    mocks.registrationTypeId = 'type-1';
     mocks.getQueryData.mockReturnValue([
       {
         id: 'req-1',
@@ -180,34 +186,30 @@ describe('useRegistrationTypesPageController', () => {
         config: null,
       },
     ]);
-    const { result } = renderHook(() => useRegistrationTypesPageController());
-    const row = mocks.listData.types[0];
+    const { result } = renderHook(() => useRegistrationTypeBuilderController());
 
-    act(() => {
-      result.current.openRequirementsDialog(row);
+    await act(async () => {
+      await Promise.resolve();
     });
 
     await act(async () => {
-      await result.current.saveRequirements();
+      await result.current.saveWorkflow();
     });
 
     expect(result.current.designatedOrgErrors['req-1']).toBe('Select a reviewing organisation');
     expect(mocks.upsertMutateAsync).not.toHaveBeenCalled();
   });
 
-  it('saves existing type after confirmation and refetches latest requirements snapshot', async () => {
+  it('saves existing type and refetches latest requirements snapshot', async () => {
+    mocks.registrationTypeId = 'type-1';
     mocks.getQueryData.mockReturnValue([
       { id: 'req-1', check_type: 'payment', sort_order: 0, is_automated: true, config: null },
     ]);
     mocks.refetchRequirements.mockResolvedValueOnce({
       data: [{ id: 'req-1', check_type: 'payment', sort_order: 0, is_automated: true, config: null }],
     });
-    const { result } = renderHook(() => useRegistrationTypesPageController());
-    const row = mocks.listData.types[0];
+    const { result } = renderHook(() => useRegistrationTypeBuilderController());
 
-    act(() => {
-      result.current.openEditDialog(row);
-    });
     act(() => {
       result.current.setTypeDraft({ ...result.current.typeDraft, name: 'Updated name' });
     });
@@ -215,28 +217,27 @@ describe('useRegistrationTypesPageController', () => {
     await act(async () => {
       await result.current.saveType();
     });
-    expect(result.current.typeDialogStep).toBe('confirm');
+
+    expect(mocks.refetchRequirements).toHaveBeenCalled();
+    expect(mocks.upsertMutateAsync).toHaveBeenCalledTimes(1);
+    expect(mocks.showSuccess).toHaveBeenCalledWith('Saved registration type settings.', mocks.toast);
+  });
+
+  it('sets registrationTypeId in URL after first create save', async () => {
+    const { result } = renderHook(() => useRegistrationTypeBuilderController());
+
+    act(() => {
+      result.current.setTypeDraft({
+        ...result.current.typeDraft,
+        name: 'New type',
+        costDollars: '0',
+      });
+    });
 
     await act(async () => {
       await result.current.saveType();
     });
 
-    expect(mocks.refetchRequirements).toHaveBeenCalled();
-    expect(mocks.upsertMutateAsync).toHaveBeenCalled();
-    expect(mocks.showSuccess).toHaveBeenCalledWith('Saved registration type settings.', mocks.toast);
-    expect(result.current.typeDialogOpen).toBe(false);
-  });
-
-  it('reverts active override and reports mutation error when toggle fails', async () => {
-    mocks.activeMutateAsync.mockRejectedValueOnce(new Error('toggle failed'));
-    const { result } = renderHook(() => useRegistrationTypesPageController());
-    const row = mocks.listData.types[0];
-
-    await act(async () => {
-      await result.current.handleToggleActive(row, false);
-    });
-
-    expect(result.current.activeOverrides[row.id]).toBe(true);
-    expect(mocks.handleMutationError).toHaveBeenCalled();
+    expect(mocks.setSearchParams).toHaveBeenCalledWith({ registrationTypeId: 'type-1' }, { replace: true });
   });
 });

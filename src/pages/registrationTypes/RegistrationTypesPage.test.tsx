@@ -2,9 +2,20 @@
 
 import { createElement } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RegistrationTypesPage } from './RegistrationTypesPage';
+
+const navigateMock = vi.fn();
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 
 const state = vi.hoisted(() => ({
   selectedEventId: 'event-1' as string | null,
@@ -15,6 +26,19 @@ const state = vi.hoisted(() => ({
   allowUpdate: true,
   listLoading: false,
   listError: null as Error | null,
+  invalidateQueries: vi.fn(),
+  deleteMutateAsync: vi.fn(async () => ({
+    deleted: true,
+    application_count: 0,
+    form_binding_count: 0,
+  })),
+  getDeleteBlockers: vi.fn(async () => ({
+    ok: true as const,
+    data: {
+      applicationCount: 0,
+      formBindingCount: 0,
+    },
+  })),
   listData: {
     types: [] as Array<{
       id: string;
@@ -44,6 +68,7 @@ vi.mock('@solvera/pace-core/hooks', () => ({
 
 vi.mock('@solvera/pace-core/rbac', () => ({
   AccessDenied: () => <main>Access Denied</main>,
+  useSecureSupabase: () => ({}),
   useResolvedScope: () => ({
     organisationId: state.selectedOrganisationId,
     eventId: state.selectedEventId,
@@ -65,19 +90,23 @@ vi.mock('@solvera/pace-core/rbac', () => ({
   },
 }));
 
-vi.mock('@solvera/pace-core/components', () => ({
-  Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  AlertTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
-  Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Button: ({
+vi.mock('@solvera/pace-core/components', () => {
+  const MockButton = ({
     children,
     onClick,
     ...props
   }: {
     children?: React.ReactNode;
     onClick?: () => void;
-  }) => createElement('button', { type: 'button', onClick, ...props }, children),
+    disabled?: boolean;
+  }) => createElement('button', { type: 'button', onClick, ...props }, children);
+
+  return {
+  Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  AlertTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+  AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  Button: MockButton,
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
   CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
@@ -87,7 +116,9 @@ vi.mock('@solvera/pace-core/components', () => ({
     createElement('input', { type: 'checkbox', checked: checked === true, readOnly: true }),
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
     open ? <section>{children}</section> : null,
+  DialogBody: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   DialogContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   DialogFooter: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
@@ -110,20 +141,47 @@ vi.mock('@solvera/pace-core/components', () => ({
   }) => createElement('input', { type: 'checkbox', checked: checked === true, onChange: (event: Event) => onChange?.((event.target as HTMLInputElement).checked), ...props }),
   Textarea: ({ value, onChange }: { value?: string; onChange?: (value: string) => void }) =>
     createElement('textarea', { value: value ?? '', onChange: (event: Event) => onChange?.((event.target as HTMLTextAreaElement).value) }),
-}));
+  ConfirmationDialog: ({
+    open,
+    onOpenChange,
+    title,
+    description,
+    onConfirm,
+    isPending,
+  }: {
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    title?: string;
+    description?: string;
+    onConfirm?: () => void;
+    isPending?: boolean;
+  }) =>
+    open ? (
+      <section>
+        <h2>{title}</h2>
+        <p>{description}</p>
+        <MockButton aria-label="confirm-delete" disabled={isPending === true} onClick={() => onConfirm?.()}>
+          Confirm delete
+        </MockButton>
+        <MockButton onClick={() => onOpenChange?.(false)}>Cancel delete</MockButton>
+      </section>
+    ) : null,
+  };
+});
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>();
   return {
     ...actual,
     useQueryClient: () => ({
-      invalidateQueries: vi.fn(),
+      invalidateQueries: state.invalidateQueries,
       getQueryData: vi.fn(),
     }),
   };
 });
 
 vi.mock('@/features/registrationSetup/configuration', () => ({
+  getRegistrationTypeDeleteBlockers: () => state.getDeleteBlockers(),
   useRegistrationTypesList: () => ({
     isLoading: state.listLoading,
     error: state.listError,
@@ -135,6 +193,10 @@ vi.mock('@/features/registrationSetup/configuration', () => ({
   }),
   useSetRegistrationTypeActiveMutation: () => ({
     mutateAsync: vi.fn(),
+  }),
+  useDeleteRegistrationTypeMutation: () => ({
+    isPending: false,
+    mutateAsync: state.deleteMutateAsync,
   }),
   useRequirementsForType: () => ({
     isLoading: false,
@@ -176,6 +238,22 @@ describe('RegistrationTypesPage', () => {
       eligibilityCountsByTypeId: {},
       eligibilityByTypeId: {},
     };
+    state.invalidateQueries.mockClear();
+    state.deleteMutateAsync.mockClear();
+    state.deleteMutateAsync.mockResolvedValue({
+      deleted: true,
+      application_count: 0,
+      form_binding_count: 0,
+    });
+    state.getDeleteBlockers.mockClear();
+    state.getDeleteBlockers.mockResolvedValue({
+      ok: true,
+      data: {
+        applicationCount: 0,
+        formBindingCount: 0,
+      },
+    });
+    navigateMock.mockClear();
   });
 
   it('shows no-event card and hides create button when event is not selected', () => {
@@ -214,7 +292,40 @@ describe('RegistrationTypesPage', () => {
     expect(screen.getByText('Access Denied')).toBeTruthy();
   });
 
-  it('hides edit and requirement actions when update permission is denied', () => {
+  it('navigates to builder when create is clicked', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole('button', { name: 'Create registration type' }));
+    expect(navigateMock).toHaveBeenCalledWith('/registration-type-builder');
+  });
+
+  it('navigates to builder with id when edit is clicked', async () => {
+    const user = userEvent.setup();
+    state.listData = {
+      types: [
+        {
+          id: 'type-1',
+          name: 'Youth',
+          description: null,
+          eligibility_message: null,
+          cost: null,
+          capacity: null,
+          is_active: true,
+          sort_order: 1,
+          organisation_id: 'org-1',
+          event_id: 'event-1',
+          created_at: null,
+        },
+      ],
+      eligibilityCountsByTypeId: { 'type-1': 0 },
+      eligibilityByTypeId: { 'type-1': [] },
+    };
+    renderPage();
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(navigateMock).toHaveBeenCalledWith('/registration-type-builder?registrationTypeId=type-1');
+  });
+
+  it('hides edit action when update permission is denied', () => {
     state.allowUpdate = false;
     state.listData = {
       types: [
@@ -239,8 +350,8 @@ describe('RegistrationTypesPage', () => {
     renderPage();
     expect(screen.getByText('Youth')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Manage requirements' })).toBeNull();
     expect(screen.queryByLabelText('Registration type active')).toBeNull();
+    expect(screen.queryByLabelText('Delete Youth')).toBeNull();
   });
 
   it('shows card details for populated registration type rows', () => {
@@ -270,5 +381,73 @@ describe('RegistrationTypesPage', () => {
     expect(screen.getByText('2 eligibility rules')).toBeTruthy();
     expect(screen.getByText('Capacity 30')).toBeTruthy();
     expect(screen.getByText('Cost $12.50')).toBeTruthy();
+    expect(screen.getByLabelText('Delete Youth')).toBeTruthy();
+  });
+
+  it('shows cannot-delete dialog without confirmation when dependencies block delete', async () => {
+    const user = userEvent.setup();
+    state.getDeleteBlockers.mockResolvedValue({
+      ok: true,
+      data: {
+        applicationCount: 1,
+        formBindingCount: 0,
+      },
+    });
+    state.listData = {
+      types: [
+        {
+          id: 'type-1',
+          name: 'Legacy standard',
+          description: null,
+          eligibility_message: null,
+          cost: null,
+          capacity: null,
+          is_active: true,
+          sort_order: 1,
+          organisation_id: 'org-1',
+          event_id: 'event-1',
+          created_at: null,
+        },
+      ],
+      eligibilityCountsByTypeId: { 'type-1': 0 },
+      eligibilityByTypeId: { 'type-1': [] },
+    };
+
+    renderPage();
+    await user.click(screen.getByLabelText('Delete Legacy standard'));
+
+    expect(await screen.findByRole('heading', { name: 'Cannot delete registration type' })).toBeTruthy();
+    expect(screen.getByText(/1 application/i)).toBeTruthy();
+    expect(screen.queryByText(/Are you sure you want to delete/i)).toBeNull();
+    expect(state.deleteMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('opens confirmation when delete dependencies are clear', async () => {
+    const user = userEvent.setup();
+    state.listData = {
+      types: [
+        {
+          id: 'type-1',
+          name: 'Youth',
+          description: null,
+          eligibility_message: null,
+          cost: null,
+          capacity: null,
+          is_active: true,
+          sort_order: 1,
+          organisation_id: 'org-1',
+          event_id: 'event-1',
+          created_at: null,
+        },
+      ],
+      eligibilityCountsByTypeId: { 'type-1': 0 },
+      eligibilityByTypeId: { 'type-1': [] },
+    };
+
+    renderPage();
+    await user.click(screen.getByLabelText('Delete Youth'));
+
+    expect(await screen.findByText(/Are you sure you want to delete 'Youth'/i)).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Cannot delete registration type' })).toBeNull();
   });
 });

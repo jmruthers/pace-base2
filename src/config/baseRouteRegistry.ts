@@ -75,6 +75,14 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     includeInNavigation: true,
   },
   {
+    path: '/registration-type-builder',
+    label: 'Registration Type Builder',
+    pageName: 'registration-types',
+    sliceId: 'registration-setup-and-policy',
+    includeInShell: true,
+    includeInNavigation: false,
+  },
+  {
     path: '/applications',
     label: 'Applications',
     pageName: 'applications',

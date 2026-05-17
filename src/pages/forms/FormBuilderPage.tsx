@@ -178,7 +178,7 @@ function FormBuilderEditor({
   const submissionSettingsAside = (
     <Card>
       <CardHeader>
-        <CardTitle>Submission Settings</CardTitle>
+        <CardTitle>Submission settings</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         <section className="grid gap-1">
@@ -221,48 +221,41 @@ function FormBuilderEditor({
           />
         </section>
         <p>Shown to participants after successful form submission.</p>
-      </CardContent>
-    </Card>
-  );
 
-  const scheduleMiddlePanel = (
-    <Card>
-      <CardHeader>
-        <CardTitle>Schedule</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-2">
-        <fieldset className="grid min-w-0 gap-1 border-0 p-0">
-          <Label>Opens at</Label>
-          <DatePickerWithTimezone
-            value={toDateValue(state.metadata.opensAt)}
-            onChange={(value) => {
-              handleStateChange({
-                ...state,
-                metadata: {
-                  ...state.metadata,
-                  opensAt: toUtcMidnightIso(value),
-                },
-              });
-            }}
-          />
-          <AuthoringIssueAlerts issues={issuesAtSchedulePath('metadata.opensAt')} />
-        </fieldset>
-        <fieldset className="grid min-w-0 gap-1 border-0 p-0">
-          <Label>Closes at</Label>
-          <DatePickerWithTimezone
-            value={toDateValue(state.metadata.closesAt)}
-            onChange={(value) => {
-              handleStateChange({
-                ...state,
-                metadata: {
-                  ...state.metadata,
-                  closesAt: toUtcMidnightIso(value),
-                },
-              });
-            }}
-          />
-          <AuthoringIssueAlerts issues={issuesAtSchedulePath('metadata.closesAt')} />
-        </fieldset>
+        <section className="grid gap-3 md:grid-cols-2">
+          <fieldset className="grid min-w-0 gap-1 border-0 p-0">
+            <Label>Opens at</Label>
+            <DatePickerWithTimezone
+              value={toDateValue(state.metadata.opensAt)}
+              onChange={(value) => {
+                handleStateChange({
+                  ...state,
+                  metadata: {
+                    ...state.metadata,
+                    opensAt: toUtcMidnightIso(value),
+                  },
+                });
+              }}
+            />
+            <AuthoringIssueAlerts issues={issuesAtSchedulePath('metadata.opensAt')} />
+          </fieldset>
+          <fieldset className="grid min-w-0 gap-1 border-0 p-0">
+            <Label>Closes at</Label>
+            <DatePickerWithTimezone
+              value={toDateValue(state.metadata.closesAt)}
+              onChange={(value) => {
+                handleStateChange({
+                  ...state,
+                  metadata: {
+                    ...state.metadata,
+                    closesAt: toUtcMidnightIso(value),
+                  },
+                });
+              }}
+            />
+            <AuthoringIssueAlerts issues={issuesAtSchedulePath('metadata.closesAt')} />
+          </fieldset>
+        </section>
       </CardContent>
     </Card>
   );
@@ -285,7 +278,6 @@ function FormBuilderEditor({
       metadataAside={submissionSettingsAside}
       middleContent={
         <section className="grid gap-3">
-          {scheduleMiddlePanel}
           {showRegistrationPanel ? (
             <Card>
               <CardHeader>

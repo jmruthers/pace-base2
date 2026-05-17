@@ -9,7 +9,7 @@
 
 ## 2. Overview
 
-This slice configures how an event distinguishes registration cohorts and which checks run before an application is admitted. Operators manage named registration types, optional eligibility gates, and ordered approval prerequisites for each type. Everything is anchored to the event selected in the BA00 shell. Event-level openness (`core_events.registration_scope`) remains under BA01; this slice configures only per-type eligibility rows and requirement chains that sit downstream of that scope. Operators see a list of types at `/registration-types`, author type fields and eligibility rules in one dialog, and manage ordered requirements in a second dialog backed by backend replace semantics.
+This slice configures how an event distinguishes registration cohorts and which checks run before an application is admitted. Operators manage named registration types, optional eligibility gates, and ordered approval prerequisites for each type. Everything is anchored to the event selected in the BA00 shell. Event-level openness (`core_events.registration_scope`) remains under BA01; this slice configures only per-type eligibility rows and requirement chains that sit downstream of that scope. Operators see a list of types at `/registration-types` and use the **registration type builder** (`/registration-type-builder`) for type fields, eligibility, and approval workflow.
 
 ---
 
@@ -21,7 +21,7 @@ Let permitted operators define registration types for the selected event: human-
 
 ### Surfaces
 
-- `/registration-types` — Registration types card grid inside the authenticated shell with create, edit, enable/disable toggle, requirement management dialog, auxiliary confirmation dialog for saves, informational panels for specialised check kinds, eligibility rule builder subsection, `@dnd-kit` sortable requirement list panel.
+- `/registration-types` — Registration types card grid inside the authenticated shell with create, edit, delete (when **`app_base_registration_type_delete`** allows), **Registration type active** on the builder page (saved with **Save**), approval workflow on the builder page (saved with **Save** on the card, no second confirmation), informational panels for specialised check kinds, eligibility rule builder subsection, **sortable** approval workflow list (drag reorder via **`@solvera/pace-core/forms`**, which re-exports `@dnd-kit` primitives — the app does not install `@dnd-kit/*` separately).
 
 ### Boundaries
 
@@ -29,14 +29,14 @@ Let permitted operators define registration types for the selected event: human-
 - This slice does not own workflow form authoring (`/forms`, `/form-builder`) — BA03 owns forms and binds forms to registration types only as a consumer of `base_registration_type` rows.
 - This slice does not own application review workspaces, TEAM queues, MINT webhook handling, or participant-facing portals — sibling slices consume the saved policy.
 - This slice does not implement evaluation engines that decide cohort membership at submission time beyond validating and persisting authoring inputs.
-- Explicitly omitted: **`home_leader_approval` multi-select role types UX**; **`pending_backend_support`** badges; **`is_automated` toggle** exposed to organisers; standalone `/approval-workflows` route; **delete operation for registration types** — types are disabled via the `is_active` toggle but never deleted; no delete affordance is built in this slice.
+- Explicitly omitted: **`home_leader_approval` multi-select role types UX**; **`pending_backend_support`** badges; **`is_automated` toggle** exposed to organisers; standalone `/approval-workflows` route. **Hard delete** of a registration type is allowed only when **`app_base_registration_type_delete`** reports no blocking applications or form bindings (see **RL-PA-04** / **BR-REGDELETE**); a **preflight** read (dependency counts) may run **before** opening the delete confirmation so operators are not asked to confirm a delete that would fail. Otherwise operators must resolve dependencies first or use **`is_active`** false in **`RB`** to retire a type without removing historical rows.
 
 ### Architectural posture
 
 - All reads and RPCs route through **`useSecureSupabase()`** from `@solvera/pace-core/rbac`; no unrestricted Supabase singleton.
-- Writes are limited to **`app_base_registration_type_upsert`** and **`app_base_registration_type_set_active`** — no privileged direct `INSERT`/`UPDATE`/`DELETE` to `base_registration_type`, eligibility, or requirement tables.
-- **`PagePermissionGuard`** gates the page boundary with `pageName="registration-types"`. Mutation affordances use **`create`** and **`update`** checks; authoring dialogs render within an **`update`** guard.
-- **`@dnd-kit/core`**, **`@dnd-kit/sortable`**, **`@dnd-kit/utilities`** are **consuming-application dependencies** (not re-exported from pace-core).
+- Writes use **`app_base_registration_type_upsert`**, **`app_base_registration_type_set_active`**, and **`app_base_registration_type_delete`** only — no privileged direct `INSERT`/`UPDATE`/`DELETE` to `base_registration_type`, eligibility, or requirement tables from the authenticated client outside these RPCs.
+- **`PagePermissionGuard`** gates the page boundary with `pageName="registration-types"`. Mutation affordances use **`create`** and **`update`** checks; builder authoring surfaces render within an **`update`** guard.
+- Drag-and-drop for requirement reorder uses **`DndContext`**, **`SortableContext`**, and related symbols from **`@solvera/pace-core/forms`** (pace-core bundles **`@dnd-kit/core`**, **`@dnd-kit/sortable`**, **`@dnd-kit/utilities`** for consuming apps).
 - Composition uses pace-core primitives named in §9; layout follows Standard 07 (Semantic HTML + grids as per project rules).
 - Import policy is root-first for consuming apps: use `@solvera/pace-core` by default. Scoped entrypoints (`/rbac`, `/components`) are exception paths used when root does not expose the required symbol or a documented advanced/performance/migration case applies.
 
@@ -66,7 +66,7 @@ Let permitted operators define registration types for the selected event: human-
 
 ## 4. Functional specification
 
-Prefix legend: **`RL`** list surface, **`RD`** registration type dialog (`create/edit` fields + eligibility subsection), **`RR`** ordered requirements dialog, **`RQ`** miscellaneous quality cases.
+Prefix legend: **`RL`** list surface, **`RB`** registration type builder page (`/registration-type-builder`, create/edit fields + eligibility), **`RW`** approval workflow section on the builder page (ordered requirements), **`RQ`** miscellaneous quality cases.
 
 Cover every category template requires; numbering runs contiguous.
 
@@ -93,73 +93,81 @@ Cover every category template requires; numbering runs contiguous.
 ### Primary content — list cards
 
 9. **RL-PC-01 —** Each card **`title`** = registration **`name`**; optional description snippet below (truncate visually after ~two lines (`line-clamp-2`), no tooltip mandated).
-10. **RL-PC-02 —** Status badge **`Enabled`** when **`is_active` true**, variant **`solid-main-normal`**; **`Disabled`** when **`is_active` false**, variant **`outline-sec-muted`**.
+10. **RL-PC-02 —** Status badge **`Enabled`** when **`is_active` true**, variant **`solid-main-normal`**; **`Disabled`** when **`is_active` false**, variant **`outline-sec-muted`** (reflects persisted state after list refetch — not a live draft).
 11. **RL-PC-03 —** Summary line **`N eligibility rules`** exact label with integer `N` ≥ 0 (same copy at zero).
-12. **RL-PC-04 —** Optional capacity line rendered only when **`capacity`** numeric: **`Capacity …`** using integer string; omit whole line when `capacity` **`null`**.
-13. **RL-PC-05 —** Optional cost line **`Cost …`** using Australian currency rendering from stored cents (**divide by 100**, format **`en-AU` / AUD**).
+12. **RL-PC-04 —** Card grid uses **`grid-cols-1`**, **`md:grid-cols-2`**, **`lg:grid-cols-3`** so up to **three** cards appear per row at large breakpoints.
+13. **RL-PC-05 —** When **`capacity`** and/or **`cost`** is present, a **single** summary row uses **`grid grid-flow-col auto-cols-max`** with horizontal gap (or equivalent one-row layout such as **`flex flex-wrap`**): render **`Capacity …`** (integer string) only when **`capacity`** is numeric; render **`Cost …`** (Australian currency from stored cents: divide by 100, **`en-AU` / AUD**) only when **`cost`** is non-null; omit the entire row when both are absent.
 
 ### Primary actions — list toolbar & row actions
 
-14. **RL-PA-01 —** Toolbar **`Button`** “Create registration type” is wrapped in **`PagePermissionGuard`** with **`pageName="registration-types"`**, **`operation="create"`**, **`scope={{ organisationId, eventId, appId }}`**, **`fallback={null}`** (same nesting pattern as BA03 create buttons). Clicking it resets drafts and requests **`RD`** create mode; actual dialog rendering remains governed by the dialog-level **`operation="update"`** guard.
-15. **RL-PA-02 —** Row **`Button`** “Edit” wrapped in **`PagePermissionGuard`** with **`operation="update"`**, **`fallback={null}`**; opens **`RD`** populated via **BR-SNAPSHOT**.
-16. **RL-PA-03 —** Row **`Switch`** with **`aria-label="Registration type active"`** sits inside **`PagePermissionGuard`** with **`pageName="registration-types"`**, **`operation="update"`**, **`fallback={null}`** — denied users never see the control. **`disabled`** applies only when no event is selected; the Switch is **not** disabled while the RPC is pending. On change, flip `checked` optimistically and call **`app_base_registration_type_set_active`**; on RPC failure revert `checked` to its prior value and call **`HandleMutationError`**.
-17. **RL-PA-04 —** Row **`Button`** “Manage requirements”: same **`update`** **`PagePermissionGuard`** wrapper as Edit; **`disabled`** when the row has **no persisted `id` yet** (create flow requires first successful type save).
+14. **RL-PA-01 —** Toolbar **`Button`** “Create registration type” is wrapped in **`PagePermissionGuard`** with **`pageName="registration-types"`**, **`operation="create"`**, **`scope={{ organisationId, eventId, appId }}`**, **`fallback={null}`** (same nesting pattern as BA03 create buttons). Clicking it navigates to **`/registration-type-builder`** (no query id). The builder page is guarded with **`operation="update"`** on the same **`pageName`**.
+14a. **RL-PA-01a —** Because the builder requires **`update`**, BASE RBAC should grant **create** and **update** together for roles that author new types; a user with **create** only reaches the builder route but sees **`AccessDenied`** until **update** is granted.
 
-### Registration type dialog (fields + eligibility)
+15. **RL-PA-02 —** Row **`Button`** “Edit” wrapped in **`PagePermissionGuard`** with **`operation="update"`**, **`fallback={null}`**; navigates to **`/registration-type-builder?registrationTypeId={id}`** populated via **BR-SNAPSHOT**. **Edit** is placed in **`CardFooter`** with row actions.
+16. **RL-PA-03 —** **`CardFooter`** hosts permission-gated **Edit** and icon-only **Delete** (**`flex`/`flex-wrap`** with gap is acceptable); **no** list-level **`Switch`** for **`is_active`**; **no** separate list action for approval workflow (authoring lives on the builder page).
+17. **RL-PA-04 —** Row **`Button`** **Delete** uses an icon-only control with accessible name **Delete {type name}**, **`PagePermissionGuard`** **`operation="update"`**, **`fallback={null}`**. A **preflight** dependency count (applications / form bindings) may run when **Delete** is invoked; if counts block deletion, show the informational **Cannot delete registration type** dialog (body per **BR-REGDELETE**) **without** opening the destructive confirmation. When not blocked, it opens a **`ConfirmationDialog`** (**`variant="destructive"`**, **`title="Delete registration type"`**, **`confirmLabel="Delete"`**, **`cancelLabel="Cancel"`**) with description **Are you sure you want to delete '{name}'? This action cannot be undone.** On confirm → **`app_base_registration_type_delete`**. While the RPC is in flight, the dialog **`isPending`** disables confirm. If the RPC returns **`deleted: false`**, close the confirmation and open an informational **`Dialog`** with **`title="Cannot delete registration type"`** and body per **BR-REGDELETE**. If **`deleted: true`**, invalidate the types list (and requirements query key for that type), and fire **`ShowSuccessMessage`** **Registration type deleted successfully.**
 
-18. **RD-PE-01 —** Dialog title “Create registration type” vs “Edit registration type”; uses controlled **`Dialog`** (`open`, `onOpenChange`), not **`DialogTrigger`**, owing to programmatic open from rows.
-19. **RD-FL-01 —** Fields: **`name`** (required), **`description`**, **`eligibility_message`**, **`cost`** (presented as AUD dollars in UI, persisted as cents integer), **`capacity`** (optional positive integer cleared → `null` payload).
-20. **RD-VL-01 —** Blocking validation inline: **`name`** trimmed nonempty; **`cost`** ≥ 0 finite; **`capacity`** when provided integer ≥ 1; **`capacity` cleared** ⇒ treat as unrestricted (`null`).
-21. **RD-EL-01 —** Segment heading “Eligibility rules” with a `default`-variant **`Alert`** containing the copy: **”Rules of different types are combined with AND — a member must satisfy all types. Multiple rules of the same type are combined with OR — a member need only satisfy one.”**
-22. **RD-EL-02 —** “Add eligibility rule” appends editable row trio: **`Select`** of `membership_type` / `dob_before` / `dob_after`; value control: membership uses **`Select`** labelled by membership **`name`** (value string = integer id string per **BR-RULEVALUE**); date types use **`Input type="date"`** delivering ISO **YYYY-MM-DD** day component.
-23. **RD-EL-03 —** Each row exposes remove control (icon button or tertiary **Button**) removing only that staged row.
+### Registration type builder page (`RB`)
 
-### Requirement management dialog (`RR`)
+18. **RB-PE-01 —** Route **`/registration-type-builder`** is registered in the shell with **`includeInNavigation: false`** (parity with form builder). Optional query **`registrationTypeId`** selects edit mode; absence selects create mode.
+18a. **RB-PE-02 —** Page shows **`h1`** “Create registration type” vs “Edit registration type”, and a primary type **`Card`** with fields per **RB-FL-01** plus footer **Cancel** (navigate back) and **Save** (Standard 07, bottom right).
+19. **RB-FL-01 —** Fields: **`name`** (required), **`description`**, **`eligibility_message`**, **`cost`** (presented as AUD dollars in UI, persisted as cents integer), **`capacity`** (optional positive integer cleared → `null` payload), **`Registration type active`** (**`Switch`** with **`aria-label="Registration type active"`** and **`Label`**, draft **`is_active`**, default **`false`** on create until the operator enables it — persisted on **Save** via **`p_registration_type.is_active`** on **`app_base_registration_type_upsert`**).
+20. **RB-VL-01 —** Blocking validation inline: **`name`** trimmed nonempty; **`cost`** ≥ 0 finite; **`capacity`** when provided integer ≥ 1; **`capacity` cleared** ⇒ treat as unrestricted (`null`).
+21. **RB-EL-01 —** Segment heading “Eligibility rules” with a `default`-variant **`Alert`** containing the copy: **”Rules of different types are combined with AND — a member must satisfy all types. Multiple rules of the same type are combined with OR — a member need only satisfy one.”**
+22. **RB-EL-02 —** “Add eligibility rule” appends editable row trio: **`Select`** of `membership_type` / `dob_before` / `dob_after` (stored values remain those slugs; the **closed trigger shows the same human-readable labels** as the menu: **Membership type**, **DOB before**, **DOB after**); value control: membership uses **`Select`** with options from loaded membership types for the event; the **closed trigger shows the selected membership type `name`** (value string = integer id string per **BR-RULEVALUE**); date types use **`Input type="date"`** delivering ISO **YYYY-MM-DD** day component.
+23. **RB-EL-03 —** Each row exposes remove control: **`Button variant="outline"` `size="icon"`** with **`Trash2`** from **`@solvera/pace-core/icons`**, **`aria-label`** describing removal (for example **Remove eligibility rule**), **no** visible **Remove** text.
+23a. **RB-EL-04 —** Eligibility rule rows and **Add eligibility rule** sit **inside** the same **`Alert`** as **RB-EL-01** (below the guidance copy), in **one** list region with **compact vertical spacing** between rows.
+24. **RB-SV-01 —** On first successful **create** **Save**, the app updates the URL with **`registrationTypeId`** (replace navigation) so **RW** becomes active without returning to the list.
 
-24. **RR-PE-01 —** Dialog title pattern “Requirements — {{typeName}}”; large width class (`DialogContent className`) approx **`max-w-3xl`** to host vertical stack.
-24a. **RR-LS-01 —** While requirements are being fetched on dialog open, the `DialogBody` shows a centred **`LoadingSpinner`**; the footer Save button is **`disabled`** until the fetch resolves. On fetch error, render a destructive **`Alert`** inside the body using **`NormalizeSupabaseError`** copy; Save remains disabled.
+### Approval workflow section (`RW`)
+
+25. **RW-PE-01 —** Section title **Approval workflow** on the builder page below the type card.
+25a. **RW-PE-02 —** When no persisted type id exists yet, the section shows copy **Save the registration type first to configure the approval workflow.** and does not load requirements.
+25b. **RW-LS-01 —** While requirements are being fetched, the section shows a centred **`LoadingSpinner`**. On fetch error, render a destructive **`Alert`** using **`NormalizeSupabaseError`** copy; **Save** remains disabled.
 25. **RR-LI-01 —** Ordered list renders each requirement showing index **1-based human label**, textual **`check_type` label map** (**BR-TYPELABEL**).
 26. **RR-LI-02 —** Each row **`Button`** Remove (blocked when removal would contradict minimum chain policy — chain may be empty; **BR-RPC** allows empty **`p_requirement_rules`** arrays).
 27. **RR-LI-03 —** Drag handle activates **`SortableContext`** reorder; **`DragOverlay`** optional; reorder mutates draft only until save (**BR-SNAPSHOT** merges on save compose).
-28. **RR-LI-04 —** A persistent **add bar** sits below the sortable list: a **`Select`** populated with the allowed `check_type` catalogue (**BR-AUTHCHECKS**, display labels from **BR-TYPELABEL**) plus a **`Button`** “Add”. Clicking Add with a `check_type` selected appends a scaffold row to the draft list with the default config from **BR-CONFIGDEFAULT**; the Select resets to its placeholder after insertion. The bar is always visible while the RR dialog is open.
+28. **RR-LI-04 —** A persistent **add bar** sits below the sortable list: a **`Select`** populated with the allowed `check_type` catalogue (**BR-AUTHCHECKS**, display labels from **BR-TYPELABEL**) plus a **`Button`** “Add”. Clicking Add with a `check_type` selected appends a scaffold row to the draft list with the default config from **BR-CONFIGDEFAULT**; the Select resets to its placeholder after insertion. The bar remains available whenever the approval workflow section is enabled (not while it shows only the “save the registration type first” disabled state).
+28a. **RR-LI-05 —** Requirement authoring rows follow the same **single list region inside a bordered container** pattern as **RB-EL-04** (compact vertical spacing, **no** per-row boxed card inside that list).
 29. **RR-CF-01 —** **`guardian_approval`**: show informational copy referencing parent/guardian contact directory semantics and optional **`Checkbox`** “Require approval from **all** linked guardians”; maps JSON **`{ require_all_guardians: boolean }`** default `{ require_all_guardians: false }` when unchecked.
 30. **RR-CF-02 —** **`designated_org_review`**: informational line plus **`Select`** of eligible organisations (**BR-REVORG**) choosing **`reviewing_org_id`**; payload JSON **`{ reviewing_org_id: "<uuid>" }`**.
 31. **RR-CF-03 —** **`home_leader_approval`** / **`payment`** / **`referee`** / **`event_approval`**: informational read-only **`Alert`** or paragraph per **BR-INFOCOPY**; **no hidden extra dynamic inputs** besides ordering + delete.
-32. **RR-CF-04 —** Save requirements is blocked until all **`designated_org_review`** rows possess a selected reviewing org UUID. When the user attempts to save with an unresolved `designated_org_review` row, render an inline error message **"Select a reviewing organisation"** immediately below the org `Select` for that row; do not close the dialog or fire the RPC.
+32. **RW-CF-04 —** **Save** is blocked until all **`designated_org_review`** rows possess a selected reviewing org UUID. When the user attempts to save with an unresolved `designated_org_review` row, render an inline error message **"Select a reviewing organisation"** immediately below the org `Select` for that row; do not fire the RPC.
 
 ### Save behaviour & confirmations
 
-33. **RD-SV-01 —** Footer primary **Save** invokes validation; on success the dialog transitions to a **step-UX confirmation view** (page 2 within the same controlled `Dialog` — do not open a second modal or close and reopen). Draft state is held in component state throughout. Confirmation view copy: title **"Save registration type?"**, body **"Saving will replace all eligibility rules for this type. This cannot be undone."**, primary button **"Save"**, secondary button **"Cancel"**. Cancelling from the confirmation view returns the dialog to the edit view with all draft state intact.
-34. **RD-SV-02 —** Confirm path builds **`app_base_registration_type_upsert`** using **fresh type row + untouched requirements snapshot** unless user concurrently edited RR (should be closed — still merge last requirements snapshot refreshed post open) per **BR-SNAPSHOT**.
-35. **RR-SV-01 —** Footer **Save requirements** validates configs; on success the dialog transitions to a **step-UX confirmation view** (page 2 within the same controlled `Dialog`). Confirmation view copy: title **"Save requirements?"**, body **"Saving will replace all requirements for this type. This cannot be undone."**, primary button **"Save requirements"**, secondary button **"Cancel"**. Cancelling returns to the edit view with draft state intact. On confirm, compose payload arrays per **BR-RPC** + **BR-SNAPSHOT**.
-36. **SV-TO-01 —** Successful saves call **`ShowSuccessMessage`** toast “Saved registration type settings.” variants: requirements-only wording “Saved registration requirements.”
-37. **SV-TO-02 —** RPC errors routed through **`HandleMutationError`**; dialogs stay open editable state intact.
+33. **RB-SV-02 —** Type **Save** invokes validation; when valid, **`app_base_registration_type_upsert`** runs immediately, the user **stays on the builder page**, and **`ShowSuccessMessage`** toast **Saved registration type settings.** runs — **no** intermediate confirmation for the type form.
+34. **RB-SV-03 —** Type **Save** builds **`app_base_registration_type_upsert`** using **fresh type row + untouched requirements snapshot** (requirements snapshot refreshed on edit save when a type id exists) per **BR-SNAPSHOT**.
+35. **RW-SV-01 —** Approval workflow **Save** validates configs; when valid, **`app_base_registration_type_upsert`** runs immediately (requirements payload per **BR-RPC** + **BR-SNAPSHOT**), the user stays on the builder page, and **`ShowSuccessMessage`** toast **Saved approval workflow.** runs — **no** intermediate confirmation dialog.
+36. **SV-TO-01 —** Successful saves call **`ShowSuccessMessage`** toast “Saved registration type settings.” or approval-workflow-only wording **“Saved approval workflow.”**
+37. **SV-TO-02 —** RPC errors routed through **`HandleMutationError`**; builder page stays open with editable state intact.
 
 ### Secondary actions / navigation
 
-38. **RL-SC-01 —** Closing dialogs via backdrop click, **`DialogClose`**, or Escape restores focus per pace-core (**DialogClose** prefers trigger ref focus — programmatic open may yield no preceding button focus fallback acceptable).
+38. **RB-SC-01 —** **Cancel** on the type card navigates back to **`/registration-types`** without persisting.
 
 ### Permission-conditional rendering
 
 39. **RL-PR-01 —** Page outer wrapper uses **`PagePermissionGuard`** with **`pageName="registration-types"`**, **`operation="read"`**, **`scope={{ organisationId, eventId, appId }}`**; denied ⇒ **`AccessDenied`** and no operational content beneath.
 40. **RL-PR-02 —** **`Create`** button hidden when **`create`** denied (`fallback=null` guard per **RL-PA-01**).
-41. **RL-PR-03 —** Edit, Manage requirements, and effective Switch chrome hidden/replaced via **`PagePermissionGuard`** **`operation="update"`** wrappers (**`fallback={null}`** for buttons; Switch wrapper removes control entirely when denied).
+41. **RL-PR-03 —** **Edit** and **Delete** chrome hidden via **`PagePermissionGuard`** **`operation="update"`** wrappers (**`fallback={null}`** for controls). Read-only operators still see cards and **Enabled**/**Disabled** badges (**RL-PC-02**).
 
 ### Navigation
 
-42. **RL-NV-01 —** This slice does not outbound-navigate beyond closing dialogs.
+42. **RL-NV-01 —** List **Create** / **Edit** navigate to **`/registration-type-builder`**; builder **Back** / type **Cancel** return to **`/registration-types`**.
 
 ### Edge cases & constraints
 
 43. **RQ-EDGE-01 —** First successful **create** save may emit **`p_requirement_rules: []`**; later requirement authoring fills the snapshot on subsequent upserts.
 44. **RQ-EDGE-02 —** Saving with zero eligibility rows issues **`[]`**, signalling an open cohort per **BR-COMBINATION** once downstream evaluates.
-45. **RQ-EDGE-03 —** Active toggles mutate only via **`app_base_registration_type_set_active`**; optimistic UI snaps back when RPC rejects.
+45. **RQ-EDGE-03 —** Changing **`is_active`** in **`RB`** persists only on successful **`app_base_registration_type_upsert`**; list badges update after refetch. The standalone **`app_base_registration_type_set_active`** RPC remains available for non-UI callers but is **not** used from this slice’s list or builder surfaces.
 
 ---
 
 ## 5. Visual specification
 
-- Visual scope is `/registration-types` list/editor dialogs and requirement-ordering states.
+- Visual scope is `/registration-types` list and **`/registration-type-builder`** authoring surfaces.
+- List cards: **RL-PC-04** / **RL-PC-05** — three-column grid at **`lg`**, capacity and cost on one compact horizontal row when present; each **`Card`** uses **`grid h-full grid-rows-[1fr_auto]`** with **`CardHeader`** **`content-start`** so **`CardFooter`** (Edit, Delete) aligns to the **bottom** of the card and **lines up across** cards in the same row (**RL-PA-03**).
 - Keep this section to layout/state rendering; policy and persistence contracts stay in §4/§7.
 - Requirement/eligibility visuals mirror persisted arrays and do not redefine backend semantics.
 
@@ -217,21 +225,31 @@ Mirrors server:
 
 Sending partial subsets **wipes unstated siblings** server-side — client must ship full arrays (**BR-SNAPSHOT**).
 
+### BR-REGDELETE — Registration type delete (BA03 forms parity)
+
+0. **Optional preflight:** Before showing the destructive **`ConfirmationDialog`**, the client may read **`base_application`** / **`base_form_registration_type`** counts (same blockers as the RPC). If either count is non-zero, show only the informational **Cannot delete** dialog (**step 4** messaging); **do not** ask the operator to confirm delete.
+1. Operator confirms in **`ConfirmationDialog`** → **`app_base_registration_type_delete(p_event_id, p_registration_type_id)`** via **`useSecureSupabase().rpc(...)`**.
+2. RPC returns **`{ deleted, application_count, form_binding_count }`** (counts are **`bigint`**; client normalises for messaging).
+3. If **`deleted === true`** → eligibility and requirement rows **`CASCADE`** from **`base_registration_type`**; confirmation closes; list refetch; success toast **Registration type deleted successfully.**
+4. If **`deleted === false`** → confirmation closes; informational **`Dialog`** **Cannot delete registration type** using the same composition pattern as BA03’s blocked delete (`DialogTitle` + **`DialogDescription`** + single **OK** **`Button`** in **`DialogFooter`**). Message text mirrors **`buildDeleteBlockedMessageForRegistrationType`** — only include **applications** and/or **form binding** clauses when the corresponding count is **> 0**.
+5. On RPC error → confirmation closes; **`HandleMutationError`**; list not eagerly refreshed.
+
+**Server blockers:** non-zero **`base_application`** rows for **`(event_id, registration_type_id)`**, or non-zero **`base_form_registration_type`** rows for that pair. Permission: same contextual **`update:page.registration-types`** check as **`app_base_registration_type_upsert`**.
+
 ### BR-SNAPSHOT — Snapshot coherence before each upsert classify
 
 Maintain frozen server snapshots **`typeSnapshot`, `eligibilitySnapshot`, `requirementsSnapshot`**, refreshed whenever:
 
-- Opening **Edit** dialog,
-- Opening **Requirements** dialog,
-- After every successful **`app_base_registration_type_upsert`**,
-- After successful **`app_base_registration_type_set_active`** (list refetch; if **`RD` / `RR`** is open for that type id, reload that type into **`typeSnapshot`** so **`is_active`** matches the server).
+- Opening **Edit** on the builder (**RB**),
+- After every successful **`app_base_registration_type_upsert`** (including **`is_active`** chosen in **`RB`**),
+- After successful **`app_base_registration_type_set_active`** when a non-UI path calls it (list refetch; if the builder is open for that type id, reload that type into **`typeSnapshot`** so **`is_active`** matches the server).
 
 Compose calls:
 
 | Save origin | `p_registration_type` fields | Eligibility payload | Requirement payload |
 | --- | --- | --- | --- |
-| Type dialog | From dialog edits | From dialog edits | **`requirementsSnapshot` unchanged ordering & configs** |
-| Requirements dialog | **`typeSnapshot` merged with `is_active` etc.** | **`eligibilitySnapshot` unchanged** | From drag/drop + config edits |
+| Type card **Save** (**RB**) | From builder type + eligibility edits | From builder edits | **`requirementsSnapshot` unchanged ordering & configs** |
+| Approval workflow **Save** (**RW**) | **`typeSnapshot` merged with `is_active` etc.** | **`eligibilitySnapshot` unchanged** | From drag/drop + config edits |
 
 ### BR-COSTMAP — Dollars ↔ cents
 
@@ -344,7 +362,7 @@ from('core_organisations')
 ```
 from('core_events')
 .select('organisation_id')
-.eq('id', selectedEventId)
+.eq('event_id', selectedEventId)
 .single()
 ```
 
@@ -367,7 +385,7 @@ This id is required before the subtree and membership-type reads can proceed.
     eligibility_message: string|null,
     cost: integerCents | 0,
     capacity: positiveInteger|null,
-    is_active: boolean, /* new types: always false; existing types: from typeSnapshot */
+    is_active: boolean, /* from draft: create defaults false until operator enables **Registration type active** in **RB**; existing types: edited in **RB** and persisted on **Save** */
     sort_order: integer|null /* new types: send null — server assigns; existing types: from typeSnapshot */
   },
   p_eligibility_rules: Array<{ rule_type: 'membership_type'|'dob_before'|'dob_after', value: string }>,
@@ -396,7 +414,18 @@ Failures include `'Permission denied'`, `'Registration type name is required'`, 
 
 Returns **`[{ registration_type_id, is_active }]`**.
 
-All mutation errors surfaced via **`HandleMutationError`** with context label **Registration Types**.
+**Delete**
+
+```
+.rpc('app_base_registration_type_delete', {
+  p_event_id: selectedEventUuid,
+  p_registration_type_id: registrationTypeUuid,
+})
+```
+
+Returns **`[{ deleted, application_count, form_binding_count }]`**. When **`deleted`** is **`true`**, the **`base_registration_type`** row is removed and dependent eligibility/requirement rows cascade per FK definitions. When **`deleted`** is **`false`**, counts explain **`base_application`** and/or **`base_form_registration_type`** blocks.
+
+All mutation errors surfaced via **`HandleMutationError`** with context label **Registration Types** (delete handler may use **`registration-types-delete`** for telemetry parity with other surfaces).
 
 ---
 
@@ -456,7 +485,7 @@ Domains / decisions: honour `docs/database/domains/base.md` when overlapping RLS
 | `useSecureSupabase` | Scoped `@solvera/pace-core/rbac` exception path (security boundary API) | Scoped reads/writes |
 | `Dialog`, `Select`, `Switch`, `Checkbox` | Default root import; allow scoped exception if required by export location | Registration-type authoring controls |
 | `HandleMutationError` / `ShowSuccessMessage` | Default root import | Mutation feedback handling |
-| `@dnd-kit/*` | `@dnd-kit/*` | Requirement reorder UX |
+| `DndContext`, `SortableContext`, `useSortable`, … | `@solvera/pace-core/forms` | Approval workflow drag reorder |
 
 ### 9.2 Slice-specific caveats only
 
@@ -473,7 +502,7 @@ Domains / decisions: honour `docs/database/domains/base.md` when overlapping RLS
 | View page (`read`) | `read:page.registration-types` (via **`PagePermissionGuard` pageName **`registration-types`**) | Client guard + data RLS |
 | Create (`Button`) | `create:page.registration-types` _(pattern mirrors BA forms naming_) | Hidden if absent |
 | Author saves / drag / reqs | `update:page.registration-types` hidden when absent plus RPC denies | Matching RPC contextual check |
-| Delete | **Not supported** — no delete affordance is provided; types are disabled via `is_active` toggle only | N/A |
+| Delete registration type (`Button` + RPC) | `update:page.registration-types` | Same contextual check as saves; UI hides **Delete** when **`update`** denied |
 
 Server strings observed inside SQL: **`'update:page.registration-types'`** literal — client permission naming must remain compatible with project's RBAC catalogue (adjust naming if codebase uses dotted variant — implementer aligns **pageName `'registration-types'`** with DB permission factory).
 
@@ -485,22 +514,22 @@ _Scope_: thread `{ organisationId, eventId, appId }` via the registration scope 
 
 - Given no event selection, permission passes, navigating page shows select-event **`Card`** and hides create control.
 - Given event selection with types, authorised user sees **`N eligibility rules`** summary matching database counts.
-- Given valid create inputs, confirming save executes upsert returning id, refreshes grid, toast success.
-- Given invalid dob format, validation blocks save confirmation.
+- Given valid create inputs, **Save** executes upsert returning id, refreshes grid, toast success.
+- Given invalid dob format, validation blocks save before any RPC (no second-step prompt for the type dialog).
 - Given user lacks `read`, **`AccessDenied`** renders.
-- Given user lacks `update`, edit/manage controls and **`Switch`** are absent (`fallback={null}` guards) while read-only badges still render.
-- Given toggling **`Switch`** success updates badge without page reload failures.
+- Given user lacks `update`, edit/manage/**Delete** controls are absent (`fallback={null}` guards) while read-only badges still render.
+- Given **`Registration type active`** is changed in **`RB`** and **Save** succeeds, the list badge reflects the new **`is_active`** after refetch without page reload failures.
 - Given drag reorder + save requirements, reorder reflected by ascending **`sort_order`** after server refetch confirms the new ordering.
-- Given designated org requirement save without organisation selected, destructive inline validation prevents confirm.
-
----
+- Given **`update`** and confirming **Delete** when **`app_base_registration_type_delete`** returns **`deleted: true`**, the card disappears after refetch and toast **Registration type deleted successfully.** runs.
+- Given confirming **Delete** when the RPC returns **`deleted: false`**, an informational **Cannot delete registration type** dialog explains applications and/or form bindings; the types list is not removed.
 
 ## 12. Verification
 
+- QA scenario definitions and execution notes (manual + automated command): `docs/test-packs/BA04-qa-pack.md`.
 - Verify `/registration-types` list load and no-event state.
 - Verify create/edit persistence of type fields and requirement/eligibility arrays.
 - Verify reorder saves expected `sort_order` values.
-- Verify read/update permission differences and deny states.
+- Verify **Delete** confirmation, blocked delete messaging, and successful removal refetch.
 - Verify count/summary parity between UI and persisted rows.
 
 ## 13. Testing requirements
@@ -513,7 +542,7 @@ _Scope_: thread `{ organisationId, eventId, appId }` via the registration scope 
 ## 14. Build execution rules
 
 - Scope is `/registration-types` only.
-- No schema edits from this slice.
+- RPC contract updates (e.g. **`app_base_registration_type_delete`**) ship through **pace-core** Supabase migrations; do not patch database DDL from the consuming app in isolation.
 - Stop on RPC/contract mismatch; do not apply local schema workarounds.
 - Keep writes through documented secure boundaries.
 
@@ -528,7 +557,6 @@ _Scope_: thread `{ organisationId, eventId, appId }` via the registration scope 
 - Do not write `core_events.registration_scope` from this slice.
 - Do not bypass approved persistence paths with ad-hoc direct inserts.
 - Do not expose manual override of system-managed automation flags.
-- Do not add delete flow for registration types; use active-state controls.
 - Do not use retired page-guard patterns.
 
 ## 17. References

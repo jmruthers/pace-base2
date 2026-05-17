@@ -56,9 +56,8 @@ This slice owns the two surfaces through which BASE operators author and manage 
 - Create mode: navigated to from `/forms` "Create Form" button; URL is `/form-builder` (no query params).
 - Edit mode: navigated to from a form card's "Edit" action; URL is `/form-builder?formId={uuid}`.
 - `WorkflowFormAuthoringShell` with BASE-specific props (`heading`, `allowedWorkflowTypes`, `slugReadOnly`, `metadataAside`, `middleContent`).
-- A BASE-specific "Schedule" panel (inside `middleContent`) for `opens_at`/`closes_at`.
-- A BASE-specific "Submission Settings" panel (via shell `metadataAside`, stacked full-width below Form metadata) for `max_submissions` and `confirmation_message`; fields stack in **one column** inside the card.
-- A BASE-specific `RegistrationTypeBindingPanel` (inside `middleContent`, after Schedule, shown only when `workflowType === 'base_registration'`) for managing `base_form_registration_type` rows.
+- A BASE-specific **Submission settings** panel (via shell `metadataAside`, stacked full-width below Form metadata) combining `max_submissions`, `confirmation_message`, and schedule (`opens_at`/`closes_at`) in **one** `Card`.
+- A BASE-specific `RegistrationTypeBindingPanel` (inside `middleContent`, shown only when `workflowType === 'base_registration'`) for managing `base_form_registration_type` rows.
 - A no-event blocking state that prevents the builder from rendering when no event is selected.
 
 **Boundaries.**
@@ -178,7 +177,7 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
     - `subheading`: "Define this form's metadata, fields, and submission settings."
     - `allowedWorkflowTypes`: the `BASE_WORKFLOW_TYPES` constant (§6.6) — all types except `org_signup`.
     - `slugReadOnly`: `true` when `state.metadata.status === 'published'`, `false` otherwise.
-    - `metadataAside`: the Submission Settings `Card` (§4.2 FB-PC-07), rendered full-width below shell Form metadata; the submission card uses a **single-column** stack (**Max submissions** → **Confirmation message** → helper text).
+    - `metadataAside`: the Submission settings `Card` (§4.2 FB-PC-07), rendered full-width below shell Form metadata.
     - `middleContent`: the remaining `<BaseFormExtensions>` composite panel (§4.2 FB-PC-05).
     - `onSave`: the builder's save handler (§6.9).
     - `onStateChange`: the builder's intercepting state handler (§6.10).
@@ -190,14 +189,12 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 
 **Primary content — extensions (`metadataAside` / `middleContent`)**
 
-42. FB-PC-05 — The builder exposes **Submission Settings** through the shell **`metadataAside`** prop (full-width stacked below Form metadata — see FB-PC-01). The `middleContent` slot renders panels in vertical order:
-    1. "Schedule" panel — always visible.
-    2. `RegistrationTypeBindingPanel` — visible only when `state.metadata.workflowType === 'base_registration'`.
-43. FB-PC-06 — **Schedule panel**: a `Card` with title "Schedule". Contains two date inputs side by side:
-    - "Opens at" — `DatePickerWithTimezone` with `value` (Date | null) and `onChange`. Maps to `state.metadata.opensAt` (stored as ISO 8601 string; convert to/from `Date` at the input boundary per §6.11). Optional.
-    - "Closes at" — same component. Maps to `state.metadata.closesAt`. Optional.
+42. FB-PC-05 — The `middleContent` slot renders `RegistrationTypeBindingPanel` only when `state.metadata.workflowType === 'base_registration'` (no separate Schedule card in `middleContent`).
+43. FB-PC-06 — **Opens at / Closes at** (inside the Submission settings card, FB-PC-07): schedule fields are **inline** — no separate "Schedule" title or subsection heading. After the helper text under **Confirmation message**, a responsive **`section`** (`grid gap-3 md:grid-cols-2`) holds two **`fieldset`** groups side by side on `md+`:
+    - **Opens at** — `Label` + `DatePickerWithTimezone` with `value` (Date | null) and `onChange`. Maps to `state.metadata.opensAt` (stored as ISO 8601 string; convert to/from `Date` at the input boundary per §6.11). Optional.
+    - **Closes at** — same. Maps to `state.metadata.closesAt`. Optional.
     When either value changes, `onStateChange` is called with the updated ISO string in `metadata.opensAt` or `metadata.closesAt`.
-44. FB-PC-07 — **Submission Settings panel** (passed as shell `metadataAside`, FB-PC-01): a `Card` with title "Submission Settings". `CardContent` is a vertical stack (`gap-4`): **Max submissions**, then **Confirmation message**, then helper text. Contains:
+44. FB-PC-07 — **Submission settings panel** (passed as shell `metadataAside`, FB-PC-01): a single `Card` with title "Submission settings". `CardContent` is a vertical stack (`gap-4`): **Max submissions**, **Confirmation message**, helper text, then the **Opens at** / **Closes at** schedule fields (FB-PC-06). Contains:
     - "Max submissions" — number `Input`, min 1, optional. Maps to `state.metadata.workflowConfig.max_submissions`. When blank/cleared, the value is `null` in `workflowConfig`.
     - "Confirmation message" — `Textarea`, optional. Maps to `state.metadata.workflowConfig.confirmation_message`. Helper text: "Shown to participants after successful form submission."
 45. FB-PC-08 — **RegistrationTypeBindingPanel** (shown only when `workflowType === 'base_registration'`): a `Card` with title "Registration Type Bindings". Renders a list of all active `base_registration_type` rows for the current event (fetched on panel mount). Each row shows: a checkbox (bound/unbound), the type `name`, and a radio button for "Set as default" (enabled only on checked rows). State of the panel is maintained in local React state (`bindings: { typeId: string, isDefault: boolean }[]`) and is passed to the save handler on Save (§6.9). Full binding panel spec in §5.2.
@@ -557,7 +554,7 @@ supabase.rpc('app_base_form_registration_bindings_replace', {
 `WorkflowAuthoringState.metadata.opensAt` and `closesAt` are `string | null` (ISO 8601 UTC strings). `DatePickerWithTimezone` works with `Date | null`.
 
 - **State → picker value:** `opensAt ? new Date(opensAt) : null`
-- **Picker onChange → state update:** `new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString()` (midnight UTC, same pattern as BA01 §6.2). Store this ISO string in `state.metadata.opensAt` or `closesAt` via the `onStateChange` call from the schedule panel.
+- **Picker onChange → state update:** `new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString()` (midnight UTC, same pattern as BA01 §6.2). Store this ISO string in `state.metadata.opensAt` or `closesAt` via the `onStateChange` call from the submission settings **`Opens at`** / **`Closes at`** controls.
 - **Clear (date removed):** store `null`.
 
 ---
@@ -845,7 +842,7 @@ Each criterion traces to one or more Functional Specification items. Do not pre-
 
 - [ ] Given a user navigates to `/form-builder?formId={id}`, when the page loads, then a loading spinner appears, then the shell renders with the saved form data pre-populated. (FB-PE-02, FB-LS-01, BR-12)
 - [ ] Given a published form is loaded in edit mode, when the builder renders, then the Slug field is read-only and cannot be changed. (BR-06, FB-PC-02)
-- [ ] Given a user edits `opensAt` in the schedule panel, when they save, then `app_base_form_upsert` is called with `opens_at` set to an ISO midnight-UTC string. (FB-PC-06, BR-18)
+- [ ] Given a user edits `opensAt` in the Submission settings card **Opens at** field, when they save, then `app_base_form_upsert` is called with `opens_at` set to an ISO midnight-UTC string. (FB-PC-06, BR-18)
 - [ ] Given a user edits max_submissions to 50, when they save, then `app_base_form_upsert`'s `p_definition` contains `max_submissions: 50`. (FB-PC-07, BR-15)
 
 **Form builder — no-event and permission states**

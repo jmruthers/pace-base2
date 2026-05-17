@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createInitialSnapshots } from './draftMappers';
 import {
   buildUpsertPayloadForRequirementsSave,
   buildUpsertPayloadForTypeSave,
@@ -101,6 +102,7 @@ describe('registrationSetup stateHelpers', () => {
 
     expect(payload.p_registration_type.cost).toBe(1000);
     expect(payload.p_registration_type.capacity).toBeNull();
+    expect(payload.p_registration_type.is_active).toBe(true);
     expect(payload.p_eligibility_rules).toEqual([{ rule_type: 'dob_after', value: '2026-01-01' }]);
     expect(payload.p_requirement_rules).toEqual([
       {
@@ -110,6 +112,27 @@ describe('registrationSetup stateHelpers', () => {
         config: null,
       },
     ]);
+  });
+
+  it('sends is_active from draft when creating a registration type', () => {
+    const draft: RegistrationTypeDraft = {
+      id: null,
+      name: 'New',
+      description: '',
+      eligibility_message: '',
+      costDollars: '0.00',
+      capacity: '',
+      is_active: true,
+      sort_order: null,
+    };
+    const payload = buildUpsertPayloadForTypeSave({
+      eventId: 'event-1',
+      organisationId: 'org-1',
+      draft,
+      eligibilityDrafts: [],
+      snapshots: createInitialSnapshots(),
+    });
+    expect(payload.p_registration_type.is_active).toBe(true);
   });
 
   it('builds requirements-save payload preserving type and eligibility snapshots', () => {

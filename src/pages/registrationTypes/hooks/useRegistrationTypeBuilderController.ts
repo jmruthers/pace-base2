@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { useResolvedScope } from '@solvera/pace-core/rbac';
 import { HandleMutationError, ShowSuccessMessage } from '@solvera/pace-core/utils';
@@ -9,7 +10,6 @@ import {
   useRegistrationTypeUpsertMutation,
   useRequirementsForType,
   useReviewingOrganisationsForEvent,
-  useSetRegistrationTypeActiveMutation,
 } from '@/features/registrationSetup/configuration';
 import {
   createDefaultRegistrationTypeDraft,
@@ -19,11 +19,11 @@ import {
   mapEligibilityToDraft,
   mapRequirementsToDraft,
   mapTypeToDraft,
-} from '@/features/registrationSetup/shared';
+} from '@/features/registrationSetup/draftMappers';
 import {
   buildUpsertPayloadForRequirementsSave,
   buildUpsertPayloadForTypeSave,
-  moveRequirementDraft,
+  reorderRequirementDrafts,
   validateRegistrationTypeDraft,
   validateRequirementDrafts,
 } from '@/features/registrationSetup/stateHelpers';
@@ -34,24 +34,11 @@ import type {
   RegistrationTypeRow,
   RequirementRuleDraft,
 } from '@/features/registrationSetup/types';
-
-export type DialogStep = 'edit' | 'confirm';
-
-function registrationScope(scope: {
-  organisationId: string | null;
-  eventId: string | null;
-  appId: string | null;
-}) {
-  return {
-    organisationId: scope.organisationId,
-    eventId: scope.eventId ?? null,
-    appId: scope.appId ?? undefined,
-  };
-}
-
-export function useRegistrationTypesPageController() {
+import { registrationScope } from '../registrationScope';
+export function useRegistrationTypeBuilderController() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { selectedOrganisationId, selectedEventId } = useUnifiedAuth();
   const { organisationId, eventId, appId } = useResolvedScope();
   const scope = registrationScope({
@@ -60,14 +47,25 @@ export function useRegistrationTypesPageController() {
     appId,
   });
 
+  const registrationTypeIdFromUrl = searchParams.get('registrationTypeId');
+  const isEditMode = registrationTypeIdFromUrl != null && registrationTypeIdFromUrl.length > 0;
+
   const listQuery = useRegistrationTypesList(selectedEventId);
   const upsertMutation = useRegistrationTypeUpsertMutation();
-  const activeMutation = useSetRegistrationTypeActiveMutation();
 
-  const [activeOverrides, setActiveOverrides] = useState<Record<string, boolean>>({});
+  const eligibilityByTypeId = useMemo(
+    () => listQuery.data?.eligibilityByTypeId ?? {},
+    [listQuery.data?.eligibilityByTypeId]
+  );
 
-  const [typeDialogOpen, setTypeDialogOpen] = useState(false);
-  const [typeDialogStep, setTypeDialogStep] = useState<DialogStep>('edit');
+  const resolvedRow = useMemo(() => {
+    if (!isEditMode || registrationTypeIdFromUrl == null) {
+      return null;
+    }
+    const rows = listQuery.data?.types ?? [];
+    return rows.find((row) => row.id === registrationTypeIdFromUrl) ?? null;
+  }, [isEditMode, listQuery.data?.types, registrationTypeIdFromUrl]);
+
   const [typeDraft, setTypeDraft] = useState<RegistrationTypeDraft>(createDefaultRegistrationTypeDraft);
   const [eligibilityDrafts, setEligibilityDrafts] = useState<EligibilityRuleDraft[]>([]);
   const [typeValidationErrors, setTypeValidationErrors] = useState<{
@@ -77,24 +75,22 @@ export function useRegistrationTypesPageController() {
     eligibilityRules?: Record<string, string>;
   }>({});
   const [snapshots, setSnapshots] = useState(createInitialSnapshots);
+  const [hydratedFromUrlId, setHydratedFromUrlId] = useState<string | null>(null);
 
-  const [requirementsDialogOpen, setRequirementsDialogOpen] = useState(false);
-  const [requirementsDialogStep, setRequirementsDialogStep] = useState<DialogStep>('edit');
-  const [requirementsTargetType, setRequirementsTargetType] = useState<RegistrationTypeRow | null>(null);
   const [requirementDrafts, setRequirementDrafts] = useState<RequirementRuleDraft[]>([]);
   const [selectedRequirementTypeToAdd, setSelectedRequirementTypeToAdd] = useState<string>('');
   const [designatedOrgErrors, setDesignatedOrgErrors] = useState<Record<string, string>>({});
 
-  const requirementsQuery = useRequirementsForType(
-    requirementsTargetType?.id ?? null,
-    requirementsDialogOpen || (typeDialogOpen && typeDraft.id != null)
-  );
-  const membershipTypesQuery = useMembershipTypesForEvent(selectedEventId, typeDialogOpen);
-  const reviewingOrgsQuery = useReviewingOrganisationsForEvent(selectedEventId, requirementsDialogOpen);
+  const persistedTypeId =
+    typeDraft.id ?? (isEditMode ? registrationTypeIdFromUrl : null);
+  const workflowEnabled = persistedTypeId != null && persistedTypeId.length > 0;
 
-  const listRows = listQuery.data?.types ?? [];
-  const eligibilityCounts = listQuery.data?.eligibilityCountsByTypeId ?? {};
-  const eligibilityByTypeId = listQuery.data?.eligibilityByTypeId ?? {};
+  const requirementsQuery = useRequirementsForType(persistedTypeId, workflowEnabled);
+  const membershipTypesQuery = useMembershipTypesForEvent(selectedEventId, true);
+  const reviewingOrgsQuery = useReviewingOrganisationsForEvent(
+    selectedEventId,
+    selectedEventId != null && selectedEventId.length > 0
+  );
 
   const requirementDraftRows =
     requirementDrafts.length > 0
@@ -104,98 +100,50 @@ export function useRegistrationTypesPageController() {
           sort_order: index,
         }));
 
-  const openCreateDialog = () => {
-    setTypeDraft(createDefaultRegistrationTypeDraft());
-    setEligibilityDrafts([]);
-    setTypeValidationErrors({});
-    setTypeDialogStep('edit');
-    setSnapshots(createInitialSnapshots());
-    setTypeDialogOpen(true);
-  };
+  useEffect(() => {
+    if (!isEditMode || registrationTypeIdFromUrl == null || resolvedRow == null) {
+      return;
+    }
 
-  const openEditDialog = (row: RegistrationTypeRow) => {
-    setTypeDraft(mapTypeToDraft(row));
-    setEligibilityDrafts(mapEligibilityToDraft(eligibilityByTypeId[row.id] ?? []));
-    setTypeValidationErrors({});
-    setTypeDialogStep('edit');
-    setRequirementsTargetType(row);
-    const cachedRequirements = queryClient.getQueryData<unknown>(['registration-setup', 'requirements', row.id]);
+    if (hydratedFromUrlId === registrationTypeIdFromUrl) {
+      return;
+    }
+
+    const cachedRequirements = queryClient.getQueryData<unknown>([
+      'registration-setup',
+      'requirements',
+      resolvedRow.id,
+    ]);
     const requirementSnapshots = Array.isArray(cachedRequirements)
       ? mapRequirementsToDraft(cachedRequirements as never[]).map((rule, index) => ({
           ...rule,
           sort_order: index,
         }))
       : [];
+
+    // URL-driven hydration when opening edit mode (builder remounts on registrationTypeId change).
+    /* eslint-disable react-hooks/set-state-in-effect -- sync form drafts from list query row */
+    setTypeDraft(mapTypeToDraft(resolvedRow));
+    setEligibilityDrafts(mapEligibilityToDraft(eligibilityByTypeId[resolvedRow.id] ?? []));
+    setTypeValidationErrors({});
+    setRequirementDrafts(requirementSnapshots);
+    setDesignatedOrgErrors({});
+
     setSnapshots({
-      typeSnapshot: row,
-      eligibilitySnapshot: eligibilityByTypeId[row.id] ?? [],
+      typeSnapshot: resolvedRow,
+      eligibilitySnapshot: eligibilityByTypeId[resolvedRow.id] ?? [],
       requirementsSnapshot: requirementSnapshots,
     });
-    setTypeDialogOpen(true);
-  };
-
-  const openRequirementsDialog = (row: RegistrationTypeRow) => {
-    const fromList = queryClient.getQueryData<unknown>(['registration-setup', 'requirements', row.id]);
-    const mapped = Array.isArray(fromList)
-      ? mapRequirementsToDraft(fromList as never[]).map((rule, index) => ({ ...rule, sort_order: index }))
-      : [];
-    setRequirementsTargetType(row);
-    setRequirementsDialogStep('edit');
-    setDesignatedOrgErrors({});
-    setRequirementDrafts(mapped);
-    setSnapshots((current) => ({
-      ...current,
-      typeSnapshot: row,
-      eligibilitySnapshot: eligibilityByTypeId[row.id] ?? [],
-      requirementsSnapshot: mapped,
-    }));
-    setRequirementsDialogOpen(true);
-  };
-
-  const handleToggleActive = async (row: RegistrationTypeRow, nextValue: boolean) => {
-    if (selectedEventId == null) {
-      return;
-    }
-    const previous = activeOverrides[row.id] ?? row.is_active;
-    setActiveOverrides((current) => ({ ...current, [row.id]: nextValue }));
-    try {
-      await activeMutation.mutateAsync({
-        eventId: selectedEventId,
-        registrationTypeId: row.id,
-        isActive: nextValue,
-      });
-      await queryClient.invalidateQueries({ queryKey: ['registration-setup', 'types-list', selectedEventId] });
-      setSnapshots((current) => {
-        if (current.typeSnapshot?.id !== row.id) {
-          return current;
-        }
-        return {
-          ...current,
-          typeSnapshot: { ...current.typeSnapshot, is_active: nextValue },
-        };
-      });
-      setTypeDraft((current) => (current.id === row.id ? { ...current, is_active: nextValue } : current));
-      setRequirementsTargetType((current) =>
-        current?.id === row.id ? { ...current, is_active: nextValue } : current
-      );
-    } catch (error) {
-      setActiveOverrides((current) => ({ ...current, [row.id]: previous }));
-      setSnapshots((current) => {
-        if (current.typeSnapshot?.id !== row.id) {
-          return current;
-        }
-        return {
-          ...current,
-          typeSnapshot: { ...current.typeSnapshot, is_active: previous },
-        };
-      });
-      setTypeDraft((current) => (current.id === row.id ? { ...current, is_active: previous } : current));
-      setRequirementsTargetType((current) =>
-        current?.id === row.id ? { ...current, is_active: previous } : current
-      );
-      HandleMutationError(error, 'Registration Types', toast);
-    }
-  };
+    setHydratedFromUrlId(registrationTypeIdFromUrl);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [
+    eligibilityByTypeId,
+    hydratedFromUrlId,
+    isEditMode,
+    queryClient,
+    registrationTypeIdFromUrl,
+    resolvedRow,
+  ]);
 
   const addEligibilityRule = () => {
     setEligibilityDrafts((current) => [
@@ -234,11 +182,6 @@ export function useRegistrationTypesPageController() {
       return;
     }
 
-    if (typeDialogStep === 'edit') {
-      setTypeDialogStep('confirm');
-      return;
-    }
-
     try {
       let payloadSnapshots = snapshots;
       if (typeDraft.id != null) {
@@ -263,17 +206,47 @@ export function useRegistrationTypesPageController() {
       const resolvedId = await upsertMutation.mutateAsync(payload);
       await queryClient.invalidateQueries({ queryKey: ['registration-setup', 'types-list', selectedEventId] });
       await queryClient.invalidateQueries({ queryKey: ['registration-setup', 'requirements', resolvedId] });
+
+      const nextDraft = { ...typeDraft, id: resolvedId };
+      setTypeDraft(nextDraft);
+      if (resolvedRow != null) {
+        setSnapshots((current) => ({
+          ...current,
+          typeSnapshot: resolvedRow,
+        }));
+      } else if (snapshots.typeSnapshot == null) {
+        setSnapshots((current) => ({
+          ...current,
+          typeSnapshot: {
+            id: resolvedId,
+            name: nextDraft.name,
+            description: nextDraft.description || null,
+            eligibility_message: nextDraft.eligibility_message || null,
+            cost: null,
+            capacity: null,
+            is_active: nextDraft.is_active,
+            sort_order: null,
+            organisation_id: selectedOrganisationId,
+            event_id: selectedEventId,
+            created_at: null,
+          } as RegistrationTypeRow,
+        }));
+      }
+
+      if (!isEditMode || registrationTypeIdFromUrl !== resolvedId) {
+        setSearchParams({ registrationTypeId: resolvedId }, { replace: true });
+        setHydratedFromUrlId(resolvedId);
+      }
+
       ShowSuccessMessage('Saved registration type settings.', toast);
-      setTypeDialogOpen(false);
-      setTypeDialogStep('edit');
     } catch (error) {
       HandleMutationError(error, 'Registration Types', toast);
     }
   };
 
-  const moveRequirement = (localId: string, direction: 'up' | 'down') => {
+  const reorderRequirement = (activeLocalId: string, overLocalId: string | null) => {
     const sourceRules = requirementDrafts.length > 0 ? requirementDrafts : requirementDraftRows;
-    setRequirementDrafts(moveRequirementDraft(sourceRules, localId, direction));
+    setRequirementDrafts(reorderRequirementDrafts(sourceRules, activeLocalId, overLocalId));
   };
 
   const addRequirement = () => {
@@ -317,19 +290,14 @@ export function useRegistrationTypesPageController() {
     });
   };
 
-  const saveRequirements = async () => {
+  const saveWorkflow = async () => {
     const sourceRules = requirementDrafts.length > 0 ? requirementDrafts : requirementDraftRows;
-    if (selectedEventId == null || selectedOrganisationId == null) {
+    if (selectedEventId == null || selectedOrganisationId == null || !workflowEnabled) {
       return;
     }
     const validation = validateRequirementDrafts(sourceRules);
     setDesignatedOrgErrors(validation.designatedOrgByRuleId);
     if (Object.keys(validation.designatedOrgByRuleId).length > 0) {
-      return;
-    }
-
-    if (requirementsDialogStep === 'edit') {
-      setRequirementsDialogStep('confirm');
       return;
     }
 
@@ -343,56 +311,51 @@ export function useRegistrationTypesPageController() {
       const resolvedId = await upsertMutation.mutateAsync(payload);
       await queryClient.invalidateQueries({ queryKey: ['registration-setup', 'types-list', selectedEventId] });
       await queryClient.invalidateQueries({ queryKey: ['registration-setup', 'requirements', resolvedId] });
-      ShowSuccessMessage('Saved registration requirements.', toast);
-      setRequirementsDialogOpen(false);
-      setRequirementsDialogStep('edit');
+      ShowSuccessMessage('Saved approval workflow.', toast);
+      setRequirementDrafts([]);
     } catch (error) {
       HandleMutationError(error, 'Registration Types', toast);
     }
   };
 
+  const unknownTypeId =
+    isEditMode &&
+    !listQuery.isLoading &&
+    listQuery.error == null &&
+    registrationTypeIdFromUrl != null &&
+    resolvedRow == null;
+
   return {
     scope,
     selectedEventId,
+    registrationTypeIdFromUrl,
+    isEditMode,
     listQuery,
-    listRows,
-    eligibilityCounts,
-    activeOverrides,
+    resolvedRow,
+    unknownTypeId,
     upsertMutation,
     requirementsQuery,
     membershipTypesQuery,
     reviewingOrgsQuery,
-    typeDialogOpen,
-    setTypeDialogOpen,
-    typeDialogStep,
-    setTypeDialogStep,
     typeDraft,
     setTypeDraft,
     eligibilityDrafts,
     typeValidationErrors,
-    requirementsDialogOpen,
-    setRequirementsDialogOpen,
-    requirementsDialogStep,
-    setRequirementsDialogStep,
-    requirementsTargetType,
+    workflowEnabled,
     requirementDraftRows,
     selectedRequirementTypeToAdd,
     setSelectedRequirementTypeToAdd,
     designatedOrgErrors,
-    openCreateDialog,
-    openEditDialog,
-    openRequirementsDialog,
-    handleToggleActive,
     addEligibilityRule,
     removeEligibilityRule,
     updateEligibilityRuleType,
     updateEligibilityRuleValue,
     saveType,
-    moveRequirement,
+    reorderRequirement,
     addRequirement,
     removeRequirement,
     updateRequireAllGuardians,
     updateReviewingOrganisation,
-    saveRequirements,
+    saveWorkflow,
   };
 }

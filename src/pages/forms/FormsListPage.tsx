@@ -273,7 +273,7 @@ export function FormsListPage() {
                   ) : null}
                 </CardHeader>
 
-                <CardFooter className="grid grid-cols-3 gap-2">
+                <CardFooter className="grid grid-flow-col auto-cols-max gap-2">
                   <Button
                     type="button"
                     aria-label={`Edit ${form.name}`}

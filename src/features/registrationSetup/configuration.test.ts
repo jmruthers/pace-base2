@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  getRegistrationTypeDeleteBlockers,
+  useDeleteRegistrationTypeMutation,
   useMembershipTypesForEvent,
   useRegistrationTypeUpsertMutation,
   useRegistrationTypesList,
@@ -7,7 +9,7 @@ import {
   useReviewingOrganisationsForEvent,
   useSetRegistrationTypeActiveMutation,
 } from './configuration';
-import type { RegistrationTypeUpsertPayload } from './types';
+import type { RegistrationTypeUpsertPayload } from './types.rpc';
 
 type SelectResult = { data: unknown; error: unknown };
 
@@ -26,6 +28,9 @@ const mocks = vi.hoisted(() => {
       registration_type_id: string;
       is_active: boolean;
     }>,
+    deleteResponse: [
+      { deleted: true, application_count: 0, form_binding_count: 0 },
+    ] as Array<{ deleted: boolean; application_count: number; form_binding_count: number }>,
     tableErrors: {} as Record<string, unknown>,
   };
 
@@ -69,6 +74,9 @@ const mocks = vi.hoisted(() => {
       if (name === 'app_base_registration_type_set_active') {
         return { data: store.setActiveResponse, error: store.rpcError };
       }
+      if (name === 'app_base_registration_type_delete') {
+        return { data: store.deleteResponse, error: store.rpcError };
+      }
       return { data: { name, args }, error: null };
     }),
   };
@@ -107,6 +115,7 @@ describe('registrationSetup configuration hooks', () => {
     mocks.store.rpcError = null;
     mocks.store.upsertResponse = [{ registration_type_id: 'type-1' }];
     mocks.store.setActiveResponse = [{ registration_type_id: 'type-1', is_active: true }];
+    mocks.store.deleteResponse = [{ deleted: true, application_count: 0, form_binding_count: 0 }];
     mocks.store.tableErrors = {};
   });
 
@@ -225,6 +234,40 @@ describe('registrationSetup configuration hooks', () => {
       queryFn: () => Promise<unknown>;
     };
     await expect(orgQuery.queryFn()).resolves.toEqual([]);
+  });
+
+  it('delete mutation returns first RPC row', async () => {
+    const del = useDeleteRegistrationTypeMutation() as {
+      mutateAsync: (params: unknown) => Promise<unknown>;
+    };
+    await expect(
+      del.mutateAsync({ eventId: 'event-1', registrationTypeId: 'type-1' })
+    ).resolves.toEqual({
+      deleted: true,
+      application_count: 0,
+      form_binding_count: 0,
+    });
+  });
+
+  it('getRegistrationTypeDeleteBlockers returns ApiResult when supabase is unavailable', async () => {
+    const result = await getRegistrationTypeDeleteBlockers(null, 'event-1', 'type-1');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('Supabase client unavailable');
+    }
+  });
+
+  it('delete mutation surfaces normalized messages for object-shaped rpc errors', async () => {
+    mocks.store.rpcError = {
+      message: 'Registration type cannot be deleted while applications exist',
+      code: 'P0001',
+    };
+    const del = useDeleteRegistrationTypeMutation() as {
+      mutateAsync: (params: unknown) => Promise<unknown>;
+    };
+    await expect(
+      del.mutateAsync({ eventId: 'event-1', registrationTypeId: 'type-1' })
+    ).rejects.toThrow('Registration type cannot be deleted while applications exist');
   });
 
   it('throws for upsert/set-active rpc errors and missing rpc payload results', async () => {

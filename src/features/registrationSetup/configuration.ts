@@ -1,11 +1,12 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useSecureSupabase } from '@solvera/pace-core/rbac';
+import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
 import type {
   RegistrationTypeEligibilityRow,
   RegistrationTypeRequirementRow,
   RegistrationTypeRow,
-  RegistrationTypeUpsertPayload,
 } from './types';
+import type { DeleteRegistrationTypeRpcResult, RegistrationTypeUpsertPayload } from './types.rpc';
 
 type ApiError = {
   code: string;
@@ -51,11 +52,13 @@ function apiSuccess<T>(data: T): ApiResult<T> {
 }
 
 function apiFailure(code: string, fallbackMessage: string, error: unknown): ApiResult<never> {
+  const message =
+    error != null ? NormalizeSupabaseError(error, fallbackMessage).message : fallbackMessage;
   return {
     ok: false,
     error: {
       code,
-      message: error != null ? String(error) : fallbackMessage,
+      message: message.length > 0 ? message : fallbackMessage,
     },
   };
 }
@@ -122,7 +125,7 @@ async function fetchEventOrganisationId(
   const { data, error } = await supabase
     .from('core_events')
     .select('organisation_id')
-    .eq('id', eventId)
+    .eq('event_id', eventId)
     .single();
   if (error != null) {
     return apiFailure('event-organisation-read-error', 'Failed to load event organisation', error);
@@ -145,6 +148,102 @@ async function fetchMembershipTypes(
     return apiFailure('membership-types-read-error', 'Failed to load membership types', error);
   }
   return apiSuccess((data as MembershipTypeRow[] | null) ?? []);
+}
+
+export type RegistrationTypeDeleteBlockers = {
+  applicationCount: number;
+  formBindingCount: number;
+};
+
+type CountQueryBuilder = {
+  eq: (column: string, value: unknown) => CountQueryBuilder;
+} & Promise<{ count: number | null; error: unknown }>;
+
+type CountSupabaseLike = {
+  from: (table: string) => {
+    select: (columns: string, options: { count: 'exact'; head: true }) => CountQueryBuilder;
+  };
+};
+
+async function countRegistrationTypeDependencies(
+  supabase: SupabaseLike,
+  table: 'base_application' | 'base_form_registration_type',
+  eventId: string,
+  registrationTypeId: string
+): Promise<ApiResult<number>> {
+  const client = supabase as unknown as CountSupabaseLike;
+  const { count, error } = await client
+    .from(table)
+    .select('id', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+    .eq('registration_type_id', registrationTypeId);
+  if (error != null) {
+    return apiFailure(
+      'registration-type-delete-blockers-read-error',
+      'Failed to check whether this registration type can be deleted',
+      error
+    );
+  }
+  return apiSuccess(count ?? 0);
+}
+
+async function fetchRegistrationTypeDeleteBlockers(
+  supabase: SupabaseLike,
+  eventId: string,
+  registrationTypeId: string
+): Promise<ApiResult<RegistrationTypeDeleteBlockers>> {
+  const [applicationsResult, bindingsResult] = await Promise.all([
+    countRegistrationTypeDependencies(supabase, 'base_application', eventId, registrationTypeId),
+    countRegistrationTypeDependencies(
+      supabase,
+      'base_form_registration_type',
+      eventId,
+      registrationTypeId
+    ),
+  ]);
+  if (!applicationsResult.ok) {
+    return applicationsResult;
+  }
+  if (!bindingsResult.ok) {
+    return bindingsResult;
+  }
+  return apiSuccess({
+    applicationCount: applicationsResult.data,
+    formBindingCount: bindingsResult.data,
+  });
+}
+
+export async function getRegistrationTypeDeleteBlockers(
+  secureSupabase: ReturnType<typeof useSecureSupabase>,
+  eventId: string,
+  registrationTypeId: string
+): Promise<ApiResult<RegistrationTypeDeleteBlockers>> {
+  if (secureSupabase == null) {
+    return apiFailure('supabase-client-unavailable', 'Supabase client unavailable', null);
+  }
+  const supabase = asSupabaseClient(secureSupabase);
+  return fetchRegistrationTypeDeleteBlockers(supabase, eventId, registrationTypeId);
+}
+
+async function deleteRegistrationType(
+  supabase: SupabaseLike,
+  eventId: string,
+  registrationTypeId: string
+): Promise<ApiResult<DeleteRegistrationTypeRpcResult>> {
+  const { data, error } = await supabase.rpc('app_base_registration_type_delete', {
+    p_event_id: eventId,
+    p_registration_type_id: registrationTypeId,
+  });
+  if (error != null) {
+    return apiFailure('registration-type-delete-error', 'Failed to delete registration type', error);
+  }
+  return apiSuccess(
+    ((data as DeleteRegistrationTypeRpcResult[] | null) ?? [])[0] ?? {
+      deleted: false,
+      application_count: 0,
+      form_binding_count: 0,
+    }
+  );
 }
 
 async function fetchReviewingOrganisations(
@@ -342,6 +441,24 @@ export function useSetRegistrationTypeActiveMutation() {
         throw new Error('Set active returned no result');
       }
       return result;
+    },
+  });
+}
+
+export function useDeleteRegistrationTypeMutation() {
+  const secureSupabase = useSecureSupabase();
+
+  return useMutation({
+    mutationFn: async (params: { eventId: string; registrationTypeId: string }) => {
+      if (secureSupabase == null) {
+        throw new Error('Supabase client unavailable');
+      }
+      const supabase = asSupabaseClient(secureSupabase);
+      const result = await deleteRegistrationType(supabase, params.eventId, params.registrationTypeId);
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
     },
   });
 }

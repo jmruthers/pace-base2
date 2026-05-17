@@ -2,9 +2,9 @@ import type {
   EligibilityRuleDraft,
   RegistrationSnapshots,
   RegistrationTypeDraft,
-  RegistrationTypeUpsertPayload,
   RequirementRuleDraft,
 } from './types';
+import type { RegistrationTypeUpsertPayload } from './types.rpc';
 import { deriveAutomatedFlag, isIsoDateValue } from './rules';
 
 export interface RegistrationTypeValidationErrors {
@@ -92,22 +92,6 @@ export function validateRequirementDrafts(rules: RequirementRuleDraft[]): Requir
   return { designatedOrgByRuleId };
 }
 
-export function moveRequirementDraft(
-  drafts: RequirementRuleDraft[],
-  localId: string,
-  direction: 'up' | 'down'
-): RequirementRuleDraft[] {
-  const index = drafts.findIndex((draft) => draft.localId === localId);
-  if (index < 0) {
-    return drafts;
-  }
-  const overIndex = direction === 'up' ? index - 1 : index + 1;
-  if (overIndex < 0 || overIndex >= drafts.length) {
-    return drafts;
-  }
-  return reorderRequirementDrafts(drafts, localId, drafts[overIndex]?.localId ?? null);
-}
-
 export function reorderRequirementDrafts(
   drafts: RequirementRuleDraft[],
   activeLocalId: string,
@@ -173,7 +157,7 @@ export function buildUpsertPayloadForTypeSave(params: {
       eligibility_message: nullableTrimmed(params.draft.eligibility_message),
       cost,
       capacity,
-      is_active: params.draft.id == null ? false : params.draft.is_active,
+      is_active: params.draft.is_active,
       sort_order: params.draft.sort_order,
     },
     p_eligibility_rules: toEligibilityPayload(params.eligibilityDrafts),

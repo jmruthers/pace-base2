@@ -338,6 +338,8 @@ BA00 may consume existing RBAC read RPC contracts as part of bootstrap app-id re
 
 **Build agent verification step:** before shipping nav items, run `SELECT page_name FROM rbac_app_pages WHERE app_id = 'BASE'` (or equivalent) via Supabase MCP and confirm all 10 `pageId` values are present.
 
+**Fail-closed page access:** pace-core `rbac_check_permission_simplified` denies page-scoped permissions when the page is missing from `rbac_app_pages`, or when no `rbac_page_permissions` grant exists for the user’s role — including Event Admin. Operators must enable CRUD in the permissions matrix per page; implicit Event Admin access to uncatalogued routes is not supported (pace-core migration `20260516140000_rbac_fail_closed_uncatalogued_pages.sql` and catalogue seed `20260516140100_base_shell_pages_catalogue_seed.sql`).
+
 ---
 
 ## §9 pace-core2 imports

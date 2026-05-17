@@ -290,7 +290,7 @@ describe('FormsListPage', () => {
     expect(portalLink.getAttribute('target')).toBe('_blank');
     expect(portalLink.getAttribute('rel')).toBe('noopener noreferrer');
     const footer = screen.getByRole('contentinfo');
-    expect(footer.className.includes('grid-cols-3')).toBe(true);
+    expect(footer.className.includes('grid')).toBe(true);
     expect(screen.queryByLabelText('Delete Camp Form')).toBeNull();
     expect(screen.queryByText('You do not have permission to view this page.')).toBeNull();
     expect(screen.queryByLabelText('Copy URL for Camp Form')).toBeNull();

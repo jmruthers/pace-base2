@@ -219,18 +219,15 @@ describe('FormBuilderPage', () => {
     expect(screen.getByText('Shell Enabled')).toBeTruthy();
   });
 
-  it('renders Schedule in middleContent and Submission Settings in metadataAside only', () => {
+  it('renders submission settings and schedule fields in one metadataAside card', () => {
     renderAt('/form-builder');
-    expect(screen.getByRole('heading', { name: 'Schedule' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Submission Settings' })).toBeTruthy();
-    const submissionSection = screen.getByRole('heading', { name: 'Submission Settings' }).closest('header')
+    expect(screen.getByRole('heading', { name: 'Submission settings' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Schedule' })).toBeNull();
+    const submissionCard = screen.getByRole('heading', { name: 'Submission settings' }).closest('header')
       ?.parentElement;
-    expect(submissionSection?.textContent?.includes('Opens at')).toBe(false);
-    expect(submissionSection?.textContent?.includes('Closes at')).toBe(false);
-    const scheduleSection = screen.getByRole('heading', { name: 'Schedule' }).closest('header')?.parentElement;
-    expect(scheduleSection?.textContent?.includes('Opens at')).toBe(true);
-    expect(scheduleSection?.textContent?.includes('Closes at')).toBe(true);
-    expect(scheduleSection?.textContent?.includes('Max submissions')).toBe(false);
+    expect(submissionCard?.textContent?.includes('Max submissions')).toBe(true);
+    expect(submissionCard?.textContent?.includes('Opens at')).toBe(true);
+    expect(submissionCard?.textContent?.includes('Closes at')).toBe(true);
   });
 
   it('renders access denied when read permission is denied', () => {

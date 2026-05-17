@@ -11,33 +11,6 @@ import type {
 } from './types';
 import { deriveAutomatedFlag } from './rules';
 
-const currencyFormatter = new Intl.NumberFormat('en-AU', {
-  style: 'currency',
-  currency: 'AUD',
-});
-
-const checkTypeLabels: Record<RequirementCheckType, string> = {
-  payment: 'Payment',
-  guardian_approval: 'Guardian approval',
-  home_leader_approval: 'Home leader approval',
-  referee: 'Referee',
-  designated_org_review: 'Designated organisation review',
-  event_approval: 'Event approval',
-};
-
-export function formatCurrencyFromCents(cents: number | null): string {
-  const dollars = (cents ?? 0) / 100;
-  return currencyFormatter.format(dollars);
-}
-
-export function requirementTypeLabel(checkType: RequirementCheckType): string {
-  return checkTypeLabels[checkType];
-}
-
-export function allRequirementTypes(): RequirementCheckType[] {
-  return Object.keys(checkTypeLabels) as RequirementCheckType[];
-}
-
 function defaultRequirementConfig(checkType: RequirementCheckType): Record<string, unknown> | null {
   if (checkType === 'guardian_approval') {
     return { require_all_guardians: false };
