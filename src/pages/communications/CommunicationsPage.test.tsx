@@ -123,7 +123,7 @@ vi.mock('@solvera/pace-core/comms', () => ({
       suppression_skipped: number;
       warnings: Array<{ message: string }>;
     }) => void;
-    onScheduleComplete?: (scheduledAt: string) => void;
+    onScheduleComplete?: (payload: { messageId: string; scheduledAtIso: string }) => void;
   }) => (
     <section>
       <p>Comm Composer</p>
@@ -145,7 +145,12 @@ vi.mock('@solvera/pace-core/comms', () => ({
       <article
         role="button"
         tabIndex={0}
-        onClick={() => onScheduleComplete?.('2026-06-01T10:30:00Z')}
+        onClick={() =>
+          onScheduleComplete?.({
+            messageId: 'msg-scheduled-1',
+            scheduledAtIso: '2026-06-01T10:30:00Z',
+          })
+        }
       >
         Trigger Schedule Success
       </article>

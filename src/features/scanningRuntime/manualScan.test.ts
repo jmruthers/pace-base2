@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildQueueEntry } from './queue/scanQueueIdb';
+import { buildQueueEntry } from './queue/scanQueueHelpers';
 
 describe('buildQueueEntry manual scan', () => {
   it('allows null card_identifier for accepted_override', () => {

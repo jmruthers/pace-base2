@@ -7,8 +7,8 @@ import {
   loadTrackingScanPoints,
   searchTrackingParticipants,
   unwrapApiResult,
-  type SupabaseLike,
 } from './configuration';
+import type { SupabaseLike } from './trackingTypes';
 
 export function useTrackingDashboardData(params: {
   supabase: SupabaseLike;

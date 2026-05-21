@@ -1,4 +1,4 @@
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Alert,
   AlertDescription,
@@ -12,23 +12,17 @@ import { AccessDenied, PagePermissionGuard } from '@solvera/pace-core/rbac';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
 import { ApprovalWorkflowSection } from './components/ApprovalWorkflowSection';
 import { RegistrationTypeEditorFields } from './components/RegistrationTypeEditorFields';
-import { useRegistrationTypeBuilderController } from './hooks/useRegistrationTypeBuilderController';
+import type { RegistrationTypeBuilderShell } from './hooks/useRegistrationTypeBuilderShell';
+import { useCombinedRegistrationBuilder } from './hooks/useRegistrationTypeBuilderController';
+import { useRegistrationTypeBuilderShell } from './hooks/useRegistrationTypeBuilderShell';
 
 export function RegistrationTypeBuilderPage() {
-  const [searchParams] = useSearchParams();
-  const registrationTypeId = searchParams.get('registrationTypeId');
-
-  return <RegistrationTypeBuilderPageContent key={registrationTypeId ?? 'create'} />;
+  return <RegistrationTypeBuilderPageContent />;
 }
 
-function RegistrationTypeBuilderPageContent() {
+function RegistrationTypeBuilderFormBody({ shell }: { shell: RegistrationTypeBuilderShell }) {
   const navigate = useNavigate();
-  const controller = useRegistrationTypeBuilderController();
-
-  const pageTitle =
-    controller.typeDraft.id == null && !controller.isEditMode
-      ? 'Create registration type'
-      : 'Edit registration type';
+  const controller = useCombinedRegistrationBuilder(shell);
 
   const requirementsError =
     controller.requirementsQuery.error != null
@@ -36,10 +30,79 @@ function RegistrationTypeBuilderPageContent() {
       : null;
 
   return (
+    <>
+      <Card>
+        <CardContent className="grid gap-4">
+          <RegistrationTypeEditorFields
+            scope={controller.scope}
+            draft={controller.typeDraft}
+            onDraftChange={controller.setTypeDraft}
+            eligibilityDrafts={controller.eligibilityDrafts}
+            validationErrors={controller.typeValidationErrors}
+            membershipTypes={controller.membershipTypesQuery.data ?? []}
+            onAddEligibilityRule={controller.addEligibilityRule}
+            onRemoveEligibilityRule={controller.removeEligibilityRule}
+            onEligibilityRuleTypeChange={controller.updateEligibilityRuleType}
+            onEligibilityRuleValueChange={controller.updateEligibilityRuleValue}
+          />
+          <fieldset className="border-0 p-0 text-right">
+            <Button type="button" onClick={() => navigate('/registration-types')}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void controller.saveType()}
+              disabled={controller.upsertMutation.isPending}
+            >
+              Save
+            </Button>
+          </fieldset>
+        </CardContent>
+      </Card>
+
+      <ApprovalWorkflowSection
+        scope={controller.scope}
+        disabled={!controller.workflowEnabled}
+        isLoading={controller.workflowEnabled && controller.requirementsQuery.isLoading}
+        errorMessage={controller.workflowEnabled ? requirementsError : null}
+        isPending={controller.upsertMutation.isPending}
+        rows={controller.requirementDraftRows}
+        reviewingOrganisations={controller.reviewingOrgsQuery.data ?? []}
+        reviewingOrganisationsLoading={controller.reviewingOrgsQuery.isLoading}
+        reviewingOrganisationsError={
+          controller.reviewingOrgsQuery.error != null
+            ? NormalizeSupabaseError(controller.reviewingOrgsQuery.error).message
+            : null
+        }
+        designatedOrgErrors={controller.designatedOrgErrors}
+        selectedTypeToAdd={controller.selectedRequirementTypeToAdd}
+        onSelectedTypeToAddChange={controller.setSelectedRequirementTypeToAdd}
+        onAdd={controller.addRequirement}
+        onRemove={controller.removeRequirement}
+        onReorderRequirement={controller.reorderRequirement}
+        onRequireAllGuardiansChange={controller.updateRequireAllGuardians}
+        onReviewingOrgChange={controller.updateReviewingOrganisation}
+        onSave={() => void controller.saveWorkflow()}
+      />
+    </>
+  );
+}
+
+function RegistrationTypeBuilderPageContent() {
+  const shell = useRegistrationTypeBuilderShell();
+
+  const pageTitle = !shell.isEditMode ? 'Create registration type' : 'Edit registration type';
+
+  const readyForDraftForm =
+    shell.selectedEventId != null &&
+    !(shell.isEditMode && shell.listQuery.isLoading) &&
+    !shell.unknownTypeId;
+
+  return (
     <PagePermissionGuard
       pageName="registration-types"
       operation="update"
-      scope={controller.scope}
+      scope={shell.scope}
       fallback={<AccessDenied />}
     >
       <main className="grid gap-4">
@@ -49,17 +112,17 @@ function RegistrationTypeBuilderPageContent() {
           </section>
         </header>
 
-        {controller.selectedEventId == null ? (
+        {shell.selectedEventId == null ? (
           <Card>
             <CardContent>
               <p>Select an event from the header before creating or editing a registration type.</p>
             </CardContent>
           </Card>
-        ) : controller.isEditMode && controller.listQuery.isLoading ? (
+        ) : shell.isEditMode && shell.listQuery.isLoading ? (
           <article className="grid min-h-[30vh] place-items-center">
             <LoadingSpinner />
           </article>
-        ) : controller.unknownTypeId ? (
+        ) : shell.unknownTypeId ? (
           <section className="grid gap-3">
             <Alert variant="destructive">
               <AlertTitle>Error</AlertTitle>
@@ -67,63 +130,12 @@ function RegistrationTypeBuilderPageContent() {
             </Alert>
             <Link to="/registration-types">Back to registration types</Link>
           </section>
-        ) : (
-          <>
-            <Card>
-              <CardContent className="grid gap-4">
-                <RegistrationTypeEditorFields
-                  scope={controller.scope}
-                  draft={controller.typeDraft}
-                  onDraftChange={controller.setTypeDraft}
-                  eligibilityDrafts={controller.eligibilityDrafts}
-                  validationErrors={controller.typeValidationErrors}
-                  membershipTypes={controller.membershipTypesQuery.data ?? []}
-                  onAddEligibilityRule={controller.addEligibilityRule}
-                  onRemoveEligibilityRule={controller.removeEligibilityRule}
-                  onEligibilityRuleTypeChange={controller.updateEligibilityRuleType}
-                  onEligibilityRuleValueChange={controller.updateEligibilityRuleValue}
-                />
-                <fieldset className="border-0 p-0 text-right">
-                  <Button type="button" onClick={() => navigate('/registration-types')}>
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => void controller.saveType()}
-                    disabled={controller.upsertMutation.isPending}
-                  >
-                    Save
-                  </Button>
-                </fieldset>
-              </CardContent>
-            </Card>
-
-            <ApprovalWorkflowSection
-              scope={controller.scope}
-              disabled={!controller.workflowEnabled}
-              isLoading={controller.workflowEnabled && controller.requirementsQuery.isLoading}
-              errorMessage={controller.workflowEnabled ? requirementsError : null}
-              isPending={controller.upsertMutation.isPending}
-              rows={controller.requirementDraftRows}
-              reviewingOrganisations={controller.reviewingOrgsQuery.data ?? []}
-              reviewingOrganisationsLoading={controller.reviewingOrgsQuery.isLoading}
-              reviewingOrganisationsError={
-                controller.reviewingOrgsQuery.error != null
-                  ? NormalizeSupabaseError(controller.reviewingOrgsQuery.error).message
-                  : null
-              }
-              designatedOrgErrors={controller.designatedOrgErrors}
-              selectedTypeToAdd={controller.selectedRequirementTypeToAdd}
-              onSelectedTypeToAddChange={controller.setSelectedRequirementTypeToAdd}
-              onAdd={controller.addRequirement}
-              onRemove={controller.removeRequirement}
-              onReorderRequirement={controller.reorderRequirement}
-              onRequireAllGuardiansChange={controller.updateRequireAllGuardians}
-              onReviewingOrgChange={controller.updateReviewingOrganisation}
-              onSave={() => void controller.saveWorkflow()}
-            />
-          </>
-        )}
+        ) : readyForDraftForm ? (
+          <RegistrationTypeBuilderFormBody
+            key={shell.registrationTypeIdFromUrl ?? 'create'}
+            shell={shell}
+          />
+        ) : null}
       </main>
     </PagePermissionGuard>
   );

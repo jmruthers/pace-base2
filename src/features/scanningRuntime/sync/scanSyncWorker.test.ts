@@ -2,7 +2,8 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isOk } from '@solvera/pace-core/types';
-import { buildQueueEntry, getScanQueueEntry, putScanQueueEntry, updateScanQueueEntrySyncStatus } from '@/features/scanningRuntime/queue/scanQueueIdb';
+import { getScanQueueEntry, putScanQueueEntry, updateScanQueueEntrySyncStatus } from '@/features/scanningRuntime/queue/scanQueueIdb';
+import { buildQueueEntry } from '@/features/scanningRuntime/queue/scanQueueHelpers';
 import {
   flushScanQueueNow,
   retryFailedQueueEntries,

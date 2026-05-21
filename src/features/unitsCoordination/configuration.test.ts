@@ -4,7 +4,7 @@ import {
   requireActorUserId,
   withCreatedAndUpdatedBy,
   withUpdatedBy,
-} from './configuration';
+} from './unitsCoordinationActorHelpers';
 
 describe('unitsCoordination configuration payload helpers', () => {
   it('requires a valid authenticated actor id', () => {

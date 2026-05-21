@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-/* eslint-disable pace-core-compliance/prefer-pace-core-components */
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -68,7 +67,11 @@ const routeState = vi.hoisted(() => ({
   showSuccessMessage: vi.fn(),
 }));
 
-vi.mock('@solvera/pace-core/components', () => ({
+vi.mock('@solvera/pace-core/components', async () => {
+  const { MockButton, MockCheckboxField, MockFieldLabel, MockTextField } = await import(
+    '@/test/paceCoreElementMocks'
+  );
+  return {
   Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   AlertTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
@@ -77,24 +80,27 @@ vi.mock('@solvera/pace-core/components', () => ({
     type,
     disabled,
     className,
+    onClick,
   }: {
     children: React.ReactNode;
     type?: 'button' | 'submit';
     disabled?: boolean;
     className?: string;
+    onClick?: () => void;
   }) => (
-    <button
-      type={type ?? 'button'}
+    <MockButton
+      type={type}
       disabled={disabled}
       className={className}
       onClick={() => {
         if (type === 'submit') {
           submitForm?.();
         }
+        onClick?.();
       }}
     >
       {children}
-    </button>
+    </MockButton>
   ),
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
@@ -113,7 +119,7 @@ vi.mock('@solvera/pace-core/components', () => ({
     onChange: (value: Date | null) => void;
     disabled?: boolean;
   }) => (
-    <input
+    <MockTextField
       aria-label="event_date"
       disabled={disabled}
       value={value?.toISOString() ?? ''}
@@ -140,21 +146,20 @@ vi.mock('@solvera/pace-core/components', () => ({
     onUploadError: (error: Error) => void;
   }) => (
     <>
-      <button
-        data-organisation-id={organisation_id}
-        data-event-id={event_id}
-        data-app-id={app_id}
+      <MockButton
         onClick={() => onUploadError(new Error('upload failed'))}
       >
-        {label}
-      </button>
-      <button
+        <span data-organisation-id={organisation_id} data-event-id={event_id} data-app-id={app_id}>
+          {label}
+        </span>
+      </MockButton>
+      <MockButton
         onClick={() =>
           onUploadSuccess({ file_reference: { id: 'logo-ref-1', is_public: true } })
         }
       >
         Upload logo success
-      </button>
+      </MockButton>
     </>
   ),
   Form: ({
@@ -193,10 +198,10 @@ vi.mock('@solvera/pace-core/components', () => ({
     label: string;
     render: (props: { field: { value: unknown; onChange: (value: unknown) => void } }) => React.ReactNode;
   }) => (
-    <label>
+    <MockFieldLabel>
       {label}
       {render({ field: { value: '', onChange: vi.fn() } })}
-    </label>
+    </MockFieldLabel>
   ),
   Input: ({
     id,
@@ -206,39 +211,15 @@ vi.mock('@solvera/pace-core/components', () => ({
     id?: string;
     value?: string;
     disabled?: boolean;
-  }) => (
-    <input
-      id={id}
-      aria-label={id}
-      value={value ?? ''}
-      disabled={disabled}
-      readOnly
-    />
-  ),
-  Label: ({ htmlFor, children, className }: { htmlFor?: string; children: React.ReactNode; className?: string }) => (
-    <label
-      htmlFor={htmlFor}
-      className={className}
-    >
-      {children}
-    </label>
-  ),
+  }) => <MockTextField id={id} aria-label={id} value={value ?? ''} disabled={disabled} readOnly />,
+  Label: MockFieldLabel,
   LoadingSpinner: () => <p>Loading Spinner</p>,
   Select: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectItem: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectValue: ({ placeholder }: { placeholder?: string }) => <p>{placeholder}</p>,
-  Switch: ({ id, checked, disabled }: { id?: string; checked?: boolean; disabled?: boolean }) => (
-    <input
-      type="checkbox"
-      id={id}
-      aria-label={id}
-      checked={Boolean(checked)}
-      disabled={disabled}
-      readOnly
-    />
-  ),
+  Switch: MockCheckboxField,
   Textarea: ({
     id,
     value,
@@ -250,16 +231,10 @@ vi.mock('@solvera/pace-core/components', () => ({
     disabled?: boolean;
     placeholder?: string;
   }) => (
-    <textarea
-      id={id}
-      aria-label={id}
-      value={value ?? ''}
-      disabled={disabled}
-      placeholder={placeholder}
-      readOnly
-    />
+    <MockTextField id={id} aria-label={id} value={value ?? ''} disabled={disabled} placeholder={placeholder} readOnly />
   ),
-}));
+  };
+});
 
 vi.mock('@solvera/pace-core/icons', () => ({
   Calendar: () => <span>Calendar Icon</span>,
@@ -403,9 +378,9 @@ describe('EventConfigurationRoute', () => {
 
     render(<EventConfigurationRoute />);
 
-    expect((screen.getByLabelText('event_name') as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByLabelText('registration_scope') as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByDisplayValue('Main Hall') as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByLabelText('event_name').getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByLabelText('registration_scope').getAttribute('aria-disabled')).toBe('true');
+    expect(document.querySelector('[data-value="Main Hall"]')?.getAttribute('aria-disabled')).toBe('true');
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Upload logo' })).toBeNull();
   });

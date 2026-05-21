@@ -36,12 +36,14 @@ import { PagePermissionGuard, useResolvedScope, useSecureSupabase } from '@solve
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage, formatDateTime } from '@solvera/pace-core/utils';
 import { useRetryRefetchHandler } from '@/features/applicationsAdmin/queryHelpers';
 import {
-  useCreateOfferingMutation,
-  useDeleteOfferingMutation,
   useOfferingsList,
   useOfferingSessionCount,
   useTracActivities,
-} from '@/features/activityOfferingSetup/configuration';
+} from '@/features/activityOfferingSetup/activityOfferingQueries';
+import {
+  useCreateOfferingMutation,
+  useDeleteOfferingMutation,
+} from '@/features/activityOfferingSetup/activityOfferingMutations';
 import {
   getOfferingSessionCount,
   isBookingOpenNow,

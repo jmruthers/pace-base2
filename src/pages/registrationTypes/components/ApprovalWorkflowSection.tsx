@@ -40,8 +40,13 @@ const WORKFLOW_TABLE_GRID = 'grid-cols-[2.5rem_minmax(0,1.25fr)_minmax(0,2fr)_2.
 const WORKFLOW_TABLE_GAP = 'gap-x-3';
 const WORKFLOW_TABLE_ROW = `grid ${WORKFLOW_TABLE_GRID} ${WORKFLOW_TABLE_GAP} items-start px-3`;
 
-interface ApprovalWorkflowSectionProps {
-  scope: { organisationId: string | null; eventId: string | null; appId?: string };
+type ApprovalWorkflowScope = {
+  organisationId: string | null;
+  eventId: string | null;
+  appId?: string;
+};
+
+type ApprovalWorkflowSectionData = {
   disabled: boolean;
   isLoading: boolean;
   errorMessage: string | null;
@@ -52,6 +57,9 @@ interface ApprovalWorkflowSectionProps {
   reviewingOrganisationsError: string | null;
   designatedOrgErrors: Record<string, string>;
   selectedTypeToAdd: string;
+};
+
+type ApprovalWorkflowSectionHandlers = {
   onSelectedTypeToAddChange: (value: string) => void;
   onAdd: () => void;
   onRemove: (localId: string) => void;
@@ -59,6 +67,10 @@ interface ApprovalWorkflowSectionProps {
   onRequireAllGuardiansChange: (localId: string, checked: boolean) => void;
   onReviewingOrgChange: (localId: string, value: string) => void;
   onSave: () => void;
+};
+
+interface ApprovalWorkflowSectionProps extends ApprovalWorkflowSectionData, ApprovalWorkflowSectionHandlers {
+  scope: ApprovalWorkflowScope;
 }
 
 interface SortableWorkflowRowProps {
@@ -97,7 +109,6 @@ function SortableWorkflowRow(props: SortableWorkflowRowProps) {
     <article
       ref={setNodeRef}
       // @dnd-kit sortable applies transform on the registered node (see pace-core WorkflowFormFieldEditor).
-      // eslint-disable-next-line pace-core-compliance/no-inline-styles -- required for drag reorder positioning
       style={style}
       className={isDragging ? 'border-b border-border opacity-80 last:border-b-0' : 'border-b border-border last:border-b-0'}
     >

@@ -6,7 +6,7 @@ import {
   loadApprovedApplicationsForBookings,
   loadBookingsForEvent,
   postAppBaseActivityBookingCancel,
-} from './configuration';
+} from './bookingQueries';
 
 interface CallRecord {
   table: string;

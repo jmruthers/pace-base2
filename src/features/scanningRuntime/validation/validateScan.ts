@@ -4,9 +4,9 @@ import { createErrorResult, isOk, ok } from '@solvera/pace-core/types';
 import { resolveWithFallback } from '@solvera/pace-core/resilience';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
 import { readManifestFromIdb } from '@/features/scanningSetup/manifestIdb';
-import type { ManifestContextType, ManifestRow } from '@/features/scanningSetup/types';
+import type { ManifestContextType, ManifestRow } from '@/features/scanningSetup/scanEventTypes';
 import type { ScanPointRecord, ScanRuntimeResult } from '../types';
-import { DEDUP_WINDOW_MS, hasRecentAcceptAtPoint } from '../queue/scanQueueIdb';
+import { DEDUP_WINDOW_MS, hasRecentAcceptAtPoint } from '../queue/scanQueueHelpers';
 
 export interface ValidateScanInput {
   supabase: SupabaseClient;

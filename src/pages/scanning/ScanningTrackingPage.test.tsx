@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-/* eslint-disable pace-core-compliance/prefer-pace-core-components */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -141,7 +140,11 @@ vi.mock('@solvera/pace-core/hooks', () => ({
 
 vi.mock('@solvera/pace-core/rbac', () => ({
   useSecureSupabase: () => ({}),
-  useResolvedScope: () => ({ organisationId: 'org-1', eventId: 'event-1', appId: 'base-app' }),
+  useResolvedScope: () => ({
+    organisationId: state.selectedOrganisation != null ? 'org-1' : null,
+    eventId: state.selectedEvent != null ? 'event-1' : null,
+    appId: 'base-app',
+  }),
   PagePermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   AccessDenied: () => <main>Access Denied</main>,
 }));
@@ -163,7 +166,9 @@ vi.mock('@solvera/pace-core/icons', () => ({
   ChevronLeft: () => <span>Back</span>,
 }));
 
-vi.mock('@solvera/pace-core/components', () => ({
+vi.mock('@solvera/pace-core/components', async () => {
+  const { MockButton, MockFieldLabel, MockTextField } = await import('@/test/paceCoreElementMocks');
+  return {
   Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   Badge: ({
@@ -174,26 +179,7 @@ vi.mock('@solvera/pace-core/components', () => ({
     variant?: string;
     'aria-label'?: string;
   }) => <span aria-label={ariaLabel}>{children}</span>,
-  Button: ({
-    children,
-    onClick,
-    disabled,
-    type,
-    'aria-label': ariaLabel,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    disabled?: boolean;
-    type?: 'button' | 'submit';
-    variant?: string;
-    size?: string;
-    className?: string;
-    'aria-label'?: string;
-  }) => (
-    <button type={type ?? 'button'} onClick={onClick} disabled={disabled} aria-label={ariaLabel}>
-      {children}
-    </button>
-  ),
+  Button: MockButton,
   Card: ({ children, ...props }: { children: React.ReactNode; role?: string; 'aria-label'?: string }) => (
     <section {...props}>{children}</section>
   ),
@@ -224,29 +210,8 @@ vi.mock('@solvera/pace-core/components', () => ({
       ))}
     </section>
   ),
-  Input: ({
-    value,
-    onChange,
-    placeholder,
-    id,
-  }: {
-    value?: string;
-    onChange?: (value: string) => void;
-    placeholder?: string;
-    id?: string;
-  }) => (
-    <input
-      id={id}
-      value={value ?? ''}
-      placeholder={placeholder}
-      onChange={(event) => {
-        onChange?.(event.target.value);
-      }}
-    />
-  ),
-  Label: ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) => (
-    <label htmlFor={htmlFor}>{children}</label>
-  ),
+  Input: MockTextField,
+  Label: MockFieldLabel,
   LoadingSpinner: () => <p>Loading</p>,
   Tabs: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   TabsList: ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -263,13 +228,14 @@ vi.mock('@solvera/pace-core/components', () => ({
     value: string;
     className?: string;
   }) => (
-    <button aria-label={`tab-${value}`} className={className}>
+    <section role="tab" aria-label={`tab-${value}`} className={className}>
       {children}
-    </button>
+    </section>
   ),
   TabsContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   toast: toastMock,
-}));
+  };
+});
 
 vi.mock('@/features/scanningTracking/configuration', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/features/scanningTracking/configuration')>();
@@ -316,7 +282,7 @@ describe('ScanningTrackingPage', () => {
       screen.getByText('Select an event from the header to view tracking data.')
     ).toBeTruthy();
     const refreshButton = screen.getByRole('button', { name: 'Refresh' });
-    expect(refreshButton.hasAttribute('disabled')).toBe(true);
+    expect(refreshButton.getAttribute('aria-disabled')).toBe('true');
     fireEvent.click(refreshButton);
     expect(queryMocks.loadTrackingScanPoints).not.toHaveBeenCalled();
     expect(toastMock).not.toHaveBeenCalled();
@@ -332,8 +298,9 @@ describe('ScanningTrackingPage', () => {
   it('searches participant history and renders upload conflict badge rows', async () => {
     renderPage();
 
-    const input = await screen.findByPlaceholderText('Enter name or card identifier…');
-    fireEvent.change(input, { target: { value: 'ar' } });
+    const input = await screen.findByRole('textbox', { name: 'participant-search' });
+    fireEvent.keyDown(input, { key: 'a' });
+    fireEvent.keyDown(input, { key: 'r' });
 
     await waitFor(() => {
       expect(queryMocks.searchTrackingParticipants).toHaveBeenCalled();

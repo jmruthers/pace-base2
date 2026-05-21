@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { BookingValidationResult, ParticipantBookingItem } from './features/participantBookingExperience/types';
-import { buildBookingValidationResult, mapBookingProjectionError } from './features/participantBookingExperience/shared';
+import type { BookingValidationResult } from './features/participantBookingExperience/types';
+import type { ParticipantBookingItem } from './features/participantBookingExperience/participantBookingTypes';
+import { buildBookingValidationResult, mapBookingProjectionError } from './features/participantBookingExperience/bookingProjection';
 import {
   parseBookingProjectionErrorState,
   parseBookingValidationResult,

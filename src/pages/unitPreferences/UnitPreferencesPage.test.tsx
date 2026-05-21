@@ -77,6 +77,7 @@ vi.mock('@solvera/pace-core/rbac', () => ({
     isLoading: false,
   }),
   useSecureSupabase: () => ({}),
+  AccessDenied: () => <main>Access Denied</main>,
   PagePermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -100,6 +101,9 @@ vi.mock('@/features/unitsCoordination/configuration', () => ({
     refetch: vi.fn(),
   }),
   useSubmitterPerson: () => ({ data: pageState.submitter }),
+}));
+
+vi.mock('@/features/unitsCoordination/unitsPreferenceMutations', () => ({
   useCreatePreferenceMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdatePreferenceRankMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeletePreferenceMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),

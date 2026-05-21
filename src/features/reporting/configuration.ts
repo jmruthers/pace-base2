@@ -18,18 +18,6 @@ import {
 } from '@solvera/pace-core/reporting';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
 
-type ReportingFilterOperator =
-  | 'eq'
-  | 'neq'
-  | 'contains'
-  | 'starts_with'
-  | 'ends_with'
-  | 'gt'
-  | 'gte'
-  | 'lt'
-  | 'lte'
-  | 'in';
-
 type QueryLike = PromiseLike<{ data: unknown; error: unknown; count?: number | null }> & {
   [method: string]: (...args: unknown[]) => QueryLike;
 };
@@ -71,22 +59,6 @@ function asError(message: string, error: unknown): Error {
     return new Error(normalized.message);
   }
   return new Error(message);
-}
-
-function operatorLabel(operator: ReportingFilterOperator): string {
-  if (operator === 'contains') {
-    return 'contains';
-  }
-  if (operator === 'starts_with') {
-    return 'starts with';
-  }
-  if (operator === 'ends_with') {
-    return 'ends with';
-  }
-  if (operator === 'in') {
-    return 'is one of';
-  }
-  return operator;
 }
 
 function mapQueryError(error: unknown): { code: string; message: string } {
@@ -255,7 +227,7 @@ function applyFilter(query: QueryLike, filter: ReportingFilter, baseTable: strin
     const values = toPrimitiveArray(filter.value);
     return query.in(column, values);
   }
-  throw new Error(`Unsupported filter operator "${operatorLabel(filter.operator)}".`);
+  throw new Error(`Unsupported filter operator "${String(filter.operator)}".`);
 }
 
 function applySort(query: QueryLike, sort: ReportingSort, baseTable: string): QueryLike {

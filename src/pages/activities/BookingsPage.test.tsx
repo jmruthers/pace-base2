@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-/* eslint-disable pace-core-compliance/prefer-pace-core-components */
 
 import { cleanup, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -66,7 +65,13 @@ vi.mock('@solvera/pace-core/rbac', () => ({
     if (permission === 'delete:page.bookings') return { can: state.canDelete, isLoading: false };
     return { can: false, isLoading: false };
   },
-  PagePermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  PagePermissionGuard: ({
+    children,
+    fallback,
+  }: {
+    children: React.ReactNode;
+    fallback?: React.ReactNode;
+  }) => (state.canRead ? <>{children}</> : <>{fallback ?? null}</>),
   AccessDenied: () => <main>Access Denied</main>,
 }));
 
@@ -108,30 +113,20 @@ vi.mock('@solvera/pace-core/utils', async (importOriginal) => {
   };
 });
 
-vi.mock('@solvera/pace-core/components', () => ({
+vi.mock('@solvera/pace-core/components', async () => {
+  const { MockButton, MockCheckboxField, MockFieldLabel, MockTextField } = await import(
+    '@/test/paceCoreElementMocks'
+  );
+  return {
   Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Button: ({
-    children,
-    onClick,
-    type,
-    disabled,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    type?: 'button' | 'submit';
-    disabled?: boolean;
-  }) => (
-    <button type={type ?? 'button'} onClick={onClick} disabled={disabled}>
-      {children}
-    </button>
-  ),
+  Button: MockButton,
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
   CardTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  Checkbox: () => <input type="checkbox" />,
+  Checkbox: MockCheckboxField,
   DataTable: ({
     title,
     description,
@@ -172,7 +167,7 @@ vi.mock('@solvera/pace-core/components', () => ({
   DialogHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
   Form: ({ children, onSubmit }: { children: React.ReactNode; onSubmit?: (data: unknown) => void }) => (
-    <div
+    <section
       role="form"
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
@@ -182,10 +177,10 @@ vi.mock('@solvera/pace-core/components', () => ({
       }}
     >
       {children}
-    </div>
+    </section>
   ),
   FormField: () => null,
-  Label: ({ children }: { children: React.ReactNode }) => <label>{children}</label>,
+  Label: MockFieldLabel,
   LoadingSpinner: () => <main>Loading</main>,
   Select: () => null,
   SelectContent: () => null,
@@ -194,25 +189,10 @@ vi.mock('@solvera/pace-core/components', () => ({
   SelectLabel: () => null,
   SelectTrigger: () => null,
   SelectValue: () => null,
-  Textarea: ({
-    value,
-    onChange,
-    disabled,
-  }: {
-    value?: string;
-    onChange?: (v: string) => void;
-    disabled?: boolean;
-  }) => (
-    <textarea
-      value={value}
-      disabled={disabled}
-      onChange={(e) => {
-        onChange?.(e.target.value);
-      }}
-    />
-  ),
+  Textarea: MockTextField,
   toast: vi.fn(),
-}));
+  };
+});
 
 function renderPage() {
   const client = new QueryClient({

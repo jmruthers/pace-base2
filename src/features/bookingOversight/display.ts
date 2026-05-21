@@ -2,9 +2,9 @@ import type {
   BookingPersonSnippet,
   BookingQueryRow,
   BookingSessionSnippet,
-  BookingStatusBadgeSpec,
   BookingTableRow,
 } from './types';
+import type { BookingStatusBadgeSpec } from './bookingRpcTypes';
 import { bookingSourceLabel } from './labels';
 import { formatDateTime, formatInTimeZone } from '@solvera/pace-core/utils';
 

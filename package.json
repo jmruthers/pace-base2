@@ -11,6 +11,7 @@
     "test": "vitest run --test-timeout=10000",
     "test:coverage": "vitest run --coverage --coverage.provider=istanbul --test-timeout=10000",
     "lint": "eslint .",
+    "lint:no-disable": "node -e \"const{execSync}=require('node:child_process');const o=execSync('grep -r eslint-disable src || true',{encoding:'utf8'}).trim();if(o){console.error(o);process.exit(1)}\"",
     "preview": "vite preview",
     "validate": "node node_modules/@solvera/pace-core/scripts/validate.cjs",
     "validate-authority": "node node_modules/@solvera/pace-core/scripts/validate-authority.cjs",

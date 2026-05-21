@@ -2,11 +2,11 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
-  downloadManifestJson,
   loadConflictsForEvent,
   loadHistoryForEvent,
   loadScanPointsForEvent,
 } from './configuration';
+import { downloadManifestJson } from './scanningManifestApi';
 
 interface MockResponse {
   data: unknown;

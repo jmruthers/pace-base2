@@ -2,16 +2,14 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isOk } from '@solvera/pace-core/types';
 import {
-  DEDUP_WINDOW_MS,
-  buildQueueEntry,
   getScanQueueEntry,
-  hasRecentAcceptAtPoint,
   listScanQueueEntriesByStatus,
   openScanQueueDb,
   putScanQueueEntry,
   resetSyncingEntriesToPending,
   updateScanQueueEntrySyncStatus,
 } from './scanQueueIdb';
+import { buildQueueEntry, DEDUP_WINDOW_MS, hasRecentAcceptAtPoint } from './scanQueueHelpers';
 
 describe('scanQueueIdb', () => {
   beforeEach(() => {

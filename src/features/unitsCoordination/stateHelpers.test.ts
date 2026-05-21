@@ -4,11 +4,10 @@ import {
   computeDescendantIds,
   formatParentUnitLabel,
   hasDuplicateSessionPreference,
-  normalizeOptionalText,
   normalizePreferenceRanks,
   resolveApplicantName,
-  validateUnitNumber,
-} from './stateHelpers';
+} from './unitsDisplayAndPreferenceHelpers';
+import { normalizeOptionalText, validateUnitNumber } from './unitsValidationHelpers';
 import type { ActivityPreferenceRow, UnitRow } from './types';
 
 function makePreference(overrides?: Partial<ActivityPreferenceRow>): ActivityPreferenceRow {

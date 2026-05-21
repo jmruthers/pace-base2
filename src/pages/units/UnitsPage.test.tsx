@@ -103,6 +103,7 @@ vi.mock('@solvera/pace-core/rbac', () => ({
     isLoading: false,
   }),
   useSecureSupabase: () => rbacState.secureSupabase,
+  AccessDenied: () => <main>Access Denied</main>,
   PagePermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -131,6 +132,9 @@ vi.mock('@/features/unitsCoordination/configuration', () => ({
     error: null,
     refetch: vi.fn(),
   }),
+}));
+
+vi.mock('@/features/unitsCoordination/unitsUnitAndRoleMutations', () => ({
   useCreateUnitMutation: () => ({ mutateAsync: mutationSpies.createUnit, isPending: false }),
   useUpdateUnitMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteUnitMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),

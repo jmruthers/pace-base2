@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-/* eslint-disable pace-core-compliance/prefer-pace-core-components */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -60,6 +59,7 @@ vi.mock('@solvera/pace-core/rbac', () => ({
     appId: 'base-app',
     isLoading: false,
   }),
+  AccessDenied: () => <main>Access Denied</main>,
   PagePermissionGuard: ({
     operation,
     children,
@@ -79,7 +79,7 @@ vi.mock('@solvera/pace-core/rbac', () => ({
   },
 }));
 
-vi.mock('@/features/activityOfferingSetup/configuration', () => ({
+vi.mock('@/features/activityOfferingSetup/activityOfferingQueries', () => ({
   useOffering: () => ({
     data: queryState.offering,
     isLoading: queryState.offeringLoading,
@@ -97,6 +97,9 @@ vi.mock('@/features/activityOfferingSetup/configuration', () => ({
     data: queryState.bookingCount,
     isLoading: queryState.bookingCountLoading,
   }),
+}));
+
+vi.mock('@/features/activityOfferingSetup/activityOfferingMutations', () => ({
   useUpdateOfferingMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCreateSessionMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateSessionMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -110,36 +113,22 @@ vi.mock('@solvera/pace-core/utils', () => ({
   formatDateTime: (value: string) => value,
 }));
 
-vi.mock('@solvera/pace-core/components', () => ({
+vi.mock('@solvera/pace-core/components', async () => {
+  const { MockButton, MockCheckboxField, MockFieldLabel, MockTextField } = await import(
+    '@/test/paceCoreElementMocks'
+  );
+  return {
   Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   AlertTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Button: ({
-    children,
-    onClick,
-    disabled,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    disabled?: boolean;
-  }) => (
-    <button type="button" onClick={onClick} disabled={disabled}>
-      {children}
-    </button>
-  ),
+  Button: MockButton,
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
   CardTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  Checkbox: ({
-    checked,
-    onChange,
-  }: {
-    checked?: boolean;
-    onChange?: (checked: boolean) => void;
-  }) => <input type="checkbox" checked={checked} onChange={(event) => onChange?.(event.target.checked)} />,
+  Checkbox: MockCheckboxField,
   DataTable: ({
     data,
     columns,
@@ -189,19 +178,13 @@ vi.mock('@solvera/pace-core/components', () => ({
   }: {
     render: (props: { field: { value?: unknown; onChange: (nextValue: unknown) => void } }) => React.ReactNode;
   }) => <>{render({ field: { value: '', onChange: () => undefined } })}</>,
-  Input: ({ value, onChange }: { value?: string; onChange?: (value: string) => void }) => (
-    <input value={value} onChange={(event) => onChange?.(event.target.value)} />
-  ),
-  Label: ({ children }: { children: React.ReactNode }) => <label>{children}</label>,
+  Input: MockTextField,
+  Label: MockFieldLabel,
   LoadingSpinner: () => <p>Loading</p>,
   SaveActions: ({ onCancel, onSaveClick }: { onCancel?: () => void; onSaveClick?: () => void }) => (
     <section>
-      <button type="button" onClick={onCancel}>
-        Cancel
-      </button>
-      <button type="button" onClick={onSaveClick}>
-        Save
-      </button>
+      <MockButton onClick={onCancel}>Cancel</MockButton>
+      <MockButton onClick={onSaveClick}>Save</MockButton>
     </section>
   ),
   Select: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
@@ -210,7 +193,8 @@ vi.mock('@solvera/pace-core/components', () => ({
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectValue: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   Switch: () => <section>Switch</section>,
-}));
+  };
+});
 
 function renderRoute() {
   const queryClient = new QueryClient();
@@ -287,7 +271,7 @@ describe('ActivityOfferingPage', () => {
       screen.getByText('This session has 2 booking(s). Deleting it will remove those bookings permanently.')
     ).toBeTruthy();
     const deleteButton = screen.getAllByRole('button', { name: 'Delete' })[1];
-    expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
+    expect(deleteButton.getAttribute('aria-disabled')).toBe('true');
   });
 
   it('renders sessions table metadata', () => {

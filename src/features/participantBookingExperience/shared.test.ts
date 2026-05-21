@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
+  computeCapacityFull,
+  computeDuplicateBooking,
+  computeWaitlistOpen,
+  countConfirmedBookings,
+} from './bookingCapacity';
+import {
   buildBookingValidationResult,
   computeBookingWindowOpen,
   computeCancellable,
   computeCanBook,
-  computeCapacityFull,
-  computeDuplicateBooking,
   computeOnWaitlist,
-  computeWaitlistOpen,
-  countConfirmedBookings,
   findConflictingSession,
   rangesOverlap,
-} from './shared';
+} from './bookingProjection';
 
 describe('BA10 booking window projection', () => {
   const nowIso = '2026-05-12T10:00:00.000Z';

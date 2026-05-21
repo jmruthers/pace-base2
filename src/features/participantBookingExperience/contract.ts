@@ -2,10 +2,11 @@ import type {
   ActivityBookingStatus,
   BookingValidationResult,
   OfferingBrowseItem,
-  ParticipantBookingItem,
   SessionBrowseItem,
 } from './types';
-import { mapBookingProjectionError, type BookingProjectionErrorState } from './shared';
+import type { ParticipantBookingItem } from './participantBookingTypes';
+import { mapBookingProjectionError } from './bookingProjection';
+import type { BookingProjectionErrorState } from './types';
 
 const OFFERING_KEYS = [
   'id',

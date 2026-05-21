@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-/* eslint-disable pace-core-compliance/prefer-pace-core-components */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -67,7 +66,7 @@ vi.mock('@solvera/pace-core/rbac', () => ({
   },
 }));
 
-vi.mock('@/features/activityOfferingSetup/configuration', () => ({
+vi.mock('@/features/activityOfferingSetup/activityOfferingQueries', () => ({
   useOfferingsList: () => ({
     data: queryState.offerings,
     isLoading: queryState.offeringsLoading,
@@ -82,6 +81,9 @@ vi.mock('@/features/activityOfferingSetup/configuration', () => ({
     data: queryState.deleteSessionCount,
     isLoading: queryState.deleteSessionCountLoading,
   }),
+}));
+
+vi.mock('@/features/activityOfferingSetup/activityOfferingMutations', () => ({
   useCreateOfferingMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateOfferingMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteOfferingMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -94,24 +96,14 @@ vi.mock('@solvera/pace-core/utils', () => ({
   formatDateTime: (value: string) => value,
 }));
 
-vi.mock('@solvera/pace-core/components', () => ({
+vi.mock('@solvera/pace-core/components', async () => {
+  const { MockButton, MockFieldLabel, MockTextField } = await import('@/test/paceCoreElementMocks');
+  return {
   Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   AlertTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Button: ({
-    children,
-    onClick,
-    disabled,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    disabled?: boolean;
-  }) => (
-    <button type="button" onClick={onClick} disabled={disabled}>
-      {children}
-    </button>
-  ),
+  Button: MockButton,
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
@@ -165,19 +157,13 @@ vi.mock('@solvera/pace-core/components', () => ({
   }: {
     render: (props: { field: { value?: unknown; onChange: (nextValue: unknown) => void } }) => React.ReactNode;
   }) => <>{render({ field: { value: '', onChange: () => undefined } })}</>,
-  Input: ({ value, onChange }: { value?: string; onChange?: (value: string) => void }) => (
-    <input value={value} onChange={(event) => onChange?.(event.target.value)} />
-  ),
-  Label: ({ children }: { children: React.ReactNode }) => <label>{children}</label>,
+  Input: MockTextField,
+  Label: MockFieldLabel,
   LoadingSpinner: () => <p>Loading</p>,
   SaveActions: ({ onCancel, onSaveClick }: { onCancel?: () => void; onSaveClick?: () => void }) => (
     <section>
-      <button type="button" onClick={onCancel}>
-        Cancel
-      </button>
-      <button type="button" onClick={onSaveClick}>
-        Save
-      </button>
+      <MockButton onClick={onCancel}>Cancel</MockButton>
+      <MockButton onClick={onSaveClick}>Save</MockButton>
     </section>
   ),
   Select: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
@@ -186,7 +172,8 @@ vi.mock('@solvera/pace-core/components', () => ({
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectValue: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   Switch: () => <section>Switch</section>,
-}));
+  };
+});
 
 describe('ActivitiesPage', () => {
   afterEach(() => cleanup());
@@ -260,9 +247,8 @@ describe('ActivitiesPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(screen.getByText('All sessions must be removed before this offering can be deleted.')).toBeTruthy();
-    expect(
-      (screen.getByRole('button', { name: 'Cannot delete — sessions exist' }) as HTMLButtonElement).disabled
-    ).toBe(true);
+    const deleteButton = screen.getByRole('button', { name: 'Cannot delete — sessions exist' });
+    expect(deleteButton.getAttribute('aria-disabled')).toBe('true');
   });
 
   it('renders table metadata and scopes TRAC lookup by selected event id', () => {

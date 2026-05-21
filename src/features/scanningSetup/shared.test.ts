@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clearResourceOnContextChange,
-  deriveParticipantName,
   getDirectionBadge,
   getOfflineBadge,
   getQueueSyncBadge,
   getResultBadge,
   getStatusBadge,
+} from './scanningBadges';
+import {
+  clearResourceOnContextChange,
+  deriveParticipantName,
   validateScanPoint,
 } from './shared';
 

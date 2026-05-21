@@ -1,4 +1,4 @@
-import type { ManifestContextType } from '@/features/scanningSetup/types';
+import type { ManifestContextType } from '@/features/scanningSetup/scanEventTypes';
 
 export type QueueValidationResult = 'accepted' | 'rejected' | 'accepted_override';
 

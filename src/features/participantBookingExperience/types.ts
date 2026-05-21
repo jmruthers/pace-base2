@@ -1,5 +1,24 @@
 export type ActivityBookingStatus = 'confirmed' | 'waitlisted' | 'cancelled';
 
+export type BookingProjectionErrorState = 'access_denied' | 'unknown_error';
+
+export interface SessionTimeRange {
+  session_id: string;
+  session_name: string | null;
+  start_time: string;
+  end_time: string;
+}
+
+export interface ParticipantSessionBooking {
+  participant_id: string;
+  session_id: string;
+  status: ActivityBookingStatus;
+}
+
+export interface SessionBookingRecord {
+  status: ActivityBookingStatus;
+}
+
 export interface SessionBrowseItem {
   id: string;
   session_name: string | null;
@@ -48,16 +67,3 @@ export interface BookingValidationResult {
   canBook: boolean;
 }
 
-export interface ParticipantBookingItem {
-  id: string;
-  session_id: string;
-  session_name: string | null;
-  start_time: string;
-  end_time: string;
-  offering_name: string;
-  status: ActivityBookingStatus;
-  booked_at: string;
-  cancelled_at: string | null;
-  cancellable: boolean;
-  onWaitlist: boolean;
-}

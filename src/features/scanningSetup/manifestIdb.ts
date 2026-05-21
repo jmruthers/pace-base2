@@ -1,6 +1,6 @@
 import type { ApiResult } from '@solvera/pace-core/types';
 import { createErrorResult, isOk, normalizeToApiError, ok } from '@solvera/pace-core/types';
-import type { ManifestContextType, ManifestRow } from './types';
+import type { ManifestContextType, ManifestRow } from './scanEventTypes';
 
 const DB_NAME = 'ba12_manifests';
 const DB_VERSION = 1;

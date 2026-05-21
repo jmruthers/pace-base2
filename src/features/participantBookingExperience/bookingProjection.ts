@@ -1,30 +1,10 @@
-/* eslint-disable pace-core-compliance/max-named-exports */
 import type {
   ActivityBookingStatus,
+  BookingProjectionErrorState,
   BookingValidationResult,
   ConflictingSessionSummary,
+  SessionTimeRange,
 } from './types';
-
-export interface SessionTimeRange {
-  session_id: string;
-  session_name: string | null;
-  start_time: string;
-  end_time: string;
-}
-
-export interface ParticipantSessionBooking {
-  participant_id: string;
-  session_id: string;
-  status: ActivityBookingStatus;
-}
-
-export interface SessionBookingRecord {
-  status: ActivityBookingStatus;
-}
-
-export type BookingProjectionErrorState = 'access_denied' | 'unknown_error';
-
-const ACTIVE_BOOKING_STATUSES: ReadonlySet<ActivityBookingStatus> = new Set(['confirmed', 'waitlisted']);
 
 export function computeBookingWindowOpen(
   bookingOpenAt: string | null,
@@ -43,31 +23,6 @@ export function computeBookingWindowOpen(
   const openAt = bookingOpenAt as string;
   const closeAt = bookingCloseAt as string;
   return openAt <= nowIso && nowIso <= closeAt;
-}
-
-export function countConfirmedBookings(bookings: SessionBookingRecord[]): number {
-  return bookings.filter((booking) => booking.status === 'confirmed').length;
-}
-
-export function computeCapacityFull(capacity: number, confirmedCount: number): boolean {
-  return confirmedCount >= capacity;
-}
-
-export function computeWaitlistOpen(capacityFull: boolean, allowWaitlist: boolean): boolean {
-  return capacityFull && allowWaitlist;
-}
-
-export function computeDuplicateBooking(
-  bookings: ParticipantSessionBooking[],
-  participantId: string,
-  sessionId: string
-): boolean {
-  return bookings.some(
-    (booking) =>
-      booking.participant_id === participantId &&
-      booking.session_id === sessionId &&
-      ACTIVE_BOOKING_STATUSES.has(booking.status)
-  );
 }
 
 export function rangesOverlap(

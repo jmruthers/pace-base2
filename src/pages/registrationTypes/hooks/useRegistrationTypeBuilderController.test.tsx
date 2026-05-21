@@ -153,15 +153,14 @@ describe('useRegistrationTypeBuilderController', () => {
     ]);
     const { result } = renderHook(() => useRegistrationTypeBuilderController());
 
-    await act(async () => {
-      await Promise.resolve();
-    });
-
     act(() => {
       result.current.reorderRequirement('req-2', 'req-1');
     });
 
-    expect(result.current.requirementDraftRows.map((entry) => entry.localId)).toEqual(['req-2', 'req-1']);
+    expect(result.current.requirementDraftRows.map((entry: { localId: string }) => entry.localId)).toEqual([
+      'req-2',
+      'req-1',
+    ]);
   });
 
   it('populates validation errors when save data is invalid', async () => {
@@ -187,10 +186,6 @@ describe('useRegistrationTypeBuilderController', () => {
       },
     ]);
     const { result } = renderHook(() => useRegistrationTypeBuilderController());
-
-    await act(async () => {
-      await Promise.resolve();
-    });
 
     await act(async () => {
       await result.current.saveWorkflow();

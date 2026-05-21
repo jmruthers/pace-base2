@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-/* eslint-disable pace-core-compliance/prefer-pace-core-components */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -66,6 +65,7 @@ vi.mock('@solvera/pace-core/rbac', () => ({
   }),
   PagePermissionGuard: ({ children, fallback }: { children: React.ReactNode; fallback?: React.ReactNode }) =>
     children ?? fallback ?? null,
+  AccessDenied: () => <main>Access Denied</main>,
   useSecureSupabase: () => secureSupabaseState.client,
 }));
 
@@ -89,24 +89,16 @@ vi.mock('@solvera/pace-core/icons', () => ({
   ClipboardList: () => <span>ClipboardList</span>,
 }));
 
-vi.mock('@solvera/pace-core/components', () => ({
+vi.mock('@solvera/pace-core/components', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@solvera/pace-core/components')>();
+  const { MockButton } = await import('@/test/paceCoreElementMocks');
+  return {
+    ...actual,
   Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   AlertTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Button: ({
-    children,
-    onClick,
-    disabled,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    disabled?: boolean;
-  }) => (
-    <button type="button" onClick={onClick} disabled={disabled}>
-      {children}
-    </button>
-  ),
+  Button: MockButton,
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
@@ -131,12 +123,8 @@ vi.mock('@solvera/pace-core/components', () => ({
       <section>
         <h3>{title}</h3>
         {description ?? null}
-        <button type="button" onClick={onConfirm}>
-          {confirmLabel}
-        </button>
-        <button type="button" onClick={() => onOpenChange?.(false)}>
-          Cancel
-        </button>
+        <MockButton onClick={onConfirm}>{confirmLabel}</MockButton>
+        <MockButton onClick={() => onOpenChange?.(false)}>Cancel</MockButton>
       </section>
     ) : null,
   DataTable: ({
@@ -168,17 +156,15 @@ vi.mock('@solvera/pace-core/components', () => ({
   ),
   Dialog: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   DialogBody: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  DialogClose: ({ children }: { children: React.ReactNode }) => <button type="button">{children}</button>,
+  DialogClose: ({ children }: { children: React.ReactNode }) => <MockButton>{children}</MockButton>,
   DialogContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   DialogFooter: ({ children }: { children: React.ReactNode }) => <footer>{children}</footer>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
   LoadingSpinner: () => <p>Loading...</p>,
-  Textarea: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
-    <textarea value={value} onChange={(event) => onChange(event.target.value)} />
-  ),
-}));
+};
+});
 
 describe('ApplicationsPage', () => {
   afterEach(() => {

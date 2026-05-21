@@ -147,7 +147,6 @@ async function setCheckStatus(params: {
   notes: string | null;
 }): Promise<ApiResult<null>> {
   // Contract name is fixed by backend slice BA06.
-  // eslint-disable-next-line pace-core-compliance/rpc-naming-pattern
   const { error } = await params.supabase.rpc('app_base_application_check_set_status', {
     p_check_id: params.checkId,
     p_status: params.targetStatus,
@@ -164,7 +163,6 @@ async function reissueCheckToken(params: {
   checkId: string;
 }): Promise<ApiResult<null>> {
   // Contract name is fixed by backend slice BA06.
-  // eslint-disable-next-line pace-core-compliance/rpc-naming-pattern
   const { error } = await params.supabase.rpc('app_base_application_check_reissue_token', {
     p_check_id: params.checkId,
   });
@@ -177,7 +175,6 @@ async function reissueCheckToken(params: {
 async function checkSetStatusRpcAvailability(supabase: SupabaseLike): Promise<ApiResult<boolean>> {
   // Probe contract availability with a sentinel UUID. Any non-missing-function error
   // (permission, validation, not found) still indicates the RPC exists.
-  // eslint-disable-next-line pace-core-compliance/rpc-naming-pattern
   const { error } = await supabase.rpc('app_base_application_check_set_status', {
     p_check_id: '00000000-0000-0000-0000-000000000000',
     p_status: 'satisfied',

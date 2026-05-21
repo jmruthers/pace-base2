@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-/* eslint-disable pace-core-compliance/prefer-pace-core-components */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -157,6 +156,12 @@ vi.mock('@/features/scanningSetup/configuration', () => ({
     error: state.historyError,
     refetch: vi.fn(async () => undefined),
   }),
+  useCreateScanPointMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
+  useUpdateScanPointMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
+  useSetScanPointActiveMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
+}));
+
+vi.mock('@/features/scanningSetup/resourceOptionHooks', () => ({
   useActivityResourceOptions: () => ({
     data: [{ id: 'session-1', label: 'Climbing — Morning' }],
     isLoading: false,
@@ -167,9 +172,9 @@ vi.mock('@/features/scanningSetup/configuration', () => ({
     isLoading: false,
     error: null,
   }),
-  useCreateScanPointMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
-  useUpdateScanPointMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
-  useSetScanPointActiveMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
+}));
+
+vi.mock('@/features/scanningSetup/scanningManifestApi', () => ({
   loadManifestByContext: vi.fn(async () => []),
 }));
 
@@ -194,34 +199,13 @@ vi.mock('@solvera/pace-core/icons', () => ({
   X: () => <span>Deactivate</span>,
 }));
 
-vi.mock('@solvera/pace-core/components', () => ({
+vi.mock('@solvera/pace-core/components', async () => {
+  const { MockButton, MockFieldLabel, MockTextField } = await import('@/test/paceCoreElementMocks');
+  return {
   Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Button: ({
-    children,
-    onClick,
-    type,
-    variant,
-    ariaLabel,
-    'aria-label': ariaLabelAttr,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    type?: 'button' | 'submit';
-    variant?: string;
-    ariaLabel?: string;
-    'aria-label'?: string;
-  }) => (
-    <button
-      type={type ?? 'button'}
-      onClick={onClick}
-      aria-label={ariaLabelAttr ?? ariaLabel}
-      data-variant={variant}
-    >
-      {children}
-    </button>
-  ),
+  Button: MockButton,
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
@@ -283,12 +267,12 @@ vi.mock('@solvera/pace-core/components', () => ({
     label: string;
     render: (props: { field: { value?: unknown; onChange: (nextValue: unknown) => void } }) => React.ReactNode;
   }) => (
-    <label>
+    <MockFieldLabel>
       {label}
       {render({ field: { value: '', onChange: () => undefined } })}
-    </label>
+    </MockFieldLabel>
   ),
-  Input: ({ value }: { value?: string }) => <input value={value ?? ''} readOnly />,
+  Input: ({ value }: { value?: string }) => <MockTextField value={value} readOnly />,
   LoadingSpinner: () => <p>Loading</p>,
   Select: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
@@ -296,7 +280,8 @@ vi.mock('@solvera/pace-core/components', () => ({
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectValue: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   toast: vi.fn(),
-}));
+  };
+});
 
 function renderPage() {
   const queryClient = new QueryClient();

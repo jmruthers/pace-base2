@@ -1,5 +1,3 @@
-/* eslint-disable pace-core-compliance/max-named-exports */
-
 export type ScanContextType = 'site' | 'activity' | 'transport' | 'meal';
 export type ScanDirection = 'in' | 'out' | 'both' | 'neutral';
 export type ScanValidationResult = 'accepted' | 'rejected' | 'upload_conflict';
@@ -44,22 +42,6 @@ export interface ScanEventRow {
   application_id?: string | null;
 }
 
-export interface ScanConflictRow extends ScanEventRow {
-  scan_point_name: string;
-  card_identifier: string | null;
-}
-
-export interface ScanHistoryRow extends ScanEventRow {
-  scan_point_name: string;
-  card_identifier: string | null;
-  participant_name: string | null;
-}
-
-export interface ScanResourceOption {
-  id: string;
-  label: string;
-}
-
 export interface ScanPointFormValues {
   name: string;
   context_type: ScanContextType;
@@ -67,16 +49,3 @@ export interface ScanPointFormValues {
   resource_id: string | null;
 }
 
-export interface ScanPointMutationInput extends ScanPointFormValues {
-  eventId: string;
-  organisationId: string;
-  userId: string | null;
-}
-
-export interface ManifestRow {
-  card_identifier: string;
-  person_id: string;
-  name: string;
-}
-
-export type ManifestContextType = ScanContextType;

@@ -8,8 +8,8 @@ import { RegistrationTypeBuilderPage } from './RegistrationTypeBuilderPage';
 
 const controllerState = vi.hoisted(() => ({
   selectedEventId: 'event-1' as string | null,
+  registrationTypeIdFromUrl: null as string | null,
   allowUpdate: true,
-  isEditMode: false,
   listLoading: false,
   unknownTypeId: false,
   workflowEnabled: false,
@@ -18,17 +18,29 @@ const controllerState = vi.hoisted(() => ({
   saveWorkflow: vi.fn(),
 }));
 
-vi.mock('./hooks/useRegistrationTypeBuilderController', () => ({
-  useRegistrationTypeBuilderController: () => ({
+vi.mock('./hooks/useRegistrationTypeBuilderShell', () => ({
+  useRegistrationTypeBuilderShell: () => ({
     scope: { organisationId: 'org-1', eventId: 'event-1', appId: 'base-app' },
+    setSearchParams: vi.fn(),
+    selectedOrganisationId: 'org-1',
     selectedEventId: controllerState.selectedEventId,
-    isEditMode: controllerState.isEditMode,
+    registrationTypeIdFromUrl: controllerState.registrationTypeIdFromUrl,
+    isEditMode:
+      controllerState.registrationTypeIdFromUrl != null && controllerState.registrationTypeIdFromUrl.length > 0,
     listQuery: { isLoading: controllerState.listLoading, error: null },
+    resolvedRow: null,
     unknownTypeId: controllerState.unknownTypeId,
-    upsertMutation: { isPending: false },
-    requirementsQuery: { isLoading: false, error: null },
+    eligibilityByTypeId: {},
+    upsertMutation: { isPending: false, mutateAsync: vi.fn() },
     membershipTypesQuery: { data: [] },
     reviewingOrgsQuery: { data: [] },
+  }),
+}));
+
+vi.mock('./hooks/useRegistrationTypeBuilderController', () => ({
+  useCombinedRegistrationBuilder: () => ({
+    upsertMutation: { isPending: false },
+    requirementsQuery: { isLoading: false, error: null },
     typeDraft: controllerState.typeDraft,
     setTypeDraft: vi.fn(),
     eligibilityDrafts: [],
@@ -49,6 +61,9 @@ vi.mock('./hooks/useRegistrationTypeBuilderController', () => ({
     updateRequireAllGuardians: vi.fn(),
     updateReviewingOrganisation: vi.fn(),
     saveWorkflow: controllerState.saveWorkflow,
+    scope: { organisationId: 'org-1', eventId: 'event-1', appId: 'base-app' },
+    membershipTypesQuery: { data: [] },
+    reviewingOrgsQuery: { data: [] },
   }),
 }));
 
@@ -108,8 +123,8 @@ describe('RegistrationTypeBuilderPage', () => {
 
   beforeEach(() => {
     controllerState.selectedEventId = 'event-1';
+    controllerState.registrationTypeIdFromUrl = null;
     controllerState.allowUpdate = true;
-    controllerState.isEditMode = false;
     controllerState.listLoading = false;
     controllerState.unknownTypeId = false;
     controllerState.workflowEnabled = false;
@@ -125,7 +140,7 @@ describe('RegistrationTypeBuilderPage', () => {
   });
 
   it('shows edit title when editing existing type', () => {
-    controllerState.isEditMode = true;
+    controllerState.registrationTypeIdFromUrl = 'type-1';
     controllerState.typeDraft = { id: 'type-1', name: 'Youth' };
     renderPage('/registration-type-builder?registrationTypeId=type-1');
     expect(screen.getByRole('heading', { name: 'Edit registration type' })).toBeTruthy();

@@ -4,6 +4,7 @@ import {
   useCommDraft,
   useCommSendAdapter,
   type CommRbacContext,
+  type CommScheduleCompletePayload,
   type CommSendResult,
 } from '@solvera/pace-core/comms';
 import {
@@ -346,11 +347,12 @@ function CommunicationsPageContent({
           emitWarningToasts(result);
           resetCompositionState();
         }}
-        onScheduleComplete={(scheduledAt) => {
+        onScheduleComplete={(payload: CommScheduleCompletePayload) => {
+          const scheduledAtIso = payload.scheduledAtIso ?? '';
           toast({
             title:
-              typeof scheduledAt === 'string' && scheduledAt.length > 0
-                ? `Message scheduled for ${scheduledAt}.`
+              scheduledAtIso.length > 0
+                ? `Message scheduled for ${scheduledAtIso}.`
                 : 'Message scheduled for the selected date and time.',
             variant: 'success',
           });
