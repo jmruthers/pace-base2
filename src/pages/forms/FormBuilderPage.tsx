@@ -42,12 +42,35 @@ import {
   toDateValue,
   toUtcMidnightIso,
 } from '@/features/formsAuthoring/shared';
+import { formatCurrencyFromCents } from '@/features/registrationSetup/presentation';
 import {
   ensureSingleDefaultBinding,
   parseNullableNumber,
   updateBindingCheckedState,
 } from '@/features/formsAuthoring/stateHelpers';
 import type { RegistrationBindingDraft, RegistrationTypeRow } from '@/features/formsAuthoring/types';
+
+function registrationTypeCostLabel(cost: number | null): string {
+  if (cost == null) {
+    return 'No cost set';
+  }
+  return formatCurrencyFromCents(cost);
+}
+
+function eligibilityRulesLabel(count: number): string {
+  return count === 1 ? '1 eligibility rule' : `${count} eligibility rules`;
+}
+
+function approvalsLabel(count: number): string {
+  return count === 1 ? '1 approval' : `${count} approvals`;
+}
+
+function registrationTypeRulesAndApprovalsLabel(
+  eligibilityRuleCount: number,
+  approvalCount: number
+): string {
+  return `${eligibilityRulesLabel(eligibilityRuleCount)}, ${approvalsLabel(approvalCount)}`;
+}
 
 interface EditorProps {
   initialState: WorkflowAuthoringState;
@@ -293,45 +316,83 @@ function FormBuilderEditor({
                     <AlertTitle>Error</AlertTitle>
                     <AlertDescription>{NormalizeSupabaseError(registrationTypesError).message}</AlertDescription>
                   </Alert>
-                ) : registrationTypes.map((registrationType) => {
-                  const binding = visibleBindings.find((entry) => entry.typeId === registrationType.id) ?? {
-                    typeId: registrationType.id,
-                    checked: false,
-                    isDefault: false,
-                  };
-                  return (
-                    <article key={registrationType.id} className="grid gap-2 rounded-md border p-3">
-                      <section className="grid gap-1">
-                        <Label>{registrationType.name}</Label>
-                        <Checkbox
-                          checked={binding.checked}
-                          onChange={(checked: boolean) => {
-                            setBindings(
-                              updateBindingCheckedState(
-                                visibleBindings,
-                                registrationType.id,
-                                checked
-                              )
-                            );
-                          }}
-                        />
-                      </section>
-                      <section className="grid gap-1">
-                        <Label>Set as default</Label>
-                        <Input
-                          type="radio"
-                          name="registration-default"
-                          checked={binding.checked && binding.isDefault}
-                          disabled={!binding.checked}
-                          readOnly
-                          onClick={() => {
-                            setBindings(ensureSingleDefaultBinding(visibleBindings, registrationType.id));
-                          }}
-                        />
-                      </section>
-                    </article>
-                  );
-                })}
+                ) : registrationTypes.length === 0 ? (
+                  <section className="grid gap-2">
+                    <p>There are no registration types defined yet for this event. You must have registration types defined for members to be able to apply for the event.</p>
+                    <PagePermissionGuard
+                      pageName="registration-types"
+                      operation="create"
+                      scope={scope}
+                      fallback={null}
+                    >
+                      <Link to="/registration-type-builder">Create registration type</Link>
+                    </PagePermissionGuard>
+                  </section>
+                ) : (
+                  <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {registrationTypes.map((registrationType) => {
+                      const binding = visibleBindings.find((entry) => entry.typeId === registrationType.id) ?? {
+                        typeId: registrationType.id,
+                        checked: false,
+                        isDefault: false,
+                      };
+                      return (
+                        <Card key={registrationType.id}>
+                          <CardHeader>
+                            <CardTitle>{registrationType.name}</CardTitle>
+                          </CardHeader>
+                          <CardContent className="grid gap-2">
+                            <p>{registrationTypeCostLabel(registrationType.cost)}</p>
+                            <p>
+                              {registrationTypeRulesAndApprovalsLabel(
+                                registrationType.eligibilityRuleCount,
+                                registrationType.approvalCount
+                              )}
+                            </p>
+                            <Label
+                              htmlFor={`binding-${registrationType.id}`}
+                              className="grid grid-flow-col auto-cols-max items-center gap-2"
+                            >
+                              <Checkbox
+                                id={`binding-${registrationType.id}`}
+                                checked={binding.checked}
+                                onChange={(checked: boolean) => {
+                                  setBindings(
+                                    updateBindingCheckedState(
+                                      visibleBindings,
+                                      registrationType.id,
+                                      checked
+                                    )
+                                  );
+                                }}
+                              />
+                              Include on this form
+                            </Label>
+                            <Label
+                              htmlFor={`default-${registrationType.id}`}
+                              className="grid grid-flow-col auto-cols-max items-center gap-2"
+                            >
+                              <input
+                                id={`default-${registrationType.id}`}
+                                type="radio"
+                                name="registration-default"
+                                className="size-4"
+                                checked={binding.checked && binding.isDefault}
+                                disabled={!binding.checked}
+                                onChange={() => {
+                                  setBindings(
+                                    ensureSingleDefaultBinding(visibleBindings, registrationType.id)
+                                  );
+                                }}
+                              />
+                              Set as default
+                            </Label>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </section>
+                )}
               </CardContent>
             </Card>
           ) : null}

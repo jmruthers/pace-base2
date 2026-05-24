@@ -17,7 +17,15 @@ const state = vi.hoisted(() => ({
   builderLoading: false,
   builderError: null as Error | null,
   builderData: null as unknown,
-  registrationTypes: [] as Array<{ id: string; name: string; description: string | null; is_active: boolean }>,
+  registrationTypes: [] as Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    is_active: boolean;
+    cost: number | null;
+    eligibilityRuleCount: number;
+    approvalCount: number;
+  }>,
   registrationTypesLoading: false,
   registrationTypesError: null as Error | null,
 }));
@@ -304,6 +312,42 @@ describe('FormBuilderPage', () => {
     expect(screen.getByText('Registration Type Bindings')).toBeTruthy();
   });
 
+  it('shows registration bindings empty state when no types exist', () => {
+    state.builderData = {
+      form: {
+        id: 'form-1',
+        event_id: 'event-1',
+        organisation_id: 'org-1',
+        slug: 'camp-form',
+        name: 'Camp Form',
+        description: null,
+        workflow_type: 'base_registration',
+        access_mode: 'authenticated_member',
+        status: 'draft',
+        workflow_config: {},
+        is_active: true,
+        is_primary_entrypoint: false,
+        opens_at: null,
+        closes_at: null,
+        max_submissions: null,
+        confirmation_message: null,
+      },
+      fields: [],
+      bindings: [],
+    };
+    state.registrationTypes = [];
+
+    renderAt('/form-builder?formId=form-1');
+    expect(
+      screen.getByText(
+        'There are no registration types defined yet for this event. You must have registration types defined for members to be able to apply for the event.'
+      )
+    ).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Manage registration types' })).toBeNull();
+    const createLink = screen.getByRole('link', { name: 'Create registration type' });
+    expect(createLink.getAttribute('href')).toBe('/registration-type-builder');
+  });
+
   it('renders registration bindings list for base registration forms', () => {
     state.builderData = {
       form: {
@@ -328,14 +372,34 @@ describe('FormBuilderPage', () => {
       bindings: [{ registration_type_id: 'type-1', is_default: true }],
     };
     state.registrationTypes = [
-      { id: 'type-1', name: 'Youth', description: null, is_active: true },
-      { id: 'type-2', name: 'Adult', description: null, is_active: true },
+      {
+        id: 'type-1',
+        name: 'Youth',
+        description: null,
+        is_active: true,
+        cost: 5000,
+        eligibilityRuleCount: 2,
+        approvalCount: 1,
+      },
+      {
+        id: 'type-2',
+        name: 'Adult',
+        description: null,
+        is_active: true,
+        cost: null,
+        eligibilityRuleCount: 0,
+        approvalCount: 3,
+      },
     ];
 
     renderAt('/form-builder?formId=form-1');
     expect(screen.getByText('Registration Type Bindings')).toBeTruthy();
     expect(screen.getByText('Youth')).toBeTruthy();
     expect(screen.getByText('Adult')).toBeTruthy();
+    expect(screen.getByText('$50.00')).toBeTruthy();
+    expect(screen.getByText('No cost set')).toBeTruthy();
+    expect(screen.getByText('2 eligibility rules, 1 approval')).toBeTruthy();
+    expect(screen.getByText('0 eligibility rules, 3 approvals')).toBeTruthy();
     expect(screen.getAllByText('Set as default').length).toBeGreaterThan(0);
   });
 
@@ -363,8 +427,24 @@ describe('FormBuilderPage', () => {
       bindings: [{ registration_type_id: 'type-1', sort_order: 0, is_default: true }],
     };
     state.registrationTypes = [
-      { id: 'type-1', name: 'Youth', description: null, is_active: true },
-      { id: 'type-2', name: 'Adult', description: null, is_active: true },
+      {
+        id: 'type-1',
+        name: 'Youth',
+        description: null,
+        is_active: true,
+        cost: null,
+        eligibilityRuleCount: 0,
+        approvalCount: 0,
+      },
+      {
+        id: 'type-2',
+        name: 'Adult',
+        description: null,
+        is_active: true,
+        cost: null,
+        eligibilityRuleCount: 0,
+        approvalCount: 0,
+      },
     ];
 
     renderAt('/form-builder?formId=form-1');

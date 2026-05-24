@@ -24,9 +24,15 @@ import {
 } from '@solvera/pace-core/components';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { buildWorkflowPreviewTarget, workflowTypeDisplayLabel } from '@solvera/pace-core/forms';
-import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
+import { AccessDenied, PagePermissionGuard, useResolvedScope, useSecureSupabase } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage, formatDate } from '@solvera/pace-core/utils';
-import { useDeleteFormMutation, useFormFieldCounts, useFormsList } from '@/features/formsAuthoring/configuration';
+import {
+  getFormDeleteBlockers,
+  useDeleteFormMutation,
+  useFormFieldCounts,
+  useFormsList,
+} from '@/features/formsAuthoring/configuration';
+import { isFormDeleteBlocked } from '@/features/formsAuthoring/deletePolicy';
 import { buildDeleteBlockedMessage, resolveEventSlug } from '@/features/formsAuthoring/shared';
 import { asCount } from '@/features/formsAuthoring/stateHelpers';
 import type { CoreFormListRow } from '@/features/formsAuthoring/types';
@@ -113,12 +119,14 @@ export function FormsListPage() {
   const { selectedEvent } = useEvents();
   const { selectedEventId, selectedOrganisationId } = useUnifiedAuth();
   const { organisationId, eventId, appId } = useResolvedScope();
+  const secureSupabase = useSecureSupabase();
   const formsQuery = useFormsList(selectedEventId);
   const fieldCountsQuery = useFormFieldCounts(selectedEventId, formsQuery.data);
   const deleteMutation = useDeleteFormMutation();
 
   const [pendingDeleteForm, setPendingDeleteForm] = useState<CoreFormListRow | null>(null);
   const [deleteBlockedMessage, setDeleteBlockedMessage] = useState<string | null>(null);
+  const [deleteCheckFormId, setDeleteCheckFormId] = useState<string | null>(null);
 
   const eventSlug = useMemo(() => resolveEventSlug(selectedEvent), [selectedEvent]);
 
@@ -171,6 +179,36 @@ export function FormsListPage() {
       return;
     }
     window.open(url, '_blank');
+  };
+
+  const handleRequestDelete = async (form: CoreFormListRow) => {
+    if (selectedEventId == null) {
+      return;
+    }
+
+    setDeleteCheckFormId(form.id);
+    try {
+      const blockersResult = await getFormDeleteBlockers(secureSupabase, selectedEventId, form.id);
+      if (!blockersResult.ok) {
+        HandleMutationError(new Error(blockersResult.error.message), 'forms-delete', toast);
+        return;
+      }
+      if (isFormDeleteBlocked(blockersResult.data)) {
+        setDeleteBlockedMessage(
+          buildDeleteBlockedMessage({
+            formName: form.name,
+            responseCount: blockersResult.data.responseCount,
+            registrationBindingCount: blockersResult.data.registrationBindingCount,
+          })
+        );
+        return;
+      }
+      setPendingDeleteForm(form);
+    } catch (error) {
+      HandleMutationError(error, 'forms-delete', toast);
+    } finally {
+      setDeleteCheckFormId(null);
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -288,7 +326,8 @@ export function FormsListPage() {
                     <Button
                       type="button"
                       aria-label={`Delete ${form.name}`}
-                      onClick={() => setPendingDeleteForm(form)}
+                      disabled={deleteCheckFormId === form.id}
+                      onClick={() => void handleRequestDelete(form)}
                     >
                       <DeleteIcon />
                     </Button>

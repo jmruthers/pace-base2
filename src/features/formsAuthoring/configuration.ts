@@ -165,20 +165,88 @@ async function fetchFormBindings(
   return apiSuccess(rows);
 }
 
-async function fetchRegistrationTypes(
+type RegistrationTypeIdRow = { registration_type_id: string };
+
+function countRowsByRegistrationTypeId(rows: RegistrationTypeIdRow[]): Record<string, number> {
+  return rows.reduce<Record<string, number>>((accumulator, row) => {
+    const current = accumulator[row.registration_type_id] ?? 0;
+    accumulator[row.registration_type_id] = current + 1;
+    return accumulator;
+  }, {});
+}
+
+async function fetchRegistrationTypesForBindings(
   supabase: SupabaseLike,
   eventId: string
 ): Promise<ApiResult<RegistrationTypeRow[]>> {
-  const { data, error } = await supabase
+  const { data: typeRows, error: typesError } = await supabase
     .from('base_registration_type')
-    .select('id, name, description, is_active')
+    .select('id, name, description, is_active, cost')
     .eq('event_id', eventId)
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
-  if (error != null) {
-    return apiFailure('registration-types-read-error', 'Failed to load registration types', error);
+  if (typesError != null) {
+    return apiFailure('registration-types-read-error', 'Failed to load registration types', typesError);
   }
-  return apiSuccess((data as RegistrationTypeRow[] | null) ?? []);
+
+  const activeTypes =
+    (typeRows as Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      is_active: boolean;
+      cost: number | null;
+    }> | null) ?? [];
+  const typeIds = activeTypes.map((row) => row.id);
+
+  const [eligibilityResult, requirementsResult] = await Promise.all([
+    typeIds.length === 0
+      ? Promise.resolve({ data: [] as RegistrationTypeIdRow[], error: null })
+      : supabase
+          .from('base_registration_type_eligibility')
+          .select('registration_type_id')
+          .eq('event_id', eventId),
+    typeIds.length === 0
+      ? Promise.resolve({ data: [] as RegistrationTypeIdRow[], error: null })
+      : supabase
+          .from('base_registration_type_requirement')
+          .select('registration_type_id')
+          .in('registration_type_id', typeIds),
+  ]);
+
+  if (eligibilityResult.error != null) {
+    return apiFailure(
+      'registration-type-eligibility-read-error',
+      'Failed to load registration type eligibility rules',
+      eligibilityResult.error
+    );
+  }
+  if (requirementsResult.error != null) {
+    return apiFailure(
+      'registration-type-requirements-read-error',
+      'Failed to load registration type approvals',
+      requirementsResult.error
+    );
+  }
+
+  const eligibilityCounts = countRowsByRegistrationTypeId(
+    (eligibilityResult.data as RegistrationTypeIdRow[] | null) ?? []
+  );
+  const approvalCounts = countRowsByRegistrationTypeId(
+    (requirementsResult.data as RegistrationTypeIdRow[] | null) ?? []
+  );
+
+  return apiSuccess(
+    activeTypes.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      is_active: row.is_active,
+      cost: row.cost,
+      eligibilityRuleCount: eligibilityCounts[row.id] ?? 0,
+      approvalCount: approvalCounts[row.id] ?? 0,
+    }))
+  );
 }
 
 async function saveBindings(params: {
@@ -256,6 +324,76 @@ async function saveWorkflowForm(
   }
 
   return apiSuccess({ formId: resolvedFormId });
+}
+
+export type FormDeleteBlockers = {
+  responseCount: number;
+  registrationBindingCount: number;
+};
+
+type CountQueryBuilder = {
+  eq: (column: string, value: unknown) => CountQueryBuilder;
+} & Promise<{ count: number | null; error: unknown }>;
+
+type CountSupabaseLike = {
+  from: (table: string) => {
+    select: (columns: string, options: { count: 'exact'; head: true }) => CountQueryBuilder;
+  };
+};
+
+async function countFormDeleteDependencies(
+  supabase: SupabaseLike,
+  table: 'core_form_responses' | 'base_form_registration_type',
+  eventId: string,
+  formId: string
+): Promise<ApiResult<number>> {
+  const client = supabase as unknown as CountSupabaseLike;
+  let query = client.from(table).select('id', { count: 'exact', head: true }).eq('form_id', formId);
+  if (table === 'base_form_registration_type') {
+    query = query.eq('event_id', eventId);
+  }
+  const { count, error } = await query;
+  if (error != null) {
+    return apiFailure(
+      'form-delete-blockers-read-error',
+      'Failed to check whether this form can be deleted',
+      error
+    );
+  }
+  return apiSuccess(count ?? 0);
+}
+
+async function fetchFormDeleteBlockers(
+  supabase: SupabaseLike,
+  eventId: string,
+  formId: string
+): Promise<ApiResult<FormDeleteBlockers>> {
+  const [responsesResult, bindingsResult] = await Promise.all([
+    countFormDeleteDependencies(supabase, 'core_form_responses', eventId, formId),
+    countFormDeleteDependencies(supabase, 'base_form_registration_type', eventId, formId),
+  ]);
+  if (!responsesResult.ok) {
+    return responsesResult;
+  }
+  if (!bindingsResult.ok) {
+    return bindingsResult;
+  }
+  return apiSuccess({
+    responseCount: responsesResult.data,
+    registrationBindingCount: bindingsResult.data,
+  });
+}
+
+export async function getFormDeleteBlockers(
+  secureSupabase: ReturnType<typeof useSecureSupabase>,
+  eventId: string,
+  formId: string
+): Promise<ApiResult<FormDeleteBlockers>> {
+  if (secureSupabase == null) {
+    return apiFailure('supabase-client-unavailable', 'Supabase client unavailable', null);
+  }
+  const supabase = asSupabaseClient(secureSupabase);
+  return fetchFormDeleteBlockers(supabase, eventId, formId);
 }
 
 async function deleteForm(
@@ -380,7 +518,7 @@ export function useRegistrationTypes(eventId: string | null, enabled = true) {
     enabled: enabled && eventId != null && secureSupabase != null,
     queryFn: async () => {
       const supabase = asSupabaseClient(secureSupabase);
-      const result = await fetchRegistrationTypes(supabase, eventId as string);
+      const result = await fetchRegistrationTypesForBindings(supabase, eventId as string);
       if (!result.ok) {
         throw new Error(result.error.message);
       }

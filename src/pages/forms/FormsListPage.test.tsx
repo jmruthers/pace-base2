@@ -35,6 +35,13 @@ const state = vi.hoisted(() => ({
   }>,
   toastMock: vi.fn(),
   deleteMutateAsync: vi.fn(async () => ({ deleted: true, response_count: 0, registration_binding_count: 0 })),
+  getDeleteBlockers: vi.fn(async () => ({
+    ok: true as const,
+    data: {
+      responseCount: 0,
+      registrationBindingCount: 0,
+    },
+  })),
   invalidateQueries: vi.fn(),
 }));
 
@@ -60,6 +67,7 @@ vi.mock('@solvera/pace-core/hooks', () => ({
 
 vi.mock('@solvera/pace-core/rbac', () => ({
   AccessDenied: () => <main>Access Denied</main>,
+  useSecureSupabase: () => ({}),
   useResolvedScope: () => resolvedScopeState,
   PagePermissionGuard: ({
     operation,
@@ -153,6 +161,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 });
 
 vi.mock('@/features/formsAuthoring/configuration', () => ({
+  getFormDeleteBlockers: () => state.getDeleteBlockers(),
   useFormsList: () => ({
     isLoading: state.formsLoading,
     error: state.formsError,
@@ -205,6 +214,14 @@ describe('FormsListPage', () => {
       response_count: 0,
       registration_binding_count: 0,
     }));
+    state.getDeleteBlockers.mockClear();
+    state.getDeleteBlockers.mockResolvedValue({
+      ok: true,
+      data: {
+        responseCount: 0,
+        registrationBindingCount: 0,
+      },
+    });
     state.invalidateQueries = vi.fn();
     guardPropsState.calls = [];
     vi.stubGlobal('open', vi.fn());
@@ -442,7 +459,41 @@ describe('FormsListPage', () => {
     expect(screen.getByText('? fields')).toBeTruthy();
   });
 
-  it('handles delete success and blocked delete flows', async () => {
+  it('shows cannot-delete dialog without confirmation when dependencies block delete', async () => {
+    const user = userEvent.setup();
+    state.getDeleteBlockers.mockResolvedValue({
+      ok: true,
+      data: {
+        responseCount: 1,
+        registrationBindingCount: 0,
+      },
+    });
+    state.formsData = [
+      {
+        id: 'form-1',
+        name: 'Second form',
+        slug: 'second-form',
+        status: 'published',
+        workflow_type: 'generic',
+        is_active: true,
+        is_primary_entrypoint: false,
+        opens_at: null,
+        closes_at: null,
+        created_at: null,
+        updated_at: null,
+      },
+    ];
+
+    renderPage();
+    await user.click(screen.getByLabelText('Delete Second form'));
+
+    expect(await screen.findByText('Cannot delete form')).toBeTruthy();
+    expect(screen.getByText(/1 submission/i)).toBeTruthy();
+    expect(screen.queryByText(/Are you sure you want to delete/i)).toBeNull();
+    expect(state.deleteMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('opens confirmation when delete dependencies are clear and deletes on confirm', async () => {
     const user = userEvent.setup();
     state.formsData = [
       {
@@ -459,17 +510,41 @@ describe('FormsListPage', () => {
         updated_at: null,
       },
     ];
-    state.deleteMutateAsync = vi
-      .fn()
-      .mockResolvedValueOnce({ deleted: true, response_count: 0, registration_binding_count: 0 })
-      .mockResolvedValueOnce({ deleted: false, response_count: 2, registration_binding_count: 1 });
 
     renderPage();
 
     await user.click(screen.getByLabelText('Delete Camp Form'));
+    expect(await screen.findByText(/Are you sure you want to delete 'Camp Form'/i)).toBeTruthy();
+
     await user.click(screen.getByRole('button', { name: 'confirm-delete' }));
     expect(state.invalidateQueries).toHaveBeenCalled();
     expect(state.toastMock).toHaveBeenCalled();
+  });
+
+  it('shows blocked dialog after confirm when rpc reports dependencies', async () => {
+    const user = userEvent.setup();
+    state.deleteMutateAsync.mockResolvedValue({
+      deleted: false,
+      response_count: 2,
+      registration_binding_count: 1,
+    });
+    state.formsData = [
+      {
+        id: 'form-1',
+        name: 'Camp Form',
+        slug: 'camp-form',
+        status: 'draft',
+        workflow_type: 'generic',
+        is_active: true,
+        is_primary_entrypoint: false,
+        opens_at: null,
+        closes_at: null,
+        created_at: null,
+        updated_at: null,
+      },
+    ];
+
+    renderPage();
 
     await user.click(screen.getByLabelText('Delete Camp Form'));
     await user.click(screen.getByRole('button', { name: 'confirm-delete' }));

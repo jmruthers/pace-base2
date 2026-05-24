@@ -116,7 +116,7 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 13. FL-PC-07 — Edit button: navigates to `/form-builder?formId={form.id}` using React Router `useNavigate`.
 14. FL-PC-08 — Preview button: opens the form's full portal URL in a new browser tab (`window.open(url, '_blank')`). Full URL constructed per §6.3.
 15. FL-PC-09 — Portal URL link: when `VITE_PORTAL_BASE_URL` is set (non-empty after trim), the full portal URL for the form is shown in the card body as plain text inside an `<a href={url}>` opening in a new tab (`target="_blank"`, `rel="noopener noreferrer"`). When the portal base URL is not configured, no URL link is rendered on the card (Preview still follows FL-EC-01).
-16. FL-PC-10 — Delete button: opens a confirmation dialog (see FL-PA-03). Visible only when the user has `update` permission on `forms` (§10).
+16. FL-PC-10 — Delete button: runs a dependency preflight (see BR-08 step 0); when not blocked, opens a confirmation dialog (see FL-PA-03). Visible only when the user has `update` permission on `forms` (§10).
 
 **Primary actions**
 
@@ -197,12 +197,14 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 44. FB-PC-07 — **Submission settings panel** (passed as shell `metadataAside`, FB-PC-01): a single `Card` with title "Submission settings". `CardContent` is a vertical stack (`gap-4`): **Max submissions**, **Confirmation message**, helper text, then the **Opens at** / **Closes at** schedule fields (FB-PC-06). Contains:
     - "Max submissions" — number `Input`, min 1, optional. Maps to `state.metadata.workflowConfig.max_submissions`. When blank/cleared, the value is `null` in `workflowConfig`.
     - "Confirmation message" — `Textarea`, optional. Maps to `state.metadata.workflowConfig.confirmation_message`. Helper text: "Shown to participants after successful form submission."
-45. FB-PC-08 — **RegistrationTypeBindingPanel** (shown only when `workflowType === 'base_registration'`): a `Card` with title "Registration Type Bindings". Renders a list of all active `base_registration_type` rows for the current event (fetched on panel mount). Each row shows: a checkbox (bound/unbound), the type `name`, and a radio button for "Set as default" (enabled only on checked rows). State of the panel is maintained in local React state (`bindings: { typeId: string, isDefault: boolean }[]`) and is passed to the save handler on Save (§6.9). Full binding panel spec in §5.2.
+45. FB-PC-08 — **RegistrationTypeBindingPanel** (shown only when `workflowType === 'base_registration'`): a `Card` with title "Registration Type Bindings". When one or more active `base_registration_type` rows exist for the current event (fetched on panel mount with `cost`, eligibility-rule counts from `base_registration_type_eligibility`, and approval counts from `base_registration_type_requirement`), renders a responsive grid of type cards (**four columns** on large breakpoints). Each card shows: type `name`, formatted **cost** (or **No cost set** when `cost` is null), **`N eligibility rules`**, **`N approvals`**, a checkbox **Include on this form** (bound/unbound), and a **Set as default** radio (enabled only on checked rows). State of the panel is maintained in local React state (`bindings: { typeId: string, isDefault: boolean }[]`) and is passed to the save handler on Save (§6.9). When the fetch succeeds with zero active types, **FB-ES-01** applies instead of the grid.
+
+46. FB-ES-01 — **Registration binding panel empty state:** When `workflowType === 'base_registration'`, the types fetch is not loading, no types fetch error is shown, and the active-types query returns zero rows, `CardContent` shows explanatory copy that no registration types exist for the event yet and that types are required before members can apply, plus a `Link` to `/registration-type-builder` labelled **Create registration type** (wrapped in `PagePermissionGuard` with `pageName="registration-types"`, `operation="create"`, and the same scope as the builder; when create is denied, only the explanatory copy is shown). Loading (**FB-PC-08** spinner) and error (**FB-ER-02**) states take precedence over the empty state.
 
 **Primary actions — save**
 
-46. FB-PA-01 — Save button: rendered by the shell (`saveLabel="Save Form"`). Disabled only when the shell receives **`disabled={true}`** (in pace-base: `isSaving === true`, via `disabled={disabled || isSaving}`). Authoring validity alone never disables Save. When clicked, **`onSave`** runs **only when** `validateWorkflowAuthoringState(state).isValid` is **`true`.** Otherwise the shell exposes deferred inline errors **(FB-PC-04)** without calling `onSave`.
-47. FB-PA-02 — On save success: the builder navigates to `/forms` via React Router. A success toast fires: "Form saved successfully." (toast fires before navigation so it appears on the list page).
+47. FB-PA-01 — Save button: rendered by the shell (`saveLabel="Save Form"`). Disabled only when the shell receives **`disabled={true}`** (in pace-base: `isSaving === true`, via `disabled={disabled || isSaving}`). Authoring validity alone never disables Save. When clicked, **`onSave`** runs **only when** `validateWorkflowAuthoringState(state).isValid` is **`true`.** Otherwise the shell exposes deferred inline errors **(FB-PC-04)** without calling `onSave`.
+48. FB-PA-02 — On save success: the builder navigates to `/forms` via React Router. A success toast fires: "Form saved successfully." (toast fires before navigation so it appears on the list page).
 48. FB-PA-03 — On save error: a destructive toast fires with the normalised error message. The builder stays on `/form-builder`; the state is unchanged. The user can retry.
 
 **Permission-conditional rendering**
@@ -335,8 +337,9 @@ If the forms list is empty, no count query is made. If the batch query fails, al
 
 ### BR-08 — Delete flow
 
+0. **Preflight:** Before showing the destructive `ConfirmationDialog`, the client reads `core_form_responses` and `base_form_registration_type` counts (same blockers as the RPC). If either count is non-zero, show only the informational **Cannot delete form** dialog (step 6 messaging); **do not** ask the operator to confirm delete.
 1. User clicks "Delete" on a form card.
-2. Confirmation dialog opens (destructive variant).
+2. Confirmation dialog opens (destructive variant) when preflight counts are zero.
 3. User confirms → `app_base_form_delete(p_event_id, p_form_id)` is called via `useSecureSupabase().rpc(...)`.
 4. RPC returns `{ deleted, response_count, registration_binding_count }`.
 5. If `deleted === true` → dialog closes, form removed from list, success toast "Form deleted successfully."
@@ -837,6 +840,7 @@ Each criterion traces to one or more Functional Specification items. Do not pre-
 - [ ] Given a user types a form name in create mode, when the name changes, then the slug field auto-populates with a derived value matching the slug derivation algorithm. (BR-05, BR-13)
 - [ ] Given a user fills in valid form metadata and at least one field, when they click "Save Form", then `app_base_form_upsert` is called, then `app_base_form_fields_replace` is called with the form's ID, a success toast fires, and the page navigates to `/forms`. (FB-PA-01–02, BR-14)
 - [ ] Given `workflowType = 'base_registration'` is selected, when the builder renders, then the Registration Type Binding Panel appears with all active types for the event listed as checkboxes. (FB-PC-08)
+- [ ] Given `workflowType = 'base_registration'` and the event has no active registration types, when the types fetch completes, then the binding panel shows explanatory empty copy and a **Create registration type** link to `/registration-type-builder` when create is permitted, per **FB-ES-01**. (FB-ES-01)
 
 **Form builder — edit mode**
 

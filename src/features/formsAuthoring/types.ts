@@ -56,6 +56,9 @@ export interface RegistrationTypeRow {
   name: string;
   description: string | null;
   is_active: boolean;
+  cost: number | null;
+  eligibilityRuleCount: number;
+  approvalCount: number;
 }
 
 export interface FormRegistrationBindingRow {
