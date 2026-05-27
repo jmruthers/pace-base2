@@ -5,15 +5,76 @@ import {
   DialogBody,
   DialogContent,
   LoadingSpinner,
+  type NavigationItem,
   PaceAppLayout,
   PasswordChangeForm,
 } from '@solvera/pace-core/components';
 import { AccessDenied } from '@solvera/pace-core/rbac';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { APP_NAME } from '@/config/appName';
-import { getShellNavigationItems } from '@/config/baseRouteRegistry';
 
-const NAV_ITEMS = [...getShellNavigationItems()];
+const NAV_ITEMS: NavigationItem[] = [
+  {
+    id: '/event-dashboard',
+    label: 'Event Dashboard',
+    href: '/event-dashboard',
+    pageId: 'event-dashboard',
+  },
+  {
+    id: '/configuration',
+    label: 'Configuration',
+    href: '/configuration',
+    pageId: 'configuration',
+  },
+  {
+    id: '/forms',
+    label: 'Forms',
+    href: '/forms',
+    pageId: 'forms',
+  },
+  {
+    id: '/registration-types',
+    label: 'Registration Types',
+    href: '/registration-types',
+    pageId: 'registration-types',
+  },
+  {
+    id: '/applications',
+    label: 'Applications',
+    href: '/applications',
+    pageId: 'applications',
+  },
+  {
+    id: '/communications',
+    label: 'Communications',
+    href: '/communications',
+    pageId: 'communications',
+  },
+  {
+    id: '/units',
+    label: 'Units',
+    href: '/units',
+    pageId: 'units',
+  },
+  {
+    id: '/activities',
+    label: 'Activities',
+    href: '/activities',
+    pageId: 'activities',
+  },
+  {
+    id: '/scanning',
+    label: 'Scanning',
+    href: '/scanning',
+    pageId: 'scanning',
+  },
+  {
+    id: '/reports',
+    label: 'Reports',
+    href: '/reports',
+    pageId: 'reports',
+  },
+];
 
 function deriveUserFullName(
   user: ReturnType<typeof useUnifiedAuth>['user']

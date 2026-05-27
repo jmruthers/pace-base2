@@ -4,7 +4,6 @@ import { MemoryRouter, Navigate, Outlet } from 'react-router-dom';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { BASE_ROUTE_REGISTRY, getShellNavigationItems } from './config/baseRouteRegistry';
 
 const authState = vi.hoisted(() => ({
   isAuthenticated: false,
@@ -82,10 +81,6 @@ vi.mock('./components/layout/AuthenticatedShell', () => ({
   ),
 }));
 
-vi.mock('@/components/shell/FeaturePlaceholderPanel', () => ({
-  FeaturePlaceholderPanel: ({ title }: { title: string }) => <main>{`Feature: ${title}`}</main>,
-}));
-
 vi.mock('./pages/scanning/ScanningRuntimePage', () => ({
   /** Mirrors in-page PagePermissionGuard when the full page module is mocked. */
   ScanningRuntimePage: () =>
@@ -112,12 +107,24 @@ vi.mock('./pages/registrationTypes/RegistrationTypesPage', () => ({
   RegistrationTypesPage: () => <main>Registration Types Page</main>,
 }));
 
+vi.mock('./pages/registrationTypes/RegistrationTypeBuilderPage', () => ({
+  RegistrationTypeBuilderPage: () => <main>Registration Type Builder Page</main>,
+}));
+
 vi.mock('./pages/applications/ApplicationsPage', () => ({
   ApplicationsPage: () => <main>Applications Page</main>,
 }));
 
 vi.mock('./pages/communications/CommunicationsPage', () => ({
   CommunicationsPage: () => <main>Communications Page</main>,
+}));
+
+vi.mock('./pages/units/UnitsPage', () => ({
+  UnitsPage: () => <main>Units Page</main>,
+}));
+
+vi.mock('./pages/unitPreferences/UnitPreferencesPage', () => ({
+  UnitPreferencesPage: () => <main>Unit Preferences Page</main>,
 }));
 
 vi.mock('./pages/activities/ActivitiesPage', () => ({
@@ -157,35 +164,11 @@ afterEach(() => {
 });
 
 describe('BA00 navigation contract', () => {
-  it('defines the required fixed 10-item nav order', () => {
-    const navItems = getShellNavigationItems();
-    expect(navItems.map((item) => item.label)).toEqual([
-      'Event Dashboard',
-      'Configuration',
-      'Forms',
-      'Registration Types',
-      'Applications',
-      'Communications',
-      'Units',
-      'Activities',
-      'Scanning',
-      'Reports',
-    ]);
-  });
-
-  it('keeps root entry and 404 out of shell nav', () => {
-    const navPaths = new Set(getShellNavigationItems().map((item) => item.href));
-    expect(navPaths.has('/')).toBe(false);
-    expect(navPaths.has('*')).toBe(false);
-  });
-
-  it('registers communications as a shell route', () => {
-    const communicationsRoute = BASE_ROUTE_REGISTRY.find(
-      (route) => route.path === '/communications'
-    );
-    expect(communicationsRoute?.includeInShell).toBe(true);
-    expect(communicationsRoute?.includeInNavigation).toBe(true);
-    expect(communicationsRoute?.pageName).toBe('communications');
+  it('renders communications route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/communications');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Communications Page')).toBeTruthy();
   });
 });
 
@@ -325,6 +308,20 @@ describe('BA00 route behavior', () => {
     expect(await screen.findByText('Registration Types Page')).toBeTruthy();
   });
 
+  it('renders registration type builder route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/registration-type-builder');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Registration Type Builder Page')).toBeTruthy();
+  });
+
+  it('renders configuration route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/configuration');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Event Configuration Page')).toBeTruthy();
+  });
+
   it('renders applications route inside shell when authenticated', async () => {
     authState.isAuthenticated = true;
     renderAt('/applications');
@@ -344,6 +341,20 @@ describe('BA00 route behavior', () => {
     renderAt('/activities');
     expect(await screen.findByText('Shell Layout')).toBeTruthy();
     expect(await screen.findByText('Activities Page')).toBeTruthy();
+  });
+
+  it('renders units route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/units');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Units Page')).toBeTruthy();
+  });
+
+  it('renders unit preferences route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/unit-preferences');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Unit Preferences Page')).toBeTruthy();
   });
 
   it('renders scanning setup route inside shell when authenticated', async () => {

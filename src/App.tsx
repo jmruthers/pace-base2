@@ -11,7 +11,6 @@ import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AuthenticatedShell } from './components/layout/AuthenticatedShell';
 import { APP_NAME } from '@/config/appName';
 import { BaseNotFoundPage } from './pages/shell/BaseNotFoundPage';
-import { FeaturePlaceholderPanel } from '@/components/shell/FeaturePlaceholderPanel';
 import { ScanningRuntimePage } from './pages/scanning/ScanningRuntimePage';
 import { EventDashboardPage } from './pages/eventConfiguration/EventDashboardPage';
 import { EventConfigurationRoute } from './pages/eventConfiguration/EventConfigurationRoute';
@@ -29,12 +28,7 @@ import { ActivityOfferingPage } from './pages/activities/ActivityOfferingPage';
 import { ScanningSetupPage } from './pages/scanning/ScanningSetupPage';
 import { ScanningTrackingPage } from './pages/scanning/ScanningTrackingPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
-import {
-  getShellProtectedRoutes,
-} from './config/baseRouteRegistry';
 import { startScanSyncWorker, stopScanSyncWorker } from '@/features/scanningRuntime/sync/scanSyncWorker';
-
-const shellProtectedRoutes = getShellProtectedRoutes();
 
 function useScanSyncWorkerBootstrap() {
   const secureSupabase = useSecureSupabase();
@@ -77,6 +71,11 @@ function LoginRoute() {
 
 function App() {
   const { organisationId, eventId, appId } = useResolvedScope();
+  const permissionScope = {
+    organisationId,
+    eventId,
+    appId: appId ?? undefined,
+  };
 
   return (
     <SessionRestorationLoader message="Restoring session…">
@@ -90,66 +89,214 @@ function App() {
             <Route path="/" element={<Navigate to="/event-dashboard" replace />} />
 
             <Route element={<AuthenticatedShell />}>
-              {shellProtectedRoutes
-                .filter((route) => route.path !== '/' && route.path !== '*')
-                .map((route) => (
-                  <Route
-                    key={route.path}
-                    path={route.relativePath}
-                    element={
-                      <PagePermissionGuard
-                        pageName={route.pageName}
-                        operation="read"
-                        scope={{
-                          organisationId,
-                          eventId,
-                          appId: appId ?? undefined,
-                        }}
-                        fallback={<AccessDenied />}
-                      >
-                        {route.path === '/event-dashboard' ? (
-                          <EventDashboardPage />
-                        ) : route.path === '/configuration' ? (
-                          <EventConfigurationRoute />
-                        ) : route.path === '/forms' ? (
-                          <FormsListPage />
-                        ) : route.path === '/form-builder' ? (
-                          <FormBuilderPage />
-                        ) : route.path === '/registration-types' ? (
-                          <RegistrationTypesPage />
-                        ) : route.path === '/registration-type-builder' ? (
-                          <RegistrationTypeBuilderPage />
-                        ) : route.path === '/applications' ? (
-                          <ApplicationsPage />
-                        ) : route.path === '/communications' ? (
-                          <CommunicationsPage />
-                        ) : route.path === '/units' ? (
-                          <UnitsPage />
-                        ) : route.path === '/unit-preferences' ? (
-                          <UnitPreferencesPage />
-                        ) : route.path === '/activities' ? (
-                          <ActivitiesPage />
-                        ) : route.path === '/activities/bookings' ? (
-                          <BookingsPage />
-                        ) : route.path === '/activities/:offeringId' ? (
-                          <ActivityOfferingPage />
-                        ) : route.path === '/scanning' ? (
-                          <ScanningSetupPage />
-                        ) : route.path === '/scanning/tracking' ? (
-                          <ScanningTrackingPage />
-                        ) : route.path === '/reports' ? (
-                          <ReportsPage />
-                        ) : (
-                          <FeaturePlaceholderPanel
-                            title={route.label}
-                            description={`This route is owned by ${route.sliceId} and is scaffolded under the BASE shell boundary.`}
-                          />
-                        )}
-                      </PagePermissionGuard>
-                    }
-                  />
-                ))}
-
+              <Route
+                path="event-dashboard"
+                element={(
+                  <PagePermissionGuard
+                    pageName="event-dashboard"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <EventDashboardPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="configuration"
+                element={(
+                  <PagePermissionGuard
+                    pageName="configuration"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <EventConfigurationRoute />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="forms"
+                element={(
+                  <PagePermissionGuard
+                    pageName="forms"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <FormsListPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="form-builder"
+                element={(
+                  <PagePermissionGuard
+                    pageName="form-builder"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <FormBuilderPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="registration-types"
+                element={(
+                  <PagePermissionGuard
+                    pageName="registration-types"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <RegistrationTypesPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="registration-type-builder"
+                element={(
+                  <PagePermissionGuard
+                    pageName="registration-types"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <RegistrationTypeBuilderPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="applications"
+                element={(
+                  <PagePermissionGuard
+                    pageName="applications"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <ApplicationsPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="communications"
+                element={(
+                  <PagePermissionGuard
+                    pageName="communications"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <CommunicationsPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="units"
+                element={(
+                  <PagePermissionGuard
+                    pageName="units"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <UnitsPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="unit-preferences"
+                element={(
+                  <PagePermissionGuard
+                    pageName="unit-preferences"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <UnitPreferencesPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="activities"
+                element={(
+                  <PagePermissionGuard
+                    pageName="activities"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <ActivitiesPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="activities/bookings"
+                element={(
+                  <PagePermissionGuard
+                    pageName="bookings"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <BookingsPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="activities/:offeringId"
+                element={(
+                  <PagePermissionGuard
+                    pageName="activities"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <ActivityOfferingPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="scanning"
+                element={(
+                  <PagePermissionGuard
+                    pageName="scanning"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <ScanningSetupPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="scanning/tracking"
+                element={(
+                  <PagePermissionGuard
+                    pageName="scanning"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <ScanningTrackingPage />
+                  </PagePermissionGuard>
+                )}
+              />
+              <Route
+                path="reports"
+                element={(
+                  <PagePermissionGuard
+                    pageName="reports"
+                    operation="read"
+                    scope={permissionScope}
+                    fallback={<AccessDenied />}
+                  >
+                    <ReportsPage />
+                  </PagePermissionGuard>
+                )}
+              />
               <Route path="*" element={<BaseNotFoundPage />} />
             </Route>
             <Route path="scanning/:scanPointId" element={<ScanningRuntimePage />} />
