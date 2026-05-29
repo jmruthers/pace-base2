@@ -41,7 +41,7 @@ Event operators need an unambiguous, fast scanning surface that processes card r
 ### Architectural posture
 
 - The route renders inside the authenticated `ProtectedRoute` but does **not** use `PaceAppLayout`. A slim custom header replaces the standard shell header and sidebar.
-- **`PagePermissionGuard`** with `pageName="scanning"` and `operation="read"` wraps the route. No additional permission is required beyond `read:page.scanning` for page access.
+- **`PagePermissionGuard`** with `pageName="scanning-runtime"` and `operation="read"` wraps the route. No additional permission is required beyond `read:page.scanning-runtime` for page access.
 - All reads use **`useSecureSupabase()`** from `@solvera/pace-core/rbac`. No service-role client in route code.
 - BA13 has no authenticated INSERT permission on `base_scan_event`. BA13 writes to the local IndexedDB queue only. BA14's sync worker holds the service_role INSERT path to `base_scan_event`.
 - The IndexedDB queue is a BA13-owned client-local data structure. It stores pending scan events before BA14 flushes them.
@@ -53,7 +53,7 @@ Event operators need an unambiguous, fast scanning surface that processes card r
 
 ### Page-level guards and evaluation ordering for `/scanning/:scanPointId`
 
-1. **`PagePermissionGuard`** with `pageName="scanning"` and `operation="read"` wraps the route. If access is denied, `AccessDenied` is rendered immediately. The remaining states below are only evaluated after the guard passes.
+1. **`PagePermissionGuard`** with `pageName="scanning-runtime"` and `operation="read"` wraps the route. If access is denied, `AccessDenied` is rendered immediately. The remaining states below are only evaluated after the guard passes.
 2. If the guard is loading (auth client not yet settled), the guard renders `null`. A null Supabase client (transient auth initialisation) renders a centred `LoadingSpinner` in the main content region.
 3. If the guard permits and the `scanPointId` URL parameter does not resolve to any `base_scan_point` row accessible to the authenticated user, the **scan-point not found** error state is rendered. The scan `Input` is not rendered. See §4 item RT-EX-01.
 4. If the guard permits, the `scanPointId` resolves to a row, but `is_active = false`, the **inactive scan point** warning state is rendered. The scan `Input` is not rendered. See §4 item RT-EX-02.
@@ -122,8 +122,8 @@ Prefix legend: **`RT`** runtime page-level, **`SC`** scan input and result, **`O
 
 ### `/scanning/:scanPointId` — permission-conditional rendering
 
-34. **RT-PERM-01 —** Users without `read:page.scanning` see `AccessDenied`. No scanning content is shown.
-35. **RT-PERM-02 —** Users with `read:page.scanning` but without `update:page.scanning` see no Override button in the result panel and no "Manual scan" button.
+34. **RT-PERM-01 —** Users without `read:page.scanning-runtime` see `AccessDenied`. No scanning content is shown.
+35. **RT-PERM-02 —** Users with `read:page.scanning-runtime` but without `update:page.scanning` see no Override button in the result panel and no "Manual scan" button.
 36. **RT-PERM-03 —** Scan-point identity in the top bar, the scan `Input`, and the result panel (including Dismiss) are visible to any user who passes the page guard.
 
 ### `/scanning/:scanPointId` — navigation
@@ -232,7 +232,7 @@ The main content area stacks the following elements vertically with `gap-6` betw
 
 | Surface | Required permission | When denied |
 |---------|---------------------|-------------|
-| Entire `/scanning/:scanPointId` route | `read:page.scanning` | `AccessDenied` |
+| Entire `/scanning/:scanPointId` route | `read:page.scanning-runtime` | `AccessDenied` |
 | Override button in result panel | `update:page.scanning` | Button absent (Dismiss still shown) |
 | "Manual scan" button | `update:page.scanning` | Button absent |
 | Override dialog open / confirm | `update:page.scanning` | Dialog cannot be reached (button absent) |
@@ -416,7 +416,7 @@ RLS policy (forward spec, migration required — per BA12 §7.1):
 ```sql
 -- SELECT (authenticated):
 check_rbac_permission_with_context(
-  'read:page.scanning', 'scanning',
+  'read:page.scanning-runtime', 'scanning-runtime',
   organisation_id, event_id::text, get_app_id('BASE')
 )
 ```
@@ -578,7 +578,7 @@ BA14 is responsible for reading this queue and flushing entries to `base_scan_ev
 
 **Schema status:** `base_scan_event` is live in dev-db with `validation_result text` and `validation_reason text?` as two distinct confirmed columns. `device_id text` is also a live NULLABLE column — BA14 populates it from the queue entry's `device_id` field at flush time. `scan_card_id` and `member_id` are NOT NULL on `base_scan_event`; BA14's flush path resolves these values — BA13 does not INSERT to `base_scan_event` directly and is not responsible for providing them at scan time.
 
-**RLS forward spec for live eligibility reads:** RLS policies for `base_activity_booking` and `trac_itinerary_assignment` are forward-spec (not yet in dev-db). `core_member_card` is live in dev-db. RLS for these tables must follow the canonical `check_rbac_permission_with_context('read:page.scanning', ...)` pattern. Until `base_activity_booking` and `trac_itinerary_assignment` RLS policies are deployed, activity and transport eligibility reads are build prerequisites captured in §15.
+**RLS forward spec for live eligibility reads:** RLS policies for `base_activity_booking` and `trac_itinerary_assignment` are forward-spec (not yet in dev-db). `core_member_card` is live in dev-db. RLS for these tables must follow the canonical `check_rbac_permission_with_context('read:page.scanning-runtime', ...)` pattern. Until `base_activity_booking` and `trac_itinerary_assignment` RLS policies are deployed, activity and transport eligibility reads are build prerequisites captured in §15.
 
 **`base_scan_event` INSERT RLS prerequisite:** authenticated INSERT must be denied; service_role INSERT must be allowed. The full RLS migration spec is in BA12 §7.1 and §8. BA13 build depends on this RLS being deployed before the BA14 queue-flush path is tested end-to-end.
 
@@ -598,7 +598,7 @@ BA14 is responsible for reading this queue and flushing entries to `base_scan_ev
 | `Dialog`, `DialogPortal`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogBody`, `DialogFooter` | `@solvera/pace-core/components` | Override confirmation dialog and manual scan dialog |
 | `LoadingSpinner` | `@solvera/pace-core/components` | Auth-init and scan-point fetch loading states; validation-in-progress indicator |
 | `toast` | `@solvera/pace-core/components` | Override recorded and manual scan recorded mutation feedback |
-| `PagePermissionGuard`, `AccessDenied` | `@solvera/pace-core/rbac` | Route gating for `read:page.scanning` |
+| `PagePermissionGuard`, `AccessDenied` | `@solvera/pace-core/rbac` | Route gating for `read:page.scanning-runtime` |
 | `useSecureSupabase` | `@solvera/pace-core/rbac` | RLS-aware Supabase client for scan-point read and live eligibility queries |
 | `useCan` | `@solvera/pace-core/rbac` | Permission-conditional rendering of Override and Manual scan actions |
 | `useEvents` | `@solvera/pace-core/hooks` | `selectedEvent.id` and `selectedEvent.name` for scan-point identity display and eligibility scoping |
@@ -643,23 +643,23 @@ During scan point load (`scanPoint` is null), `useCan` for `update:page.scanning
 
 | Surface | Permission string | Enforcement mechanism |
 |---------|------------------|-----------------------|
-| Read `/scanning/:scanPointId` page | `read:page.scanning` | `PagePermissionGuard pageName="scanning" operation="read"` + `base_scan_point` RLS SELECT |
+| Read `/scanning/:scanPointId` page | `read:page.scanning-runtime` | `PagePermissionGuard pageName="scanning-runtime" operation="read"` + `base_scan_point` RLS SELECT |
 | Override button rendering and dialog confirmation | `update:page.scanning` | `useCan` conditional render; no RLS write from BA13 to `base_scan_event` |
 | Manual scan button rendering and dialog confirmation | `update:page.scanning` | `useCan` conditional render |
-| Live eligibility reads (`base_application`, `base_activity_booking`, `trac_itinerary_assignment`) | `read:page.scanning` | Inherited from page guard; RLS on each table |
+| Live eligibility reads (`base_application`, `base_activity_booking`, `trac_itinerary_assignment`) | `read:page.scanning-runtime` | Inherited from page guard; RLS on each table |
 
 No `create:page.scanning` permission check is needed in BA13. BA13 does not INSERT to `base_scan_event`. BA14 holds that write path via service_role.
 
 RLS enforces scope at the database layer. Client-side `useCan` checks are defensive UI gating, not the security boundary.
 
-RLS policies for `base_activity_booking` and `trac_itinerary_assignment` are forward-spec (not yet in dev-db). `core_member_card` is live in dev-db. These tables' RLS must follow the canonical `check_rbac_permission_with_context('read:page.scanning', ...)` pattern. Until `base_activity_booking` and `trac_itinerary_assignment` RLS policies are deployed, activity and transport live eligibility reads are build prerequisites captured in §15.
+RLS policies for `base_activity_booking` and `trac_itinerary_assignment` are forward-spec (not yet in dev-db). `core_member_card` is live in dev-db. These tables' RLS must follow the canonical `check_rbac_permission_with_context('read:page.scanning-runtime', ...)` pattern. Until `base_activity_booking` and `trac_itinerary_assignment` RLS policies are deployed, activity and transport live eligibility reads are build prerequisites captured in §15.
 
 ---
 
 ## 11. Acceptance criteria
 
-- Given a user with `read:page.scanning` navigates to `/scanning/:scanPointId` where the scan point exists and `is_active = true`, then the runtime surface renders with `scan_point.name` in the top bar, the event name, the direction badge, and a focused scan `Input`.
-- Given a user without `read:page.scanning` navigates to `/scanning/:scanPointId`, then `AccessDenied` is rendered and no scanning content is shown.
+- Given a user with `read:page.scanning-runtime` navigates to `/scanning/:scanPointId` where the scan point exists and `is_active = true`, then the runtime surface renders with `scan_point.name` in the top bar, the event name, the direction badge, and a focused scan `Input`.
+- Given a user without `read:page.scanning-runtime` navigates to `/scanning/:scanPointId`, then `AccessDenied` is rendered and no scanning content is shown.
 - Given a valid `scanPointId` that resolves to a row with `is_active = false`, when the page loads, then the `Alert variant="destructive"` "Scan point inactive" is rendered with `AlertDescription` "Scan point inactive — this scan point has been deactivated and cannot accept scans." and a "Back to scanning setup" button. No scan `Input` is rendered.
 - Given a `scanPointId` that resolves to no accessible row, when the page loads, then the `Alert variant="destructive"` "Scan point not found" is rendered with the correct description and a "Back to scanning setup" button. No scan `Input` is rendered.
 - Given the runtime surface is loaded and the Supabase client is null, then a centred `LoadingSpinner` is shown; no scan `Input` is rendered until the client resolves.
@@ -695,8 +695,8 @@ RLS policies for `base_activity_booking` and `trac_itinerary_assignment` are for
 8. **Duplicate scan dedup:** Scan the same valid card twice within 60 minutes at the same scan point. Verify the second scan produces `rejected` / `duplicate_scan`.
 9. **Inactive scan-point guard:** Navigate to `/scanning/:scanPointId` for a scan point with `is_active = false`. Verify the inactive warning `Alert` is shown, no `Input` is rendered, and "Back to scanning setup" navigates to `/scanning`.
 10. **Scan-point not found guard:** Navigate to `/scanning/00000000-0000-0000-0000-000000000000` (non-existent ID). Verify the not-found `Alert` is shown.
-11. **Access denied:** Log in as a user without `read:page.scanning`. Navigate to the route. Verify `AccessDenied` renders.
-12. **Permission-conditional: override absent without `update:page.scanning`:** Log in as a user with `read:page.scanning` only. Produce an overridable rejection. Verify Override button is absent; Dismiss is present.
+11. **Access denied:** Log in as a user without `read:page.scanning-runtime`. Navigate to the route. Verify `AccessDenied` renders.
+12. **Permission-conditional: override absent without `update:page.scanning`:** Log in as a user with `read:page.scanning-runtime` only. Produce an overridable rejection. Verify Override button is absent; Dismiss is present.
 13. **Permission-conditional: manual scan absent without `update:page.scanning`:** Verify "Manual scan" button does not render.
 14. **IndexedDB queue inspection:** After multiple scans, query `indexedDB.open('ba13_scan_queue')` in the browser console. Verify entries exist with the correct `local_id`, `scan_point_id`, `validation_result`, `validation_reason`, `sync_status = 'pending'`, `scanned_at` as number.
 
@@ -718,7 +718,7 @@ RLS policies for `base_activity_booking` and `trac_itinerary_assignment` are for
 
 ## 14. Build execution rules
 
-- **Stop** on any `base_scan_point` read if the RLS policy using `check_rbac_permission_with_context('read:page.scanning', ...)` is not deployed and confirmed on dev-db.
+- **Stop** on any `base_scan_point` read if the RLS policy using `check_rbac_permission_with_context('read:page.scanning-runtime', ...)` is not deployed and confirmed on dev-db.
 - **Stop** on any queue-to-Supabase path until `base_scan_event` RLS is deployed with authenticated INSERT denied and service_role INSERT allowed.
 - **Stop** on activity context eligibility validation until `base_activity_booking` and `base_activity_session` land in dev-db.
 - **Stop** on transport context eligibility validation until `trac_itinerary_assignment` lands in dev-db.

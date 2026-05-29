@@ -13,7 +13,7 @@ export function ScanningRuntimePage() {
   const { organisationId, eventId, appId } = useResolvedScope();
   return (
     <PagePermissionGuard
-      pageName="scanning"
+      pageName="scanning-runtime"
       operation="read"
       scope={{ organisationId, eventId, appId: appId ?? undefined }}
       fallback={<AccessDenied />}

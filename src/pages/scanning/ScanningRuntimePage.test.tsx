@@ -33,13 +33,26 @@ vi.mock('@solvera/pace-core/hooks', () => ({
   useUnifiedAuth: () => ({ user: { id: 'u1' } }),
 }));
 
+const guardState = vi.hoisted(() => ({
+  pageName: null as string | null,
+}));
+
 vi.mock('@solvera/pace-core/rbac', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@solvera/pace-core/rbac')>();
   return {
     ...actual,
     useCan: () => ({ can: state.canUpdate }),
     useSecureSupabase: () => state.secureSupabase,
-    PagePermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    PagePermissionGuard: ({
+      pageName,
+      children,
+    }: {
+      pageName?: string;
+      children: React.ReactNode;
+    }) => {
+      guardState.pageName = pageName ?? null;
+      return <>{children}</>;
+    },
     useResolvedScope: () => ({
       organisationId: 'o1',
       eventId: 'e1',
@@ -67,7 +80,19 @@ describe('ScanningRuntimePage', () => {
     state.scanPoint = undefined;
     state.queueCounts = { pending: 0, syncing: 0, synced: 0, failed: 0 };
     state.failedQueueEntries = [];
+    guardState.pageName = null;
     retryFailedQueueEntriesMock.mockClear();
+  });
+
+  it('gates the route with scanning-runtime read permission', () => {
+    render(
+      <MemoryRouter initialEntries={['/scanning/sp1']}>
+        <Routes>
+          <Route path="/scanning/:scanPointId" element={<ScanningRuntimePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(guardState.pageName).toBe('scanning-runtime');
   });
 
   it('shows loading spinner while scan point is loading', () => {

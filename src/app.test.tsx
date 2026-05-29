@@ -187,6 +187,15 @@ describe('BA00 navigation contract', () => {
     expect(communicationsRoute?.includeInNavigation).toBe(true);
     expect(communicationsRoute?.pageName).toBe('communications');
   });
+
+  it('maps scanning setup and runtime routes to distinct RBAC page keys', () => {
+    const setupRoute = BASE_ROUTE_REGISTRY.find((route) => route.path === '/scanning');
+    const runtimeRoute = BASE_ROUTE_REGISTRY.find(
+      (route) => route.path === '/scanning/:scanPointId'
+    );
+    expect(setupRoute?.pageName).toBe('scanning');
+    expect(runtimeRoute?.pageName).toBe('scanning-runtime');
+  });
 });
 
 describe('BA00 route behavior', () => {
