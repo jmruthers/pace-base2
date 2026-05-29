@@ -157,7 +157,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/scanning/:scanPointId',
     label: 'Scan Runtime',
-    pageName: 'scanning',
+    pageName: 'scanning-runtime',
     sliceId: 'scanning-runtime-and-validation',
     includeInShell: false,
     includeInNavigation: false,
