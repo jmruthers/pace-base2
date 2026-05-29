@@ -1,19 +1,18 @@
-import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { resolveAlias, sharedTestOptions } from './vitest.shared.js';
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: resolveAlias,
     dedupe: ['react', 'react-dom', 'react-router-dom'],
   },
   optimizeDeps: {
     exclude: ['@solvera/pace-core', 'react-router-dom'],
   },
   test: {
+    ...sharedTestOptions,
     environment: 'node',
     testTimeout: 10000,
     hookTimeout: 10000,

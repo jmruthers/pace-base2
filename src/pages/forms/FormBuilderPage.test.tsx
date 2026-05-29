@@ -145,7 +145,6 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 });
 
 vi.mock('@/features/formsAuthoring/configuration', () => ({
-  isPublishedForm: () => false,
   useFormBuilderRecord: () => ({
     isLoading: state.builderLoading,
     error: state.builderError,

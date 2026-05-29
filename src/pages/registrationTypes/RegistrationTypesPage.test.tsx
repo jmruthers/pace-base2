@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 
-import { createElement } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@test-utils';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RegistrationTypesPage } from './RegistrationTypesPage';
@@ -90,16 +89,15 @@ vi.mock('@solvera/pace-core/rbac', () => ({
   },
 }));
 
-vi.mock('@solvera/pace-core/components', () => {
-  const MockButton = ({
-    children,
-    onClick,
-    ...props
-  }: {
-    children?: React.ReactNode;
-    onClick?: () => void;
-    disabled?: boolean;
-  }) => createElement('button', { type: 'button', onClick, ...props }, children);
+vi.mock('@solvera/pace-core/components', async () => {
+  const {
+    MockButton,
+    MockCheckboxField,
+    MockFieldLabel,
+    MockSwitch,
+    MockTextField,
+    MockTextarea,
+  } = await import('@/test/paceCoreElementMocks');
 
   return {
   Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
@@ -112,8 +110,7 @@ vi.mock('@solvera/pace-core/components', () => {
   CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
   CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardFooter: ({ children }: { children: React.ReactNode }) => <footer>{children}</footer>,
-  Checkbox: ({ checked }: { checked?: boolean }) =>
-    createElement('input', { type: 'checkbox', checked: checked === true, readOnly: true }),
+  Checkbox: MockCheckboxField,
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
     open ? <section>{children}</section> : null,
   DialogBody: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
@@ -122,25 +119,16 @@ vi.mock('@solvera/pace-core/components', () => {
   DialogFooter: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  Input: ({ value, onChange, ...props }: { value?: string; onChange?: (value: string) => void }) =>
-    createElement('input', { value: value ?? '', onChange: (event: Event) => onChange?.((event.target as HTMLInputElement).value), ...props }),
-  Label: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  Input: MockTextField,
+  Label: MockFieldLabel,
   LoadingSpinner: () => <p>Loading Spinner</p>,
   Select: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
   SelectContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectItem: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  Switch: ({
-    checked,
-    onChange,
-    ...props
-  }: {
-    checked?: boolean;
-    onChange?: (checked: boolean) => void;
-  }) => createElement('input', { type: 'checkbox', checked: checked === true, onChange: (event: Event) => onChange?.((event.target as HTMLInputElement).checked), ...props }),
-  Textarea: ({ value, onChange }: { value?: string; onChange?: (value: string) => void }) =>
-    createElement('textarea', { value: value ?? '', onChange: (event: Event) => onChange?.((event.target as HTMLTextAreaElement).value) }),
+  Switch: MockSwitch,
+  Textarea: MockTextarea,
   ConfirmationDialog: ({
     open,
     onOpenChange,
@@ -293,14 +281,14 @@ describe('RegistrationTypesPage', () => {
   });
 
   it('navigates to builder when create is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderPage();
     await user.click(screen.getByRole('button', { name: 'Create registration type' }));
     expect(navigateMock).toHaveBeenCalledWith('/registration-type-builder');
   });
 
   it('navigates to builder with id when edit is clicked', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     state.listData = {
       types: [
         {
@@ -385,7 +373,7 @@ describe('RegistrationTypesPage', () => {
   });
 
   it('shows cannot-delete dialog without confirmation when dependencies block delete', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     state.getDeleteBlockers.mockResolvedValue({
       ok: true,
       data: {
@@ -423,7 +411,7 @@ describe('RegistrationTypesPage', () => {
   });
 
   it('opens confirmation when delete dependencies are clear', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     state.listData = {
       types: [
         {

@@ -27,7 +27,6 @@ import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage } from '@solvera/pace-core/utils';
 import {
-  isPublishedForm,
   useFormBuilderRecord,
   useRegistrationTypes,
   invalidateFormsAuthoringAfterSave,
@@ -45,6 +44,7 @@ import {
 import { formatCurrencyFromCents } from '@/features/registrationSetup/presentation';
 import {
   ensureSingleDefaultBinding,
+  isPublishedForm,
   parseNullableNumber,
   updateBindingCheckedState,
 } from '@/features/formsAuthoring/stateHelpers';
@@ -372,11 +372,8 @@ function FormBuilderEditor({
                               htmlFor={`default-${registrationType.id}`}
                               className="grid grid-flow-col auto-cols-max items-center gap-2"
                             >
-                              <input
+                              <Checkbox
                                 id={`default-${registrationType.id}`}
-                                type="radio"
-                                name="registration-default"
-                                className="size-4"
                                 checked={binding.checked && binding.isDefault}
                                 disabled={!binding.checked}
                                 onChange={() => {

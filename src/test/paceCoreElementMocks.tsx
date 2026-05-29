@@ -1,3 +1,16 @@
+/**
+ * Shared semantic stand-ins for pace-core components in page tests.
+ *
+ * Usage: in `vi.mock('@solvera/pace-core/components', async () => { ... })`, import
+ * these mocks instead of rendering native `<button>`, `<input>`, or `<textarea>` in JSX.
+ * Do not silence prefer-pace-core-components in test files; extend this module instead.
+ *
+ * @example
+ * vi.mock('@solvera/pace-core/components', async () => {
+ *   const { MockButton, MockTextField, MockFieldLabel } = await import('@/test/paceCoreElementMocks');
+ *   return { Button: MockButton, Input: MockTextField, Label: MockFieldLabel };
+ * });
+ */
 import type { KeyboardEvent, ReactNode } from 'react';
 
 type MockButtonProps = {
@@ -101,6 +114,37 @@ export function MockTextField({
   );
 }
 
+/** Multiline text control stand-in; maps to pace-core `Textarea` in component mocks. */
+export function MockTextarea({
+  id,
+  value,
+  disabled,
+  placeholder,
+  readOnly,
+  'aria-label': ariaLabel,
+  onChange,
+}: MockTextFieldProps) {
+  const fieldId = id ?? ariaLabel ?? 'mock-textarea';
+
+  return (
+    <section
+      role="textbox"
+      id={fieldId}
+      aria-label={ariaLabel ?? fieldId}
+      aria-disabled={disabled}
+      data-multiline="true"
+      data-value={value ?? ''}
+      data-placeholder={placeholder}
+      data-readonly={readOnly === true ? 'true' : undefined}
+      onClick={() => {
+        if (!disabled && !readOnly) {
+          onChange?.(value ?? '');
+        }
+      }}
+    />
+  );
+}
+
 type MockCheckboxFieldProps = {
   id?: string;
   checked?: boolean;
@@ -112,6 +156,24 @@ export function MockCheckboxField({ id, checked, disabled, onChange }: MockCheck
   return (
     <section
       role="checkbox"
+      id={id}
+      aria-label={id}
+      aria-checked={checked === true}
+      aria-disabled={disabled}
+      onClick={() => {
+        if (!disabled) {
+          onChange?.(!checked);
+        }
+      }}
+    />
+  );
+}
+
+/** Toggle stand-in; maps to pace-core `Switch` in component mocks. */
+export function MockSwitch({ id, checked, disabled, onChange }: MockCheckboxFieldProps) {
+  return (
+    <section
+      role="switch"
       id={id}
       aria-label={id}
       aria-checked={checked === true}

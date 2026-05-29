@@ -3,7 +3,7 @@
 import { createElement } from 'react';
 import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import type { RequirementRuleDraft } from '@/features/registrationSetup/types';
 import { RequirementConfigPanel } from './RequirementConfigPanel';
@@ -70,7 +70,7 @@ function createRule(checkType: RequirementRuleDraft['check_type']): RequirementR
 
 describe('RequirementConfigPanel', () => {
   it('renders guardian approval config and toggles require-all callback', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const onRequireAllGuardiansChange = vi.fn();
     render(
       <RequirementConfigPanel
@@ -89,7 +89,7 @@ describe('RequirementConfigPanel', () => {
   });
 
   it('renders designated organisation select and error message', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const onReviewingOrgChange = vi.fn();
     render(
       <RequirementConfigPanel

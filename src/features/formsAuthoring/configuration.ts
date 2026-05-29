@@ -1,7 +1,6 @@
 import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query';
 import { useSecureSupabase } from '@solvera/pace-core/rbac';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
-import type { WorkflowAuthoringState } from '@solvera/pace-core/forms';
 import {
   buildDefinitionPayload,
   buildFieldsRpcPayload,
@@ -205,13 +204,15 @@ async function fetchRegistrationTypesForBindings(
       : supabase
           .from('base_registration_type_eligibility')
           .select('registration_type_id')
-          .eq('event_id', eventId),
+          .eq('event_id', eventId)
+          .order('registration_type_id', { ascending: true }),
     typeIds.length === 0
       ? Promise.resolve({ data: [] as RegistrationTypeIdRow[], error: null })
       : supabase
           .from('base_registration_type_requirement')
           .select('registration_type_id')
-          .in('registration_type_id', typeIds),
+          .in('registration_type_id', typeIds)
+          .order('registration_type_id', { ascending: true }),
   ]);
 
   if (eligibilityResult.error != null) {
@@ -561,8 +562,4 @@ export function useDeleteFormMutation() {
       return result.data;
     },
   });
-}
-
-export function isPublishedForm(state: WorkflowAuthoringState): boolean {
-  return state.metadata.id != null && state.metadata.status === 'published';
 }

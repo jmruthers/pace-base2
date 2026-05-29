@@ -1,73 +1,52 @@
-# React + TypeScript + Vite
+# pace-base2
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+PACE Base consuming app for event workspace, registration, scanning, and related admin surfaces.
 
-Currently, two official plugins are available:
+## Validation
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run validate
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Runs, in order:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. `lint:no-disable` — fails if any `eslint-disable` comment exists under `src/`
+2. `lint:export-limit` — fails when feature `configuration.ts` modules exceed 10 named exports; warns on watch-list modules at 9+
+3. pace-core validate — type-check, lint (`--max-warnings 0`), build, tests, audit
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Code quality guardrails
+
+Do not silence ESLint in source files. Fix the underlying issue instead.
+
+### Feature configuration modules
+
+Keep `src/features/*/configuration.ts` at **10 or fewer** named exports. Before adding an export to a module at 9+, split queries, mutations, or helpers into a sibling file (see `bookingQueries.ts`, `activityOfferingMutations.ts`).
+
+Watch-list modules: `formsAuthoring`, `registrationSetup`, `scanningSetup`.
+
+### Page structure
+
+For new pages expected to grow beyond ~200 lines, use the controller/view split from the start:
+
 ```
+Page.tsx                  → PagePermissionGuard + controller hook only
+hooks/use*Controller.ts   → queries, mutations, local state, handlers
+components/*PageView.tsx  → presentational markup
+components/*Dialog.tsx    → modal sub-surfaces (optional)
+hooks/use*TableColumns.tsx → table column config (optional)
+```
+
+Reference: [`src/pages/activities/BookingsPage.tsx`](src/pages/activities/BookingsPage.tsx) + [`useBookingsPageController.ts`](src/pages/activities/hooks/useBookingsPageController.ts) + [`BookingsPageView.tsx`](src/pages/activities/components/BookingsPageView.tsx).
+
+### Page test mocks
+
+Page tests that mock `@solvera/pace-core/components` must use semantic stand-ins from [`src/test/paceCoreElementMocks.tsx`](src/test/paceCoreElementMocks.tsx) (`MockButton`, `MockTextField`, `MockTextarea`, `MockCheckboxField`, `MockSwitch`, `MockFieldLabel`). Do not use native `<button>`, `<input>`, or `<textarea>` in JSX inside test mocks.
+
+## Local development
+
+```bash
+npm run setup
+npm run dev
+```
+
+See pace-core standards in `node_modules/@solvera/pace-core/docs/standards/`.

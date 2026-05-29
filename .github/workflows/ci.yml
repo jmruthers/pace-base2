@@ -23,6 +23,12 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=moderate
 
+      - name: Lint (no eslint-disable)
+        run: npm run lint:no-disable
+
+      - name: Lint (export limit watch)
+        run: npm run lint:export-limit
+
       - name: Lint
         run: npm run lint
 

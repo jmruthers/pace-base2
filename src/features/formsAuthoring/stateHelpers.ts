@@ -124,3 +124,7 @@ export function toFieldCountMap(rows: Array<{ form_id: string }>): Record<string
     return acc;
   }, {});
 }
+
+export function isPublishedForm(state: WorkflowAuthoringState): boolean {
+  return state.metadata.id != null && state.metadata.status === 'published';
+}

@@ -3,7 +3,7 @@
 import { createElement } from 'react';
 import type { ReactNode } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApprovalWorkflowSection } from './ApprovalWorkflowSection';
 
@@ -142,7 +142,7 @@ describe('ApprovalWorkflowSection', () => {
 
   it('calls onSave when save is clicked', async () => {
     const onSave = vi.fn();
-    const user = userEvent.setup();
+    const user = setupUser();
     render(<ApprovalWorkflowSection {...baseProps} onSave={onSave} />);
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledTimes(1);

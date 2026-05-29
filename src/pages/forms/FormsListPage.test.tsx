@@ -2,7 +2,7 @@
 
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { setupUser } from '@test-utils';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FormsListPage } from './FormsListPage';
@@ -460,7 +460,7 @@ describe('FormsListPage', () => {
   });
 
   it('shows cannot-delete dialog without confirmation when dependencies block delete', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     state.getDeleteBlockers.mockResolvedValue({
       ok: true,
       data: {
@@ -494,7 +494,7 @@ describe('FormsListPage', () => {
   });
 
   it('opens confirmation when delete dependencies are clear and deletes on confirm', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     state.formsData = [
       {
         id: 'form-1',
@@ -522,7 +522,7 @@ describe('FormsListPage', () => {
   });
 
   it('shows blocked dialog after confirm when rpc reports dependencies', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     state.deleteMutateAsync.mockResolvedValue({
       deleted: false,
       response_count: 2,
