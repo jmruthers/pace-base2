@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -101,6 +101,9 @@ const state = vi.hoisted(() => ({
 
 const retryFailedQueueEntriesMock = vi.hoisted(() => vi.fn(async () => ({ retried: 1, skippedManualNoCard: 0 })));
 const navigateMock = vi.hoisted(() => vi.fn());
+const activeSelectField = vi.hoisted(() => ({ label: '' }));
+const selectHandlers = vi.hoisted(() => ({} as Record<string, (value: string) => void>));
+const createScanPointMutate = vi.hoisted(() => vi.fn(async () => undefined));
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>();
@@ -156,7 +159,7 @@ vi.mock('@/features/scanningSetup/configuration', () => ({
     error: state.historyError,
     refetch: vi.fn(async () => undefined),
   }),
-  useCreateScanPointMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
+  useCreateScanPointMutation: () => ({ mutateAsync: createScanPointMutate, isPending: false }),
   useUpdateScanPointMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
   useSetScanPointActiveMutation: () => ({ mutateAsync: vi.fn(async () => undefined), isPending: false }),
 }));
@@ -258,7 +261,11 @@ vi.mock('@solvera/pace-core/components', async () => {
     defaultValues?: Record<string, unknown>;
     onSubmit: (values: Record<string, unknown>) => void;
   }) => (
-    <section>{typeof children === 'function' ? children({ getValues: () => defaultValues ?? {} }) : children}</section>
+    <section>
+      {typeof children === 'function'
+        ? children({ getValues: () => ({ ...(defaultValues ?? {}) }) })
+        : children}
+    </section>
   ),
   FormField: ({
     label,
@@ -266,17 +273,60 @@ vi.mock('@solvera/pace-core/components', async () => {
   }: {
     label: string;
     render: (props: { field: { value?: unknown; onChange: (nextValue: unknown) => void } }) => React.ReactNode;
+  }) => {
+    activeSelectField.label = label;
+    return (
+      <MockFieldLabel>
+        {label}
+        {render({ field: { value: '', onChange: () => undefined } })}
+      </MockFieldLabel>
+    );
+  },
+  Input: ({ value, onChange, placeholder, 'aria-label': ariaLabel }: {
+    value?: string;
+    onChange?: (nextValue: string) => void;
+    placeholder?: string;
+    'aria-label'?: string;
   }) => (
-    <MockFieldLabel>
-      {label}
-      {render({ field: { value: '', onChange: () => undefined } })}
-    </MockFieldLabel>
+    <MockTextField
+      aria-label={ariaLabel ?? 'input'}
+      value={value}
+      placeholder={placeholder}
+      onChange={onChange}
+    />
   ),
-  Input: ({ value }: { value?: string }) => <MockTextField value={value} readOnly />,
   LoadingSpinner: () => <p>Loading</p>,
-  Select: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  Select: ({
+    children,
+    onValueChange,
+  }: {
+    children: React.ReactNode;
+    onValueChange?: (value: string) => void;
+  }) => {
+    if (activeSelectField.label.length > 0 && onValueChange != null) {
+      selectHandlers[activeSelectField.label] = onValueChange;
+    }
+    return <section>{children}</section>;
+  },
   SelectContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  SelectItem: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
+    <MockButton
+      type="button"
+      onClick={() => {
+        if (['site', 'activity', 'transport', 'meal'].includes(value)) {
+          selectHandlers['Context type']?.(value);
+          return;
+        }
+        if (['in', 'out', 'both', 'neutral'].includes(value)) {
+          selectHandlers.Direction?.(value);
+          return;
+        }
+        selectHandlers.Resource?.(value);
+      }}
+    >
+      {children}
+    </MockButton>
+  ),
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectValue: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   toast: vi.fn(),
@@ -321,6 +371,11 @@ describe('ScanningSetupPage', () => {
     ];
     retryFailedQueueEntriesMock.mockClear();
     navigateMock.mockClear();
+    createScanPointMutate.mockClear();
+    activeSelectField.label = '';
+    for (const key of Object.keys(selectHandlers)) {
+      delete selectHandlers[key];
+    }
   });
 
   afterEach(() => cleanup());
@@ -352,6 +407,18 @@ describe('ScanningSetupPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View detail' }));
     expect(screen.getByText('Conflict detail')).toBeTruthy();
     expect(screen.getByText('Original reason')).toBeTruthy();
+  });
+
+  it('shows resource validation when creating activity scan point without resource', async () => {
+    renderPage();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Create scan point' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Activity' }));
+    const submitButtons = screen.getAllByRole('button', { name: 'Create scan point' });
+    fireEvent.click(submitButtons[submitButtons.length - 1]!);
+    await waitFor(() => {
+      expect(createScanPointMutate).not.toHaveBeenCalled();
+    });
+    expect(screen.getByText('A resource is required for this context type.')).toBeTruthy();
   });
 
   it('shows access denied when read permission is denied', () => {

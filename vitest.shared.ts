@@ -33,9 +33,11 @@ export const coverageConfig = {
     'src/main.tsx',
   ],
   thresholds: {
-    'src/utils/**/*.ts': { statements: 90, lines: 90 },
-    'src/hooks/**/*.{ts,tsx}': { statements: 90, lines: 90 },
-    'src/components/**/*.tsx': { statements: 70, lines: 70 },
+    'src/features/**/*Helpers.ts': { statements: 90, lines: 90 },
+    'src/features/**/stateHelpers.ts': { statements: 90, lines: 90 },
+    'src/features/**/rules.ts': { statements: 90, lines: 90 },
+    'src/features/**/shared.ts': { statements: 90, lines: 90 },
+    'src/features/**/deletePolicy.ts': { statements: 90, lines: 90 },
   },
 };
 

@@ -174,6 +174,31 @@ describe('useRegistrationTypeBuilderController', () => {
     expect(mocks.upsertMutateAsync).not.toHaveBeenCalled();
   });
 
+  it('populates cost and capacity validation errors when values are invalid', async () => {
+    const { result } = renderHook(() => useRegistrationTypeBuilderController());
+
+    act(() => {
+      result.current.setTypeDraft({
+        ...result.current.typeDraft,
+        name: 'Youth camp',
+        costDollars: '-1',
+        capacity: '0',
+      });
+    });
+
+    await act(async () => {
+      await result.current.saveType();
+    });
+
+    expect(result.current.typeValidationErrors.costDollars).toBe(
+      'Cost must be a valid amount greater than or equal to 0.'
+    );
+    expect(result.current.typeValidationErrors.capacity).toBe(
+      'Capacity must be an integer greater than or equal to 1.'
+    );
+    expect(mocks.upsertMutateAsync).not.toHaveBeenCalled();
+  });
+
   it('surfaces designated organisation validation when saving invalid workflow', async () => {
     mocks.registrationTypeId = 'type-1';
     mocks.getQueryData.mockReturnValue([

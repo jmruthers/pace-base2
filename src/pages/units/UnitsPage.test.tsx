@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UnitsPage } from './UnitsPage';
 import type { UnitRoleTypeRow, UnitRow } from '@/features/unitsCoordination/types';
+import type { UnitsTableRow } from '@/pages/units/unitsPageTypes';
 
 const authState = vi.hoisted(() => ({
   selectedEventId: null as string | null,
@@ -47,6 +48,10 @@ const mutationSpies = vi.hoisted(() => ({
   createUnit: vi.fn(),
 }));
 
+const toastSpies = vi.hoisted(() => ({
+  toast: vi.fn(),
+}));
+
 const tableCapture = vi.hoisted(() => ({
   instances: [] as Array<Record<string, unknown>>,
 }));
@@ -85,7 +90,7 @@ vi.mock('@solvera/pace-core/components', () => ({
 }));
 
 vi.mock('@solvera/pace-core/hooks', () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({ toast: toastSpies.toast }),
   useEvents: () => ({ selectedEvent: authState.selectedEvent }),
   useUnifiedAuth: () => ({
     selectedEvent: authState.selectedEvent,
@@ -93,6 +98,13 @@ vi.mock('@solvera/pace-core/hooks', () => ({
     selectedOrganisationId: authState.selectedOrganisationId,
     appId: authState.appId,
   }),
+}));
+
+vi.mock('@solvera/pace-core/utils', () => ({
+  ShowSuccessMessage: (message: string, toast: (payload: { title: string }) => void) => {
+    toast({ title: message });
+  },
+  HandleMutationError: vi.fn(),
 }));
 
 vi.mock('@solvera/pace-core/rbac', () => ({
@@ -158,6 +170,7 @@ describe('UnitsPage', () => {
     unitsDataState.unitsLoading = false;
     tableCapture.instances = [];
     mutationSpies.createUnit.mockReset();
+    toastSpies.toast.mockReset();
   });
 
   it('shows no-event guidance when no event is selected', () => {
@@ -186,6 +199,71 @@ describe('UnitsPage', () => {
     );
 
     expect(screen.getByText('Loading')).toBeTruthy();
+  });
+
+  it('shows success toast when unit create succeeds', async () => {
+    authState.selectedEventId = 'event-1';
+    authState.selectedEvent = { name: 'Event One' };
+    mutationSpies.createUnit.mockResolvedValue({
+      id: 'unit-1',
+      unit_number: 1,
+      parent_unit_id: null,
+    });
+
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UnitsPage />
+      </QueryClientProvider>
+    );
+
+    const unitsTableProps = tableCapture.instances[0] as {
+      onCreateRow: (rowData: Partial<UnitsTableRow>) => Promise<void>;
+    };
+
+    await unitsTableProps.onCreateRow({
+      unit_number: 1,
+      unit_name: 'Alpha',
+      subcamp: '',
+      contingent: '',
+      parent_unit_id: null,
+    });
+
+    expect(toastSpies.toast).toHaveBeenCalledWith({ title: 'Unit created' });
+  });
+
+  it('surfaces mutation errors when unit create is denied', async () => {
+    const { HandleMutationError } = await import('@solvera/pace-core/utils');
+    authState.selectedEventId = 'event-1';
+    authState.selectedEvent = { name: 'Event One' };
+    mutationSpies.createUnit.mockRejectedValue(new Error('Permission denied'));
+
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UnitsPage />
+      </QueryClientProvider>
+    );
+
+    const unitsTableProps = tableCapture.instances[0] as {
+      onCreateRow: (rowData: Partial<UnitsTableRow>) => Promise<void>;
+    };
+
+    await expect(
+      unitsTableProps.onCreateRow({
+        unit_number: 2,
+        unit_name: 'Beta',
+        subcamp: '',
+        contingent: '',
+        parent_unit_id: null,
+      })
+    ).rejects.toThrow('Permission denied');
+
+    expect(HandleMutationError).toHaveBeenCalledWith(
+      expect.any(Error),
+      'units-create',
+      toastSpies.toast
+    );
   });
 
   it('resolves parent references created earlier in the same import payload', async () => {

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UnitPreferencesPage } from './UnitPreferencesPage';
+import { useUnitPreferencesPageController } from './hooks/useUnitPreferencesPageController';
 import type { ActivityPreferenceRow, ActivitySessionRow, UnitRow } from '@/features/unitsCoordination/types';
 
 const authState = vi.hoisted(() => ({
@@ -11,6 +12,16 @@ const authState = vi.hoisted(() => ({
   selectedOrganisationId: 'org-1',
   appId: 'base-app',
   selectedEvent: null as unknown,
+}));
+
+const toastSpies = vi.hoisted(() => ({
+  toast: vi.fn(),
+}));
+
+const submitPreferenceSpy = vi.hoisted(() => vi.fn(async () => undefined));
+
+const selectOnValueChangeRef = vi.hoisted(() => ({
+  current: undefined as ((value: string) => void) | undefined,
 }));
 
 const pageState = vi.hoisted(() => ({
@@ -26,21 +37,32 @@ const pageState = vi.hoisted(() => ({
   submitter: null as { preferred_name: string | null; first_name: string | null; last_name: string | null } | null,
 }));
 
-vi.mock('@solvera/pace-core/components', () => ({
+vi.mock('@solvera/pace-core/components', async () => {
+  const { MockButton } = await import('@/test/paceCoreElementMocks');
+  return {
   Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   AlertTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  Button: ({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) => (
-    <section role="button" tabIndex={0} onClick={onClick} aria-disabled={disabled}>
-      {children}
-    </section>
-  ),
+  Button: MockButton,
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
   CardTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  ConfirmationDialog: () => null,
+  ConfirmationDialog: ({
+    open,
+    onConfirm,
+    confirmLabel,
+  }: {
+    open?: boolean;
+    onConfirm?: () => void;
+    confirmLabel?: string;
+  }) =>
+    open === true ? (
+      <MockButton type="button" onClick={onConfirm}>
+        {confirmLabel ?? 'Confirm'}
+      </MockButton>
+    ) : null,
   Input: ({ value, onChange }: { value?: string; onChange?: (value: string) => void }) => (
     <section
       role="textbox"
@@ -51,15 +73,29 @@ vi.mock('@solvera/pace-core/components', () => ({
   ),
   Label: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   LoadingSpinner: () => <p>Loading</p>,
-  Select: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  Select: ({
+    children,
+    onValueChange,
+  }: {
+    children: React.ReactNode;
+    onValueChange?: (value: string) => void;
+  }) => {
+    selectOnValueChangeRef.current = onValueChange;
+    return <section>{children}</section>;
+  },
   SelectContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  SelectItem: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
+    <MockButton type="button" onClick={() => selectOnValueChangeRef.current?.(value)}>
+      {children}
+    </MockButton>
+  ),
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectValue: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-}));
+  };
+});
 
 vi.mock('@solvera/pace-core/hooks', () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({ toast: toastSpies.toast }),
   useEvents: () => ({ selectedEvent: authState.selectedEvent }),
   useUnifiedAuth: () => ({
     selectedEvent: authState.selectedEvent,
@@ -79,6 +115,17 @@ vi.mock('@solvera/pace-core/rbac', () => ({
   useSecureSupabase: () => ({}),
   AccessDenied: () => <main>Access Denied</main>,
   PagePermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@solvera/pace-core/utils', () => ({
+  ShowSuccessMessage: (message: string, toast: (payload: { title: string }) => void) => {
+    toast({ title: message });
+  },
+  HandleMutationError: vi.fn(),
+  NormalizeSupabaseError: (error: unknown) => ({
+    message: error instanceof Error ? error.message : String(error),
+  }),
+  formatDateTime: (value: string) => value,
 }));
 
 vi.mock('@/features/unitsCoordination/configuration', () => ({
@@ -107,7 +154,7 @@ vi.mock('@/features/unitsCoordination/unitsPreferenceMutations', () => ({
   useCreatePreferenceMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdatePreferenceRankMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeletePreferenceMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useSubmitPreferencesMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSubmitPreferencesMutation: () => ({ mutateAsync: submitPreferenceSpy, isPending: false }),
 }));
 
 describe('UnitPreferencesPage', () => {
@@ -125,6 +172,8 @@ describe('UnitPreferencesPage', () => {
     pageState.preferencesLoading = false;
     pageState.preferencesError = null;
     pageState.submitter = null;
+    toastSpies.toast.mockReset();
+    submitPreferenceSpy.mockClear();
   });
 
   it('shows no-event guidance when no event is selected', () => {
@@ -183,6 +232,59 @@ describe('UnitPreferencesPage', () => {
     expect(
       screen.getByText('No units have been created for this event. Create units in the Units page first.')
     ).toBeTruthy();
+  });
+
+  it('submits preferences and shows success toast when ranks are valid', async () => {
+    authState.selectedEventId = 'event-1';
+    authState.selectedEvent = { name: 'Event One' };
+    pageState.units = [
+      {
+        id: 'unit-1',
+        unit_number: 1,
+        unit_name: 'Alpha',
+        subcamp: null,
+        contingent: null,
+        parent_unit_id: null,
+        event_id: 'event-1',
+        created_at: null,
+        updated_at: null,
+      },
+    ];
+    pageState.preferences = [
+      {
+        id: 'pref-1',
+        unit_id: 'unit-1',
+        session_id: 'session-1',
+        rank: 1,
+        submitted_at: null,
+        submitted_by: null,
+        event_id: 'event-1',
+      },
+    ];
+
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    const { result } = renderHook(() => useUnitPreferencesPageController(), { wrapper });
+
+    act(() => {
+      result.current.setSelectedUnitId('unit-1');
+    });
+
+    expect(result.current.selectedUnitId).toBe('unit-1');
+    expect(result.current.selectedEventId).toBe('event-1');
+
+    await act(async () => {
+      await result.current.submitPreferences();
+    });
+
+    expect(submitPreferenceSpy).toHaveBeenCalledWith({
+      unitId: 'unit-1',
+      eventId: 'event-1',
+    });
+    expect(toastSpies.toast).toHaveBeenCalledWith({ title: 'Preferences submitted' });
   });
 
   it('normalizes units query errors in the alert', () => {

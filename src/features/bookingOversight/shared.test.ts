@@ -15,7 +15,14 @@ import {
   isNonEmptyOverrideReason,
   shouldShowCancelAction,
   shouldShowPromoteAction,
+  confirmedCountForSession,
+  isSessionAtCapacity,
 } from './rules';
+import {
+  bookingCreateOnBehalfSchema,
+  resolveApplicationParticipantLabel,
+  resolveSessionDisplay,
+} from './bookOnBehalfForm';
 import type { BookingQueryRow } from './types';
 
 describe('BA11 booking oversight display', () => {
@@ -188,5 +195,101 @@ describe('BA11 booking oversight rules', () => {
   it('detects capacity full RPC errors', () => {
     expect(isBookingCapacityFullError(new Error('base_booking_capacity_full'))).toBe(true);
     expect(isBookingCapacityFullError(new Error('other'))).toBe(false);
+  });
+
+  it('counts confirmed bookings per session', () => {
+    const bookings: BookingQueryRow[] = [
+      {
+        id: 'b1',
+        event_id: 'e1',
+        organisation_id: 'o1',
+        session_id: 's1',
+        application_id: 'a1',
+        status: 'confirmed',
+        source: 'self',
+        booked_at: '2026-05-01T10:00:00.000Z',
+        cancelled_at: null,
+        session: null,
+        application: null,
+      },
+      {
+        id: 'b2',
+        event_id: 'e1',
+        organisation_id: 'o1',
+        session_id: 's1',
+        application_id: 'a2',
+        status: 'waitlisted',
+        source: 'self',
+        booked_at: '2026-05-01T10:00:00.000Z',
+        cancelled_at: null,
+        session: null,
+        application: null,
+      },
+      {
+        id: 'b3',
+        event_id: 'e1',
+        organisation_id: 'o1',
+        session_id: 's2',
+        application_id: 'a3',
+        status: 'confirmed',
+        source: 'self',
+        booked_at: '2026-05-01T10:00:00.000Z',
+        cancelled_at: null,
+        session: null,
+        application: null,
+      },
+    ];
+    expect(confirmedCountForSession(bookings, 's1')).toBe(1);
+    expect(confirmedCountForSession(bookings, 's2')).toBe(1);
+    expect(confirmedCountForSession(bookings, 'missing')).toBe(0);
+  });
+
+  it('detects session at capacity with edge cases', () => {
+    expect(isSessionAtCapacity(10, 10)).toBe(true);
+    expect(isSessionAtCapacity(9, 10)).toBe(false);
+    expect(isSessionAtCapacity(0, 0)).toBe(true);
+    expect(isSessionAtCapacity(5, Number.NaN)).toBe(false);
+    expect(isSessionAtCapacity(5, -1)).toBe(false);
+  });
+});
+
+describe('BA11 book on behalf form', () => {
+  it('rejects empty participant and session in schema', () => {
+    const result = bookingCreateOnBehalfSchema.safeParse({
+      application_id: '',
+      session_id: '',
+      override_capacity: false,
+      override_window: false,
+      override_conflict: false,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('resolves participant and session labels with fallbacks', () => {
+    expect(
+      resolveApplicationParticipantLabel(
+        [{ id: 'app-1', status: 'approved', person: { preferred_name: 'Sam', first_name: 'S', last_name: 'L' } }],
+        'app-1'
+      )
+    ).toBe('Sam');
+    expect(resolveApplicationParticipantLabel(undefined, 'app-missing')).toBe('app-missing');
+    expect(
+      resolveSessionDisplay(
+        [
+          {
+            id: 'sess-1',
+            session_name: 'Morning',
+            start_time: '2026-05-01T09:00:00.000Z',
+            end_time: null,
+            capacity: 10,
+            offering_id: 'off-1',
+            offering: { id: 'off-1', name: 'Climb' },
+          },
+        ],
+        'sess-1',
+        'UTC'
+      )
+    ).toBe('Morning');
+    expect(resolveSessionDisplay(undefined, 'sess-missing', null)).toBe('sess-missing');
   });
 });

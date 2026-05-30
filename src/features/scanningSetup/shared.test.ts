@@ -117,4 +117,24 @@ describe('BA12 shared mapping helpers', () => {
       }).name
     ).toBe('Name must be 100 characters or fewer.');
   });
+
+  it('requires a resource for activity and transport contexts', () => {
+    expect(
+      validateScanPoint({
+        name: 'Activity gate',
+        context_type: 'activity',
+        direction: 'in',
+        resource_id: null,
+      }).resource_id
+    ).toBe('A resource is required for this context type.');
+
+    expect(
+      validateScanPoint({
+        name: 'Bus stop',
+        context_type: 'transport',
+        direction: 'in',
+        resource_id: '',
+      }).resource_id
+    ).toBe('A resource is required for this context type.');
+  });
 });

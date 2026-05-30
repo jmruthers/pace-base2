@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ScanningRuntimePage } from './ScanningRuntimePage';
+import type { ScanningRuntimePanelState } from './scanningRuntimePageTypes';
 
 const state = vi.hoisted(() => ({
   canUpdate: false,
@@ -14,6 +15,74 @@ const state = vi.hoisted(() => ({
 }));
 
 const retryFailedQueueEntriesMock = vi.hoisted(() => vi.fn(async () => ({ retried: 1, skippedManualNoCard: 0 })));
+
+const controllerState = vi.hoisted(() => ({
+  useMockController: false,
+  panel: { kind: 'idle' } as ScanningRuntimePanelState,
+}));
+
+vi.mock('@/pages/scanning/hooks/useScanningRuntimePageController', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/pages/scanning/hooks/useScanningRuntimePageController')>();
+  return {
+  useScanningRuntimePageController: () => {
+    if (!controllerState.useMockController) {
+      return actual.useScanningRuntimePageController();
+    }
+    return {
+      status: 'ready' as const,
+      cardInputRef: { current: null },
+      surface: {
+        navigate: vi.fn(),
+        scanPoint: {
+          id: 'sp1',
+          name: 'Main Gate',
+          context_type: 'site',
+          direction: 'in',
+          resource_type: null,
+          resource_id: null,
+          is_active: true,
+          event_id: 'e1',
+          organisation_id: 'o1',
+        },
+        eventName: 'Event',
+        eventTz: 'UTC',
+        queueCounts: { pending: 0, syncing: 0, synced: 0, failed: 0 },
+        failedQueueEntries: [],
+        handleRetryFailed: vi.fn(),
+        cardValue: '',
+        setCardValue: vi.fn(),
+        panel: controllerState.panel,
+        validationDisabled: false,
+        showResultPanel: controllerState.panel.kind === 'accepted',
+        formatScanned: () => 'scanned',
+        handleDismiss: vi.fn(),
+        canUpdateScanning: false,
+        pendingOverride: null,
+        overrideDialogOpenChange: vi.fn(),
+        overrideOpen: false,
+        overrideNotes: '',
+        setOverrideNotes: vi.fn(),
+        handleConfirmOverride: vi.fn(),
+        focusInput: vi.fn(),
+        showNotesCounter: false,
+        onKeyDown: vi.fn(),
+        manualOpen: false,
+        setManualOpen: vi.fn(),
+        manualSearch: '',
+        setManualSearch: vi.fn(),
+        manualNotes: '',
+        setManualNotes: vi.fn(),
+        manualSelected: null,
+        setManualSelected: vi.fn(),
+        visibleManualResults: [],
+        manualListEligible: false,
+        recordManualScan: vi.fn(),
+        showManualNotesCounter: false,
+      },
+    };
+  },
+  };
+});
 
 vi.mock('@/features/scanningRuntime/hooks/useScanPointRecord', () => ({
   useScanPointRecord: () => ({ scanPoint: state.scanPoint, isLoading: state.scanPointLoading }),
@@ -81,6 +150,8 @@ describe('ScanningRuntimePage', () => {
     state.queueCounts = { pending: 0, syncing: 0, synced: 0, failed: 0 };
     state.failedQueueEntries = [];
     guardState.pageName = null;
+    controllerState.useMockController = false;
+    controllerState.panel = { kind: 'idle' };
     retryFailedQueueEntriesMock.mockClear();
   });
 
@@ -144,5 +215,23 @@ describe('ScanningRuntimePage', () => {
     );
 
     expect(await screen.findByRole('button', { name: 'Retry failed queue entry failed-runtime-1' })).toBeTruthy();
+  });
+
+  it('shows accepted result panel when controller reports successful scan', () => {
+    controllerState.useMockController = true;
+    controllerState.panel = { kind: 'accepted', name: 'Alex Example', scannedAt: 100 };
+    state.secureSupabase = {};
+    state.scanPointLoading = false;
+
+    render(
+      <MemoryRouter initialEntries={['/scanning/sp1']}>
+        <Routes>
+          <Route path="/scanning/:scanPointId" element={<ScanningRuntimePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Accepted')).toBeTruthy();
+    expect(screen.getByText('Alex Example')).toBeTruthy();
   });
 });
