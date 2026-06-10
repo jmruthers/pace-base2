@@ -97,12 +97,12 @@ export function RegistrationTypesContent(props: RegistrationTypesContentProps) {
               ) : null}
             </CardHeader>
             <CardFooter className="grid grid-flow-col auto-cols-max gap-2">
-              <PagePermissionGuard pageName="registration-types" operation="update" scope={props.scope} fallback={null}>
+              <PagePermissionGuard pageName="RegistrationTypesPage" operation="update" scope={props.scope} fallback={null}>
                 <Button type="button" onClick={() => props.onEdit(row)}>
                   Edit
                 </Button>
               </PagePermissionGuard>
-              <PagePermissionGuard pageName="registration-types" operation="update" scope={props.scope} fallback={null}>
+              <PagePermissionGuard pageName="RegistrationTypesPage" operation="update" scope={props.scope} fallback={null}>
                 <Button
                   type="button"
                   aria-label={`Delete ${row.name}`}

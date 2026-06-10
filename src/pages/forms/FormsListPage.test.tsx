@@ -271,7 +271,7 @@ describe('FormsListPage', () => {
 
     const readGuardCall = guardPropsState.calls.find((call) => call.operation === 'read');
     expect(readGuardCall).toMatchObject({
-      pageName: 'forms',
+      pageName: 'FormsPage',
       scope: {
         organisationId: 'org-1',
         eventId: 'event-1',

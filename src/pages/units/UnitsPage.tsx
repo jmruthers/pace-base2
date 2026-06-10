@@ -1,6 +1,6 @@
 import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
-import { UnitsPageView } from '@/pages/units/components/UnitsPageView';
-import { useUnitsPageController } from '@/pages/units/hooks/useUnitsPageController';
+import { UnitsPageView } from '@/components/units/UnitsPageView';
+import { useUnitsPageController } from '@/hooks/units/useUnitsPageController';
 
 function UnitsPageInner() {
   const ctl = useUnitsPageController();
@@ -12,7 +12,7 @@ export function UnitsPage() {
 
   return (
     <PagePermissionGuard
-      pageName="units"
+      pageName="UnitsPage"
       operation="read"
       scope={{ organisationId, eventId, appId: appId ?? undefined }}
       fallback={<AccessDenied />}

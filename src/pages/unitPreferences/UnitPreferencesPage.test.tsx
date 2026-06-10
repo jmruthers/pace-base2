@@ -4,7 +4,7 @@ import { act, cleanup, render, renderHook, screen } from '@testing-library/react
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UnitPreferencesPage } from './UnitPreferencesPage';
-import { useUnitPreferencesPageController } from './hooks/useUnitPreferencesPageController';
+import { useUnitPreferencesPageController } from '@/hooks/unitPreferences/useUnitPreferencesPageController';
 import type { ActivityPreferenceRow, ActivitySessionRow, UnitRow } from '@/features/unitsCoordination/types';
 
 const authState = vi.hoisted(() => ({

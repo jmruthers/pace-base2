@@ -11,14 +11,14 @@ import {
 } from '@solvera/pace-core/components';
 import { ChevronLeft } from '@solvera/pace-core/icons';
 import { formatDateTime } from '@solvera/pace-core/utils';
-import type { ScanningTrackingPageController } from '@/pages/scanning/hooks/useScanningTrackingPageController';
+import type { ScanningTrackingPageController } from '@/hooks/scanning/useScanningTrackingPageController';
 import {
   TrackingActivityTab,
   TrackingSitePresenceTab,
   TrackingTransportTab,
-} from '@/pages/scanning/components/TrackingDashboardTabs';
-import { TrackingParticipantHistoryTab } from '@/pages/scanning/components/TrackingParticipantHistoryTab';
-import { TrackingQueryErrorPanel } from '@/pages/scanning/components/TrackingQueryPanels';
+} from '@/components/scanning/TrackingDashboardTabs';
+import { TrackingParticipantHistoryTab } from '@/components/scanning/TrackingParticipantHistoryTab';
+import { TrackingQueryErrorPanel } from '@/components/scanning/TrackingQueryPanels';
 
 export function ScanningTrackingPageView({ ctl }: { ctl: ScanningTrackingPageController }) {
   return (

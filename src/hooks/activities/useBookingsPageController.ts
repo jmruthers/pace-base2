@@ -20,7 +20,7 @@ import {
 import {
   CreateBookingRpcParams,
   useBookingsPageBookingHandlers,
-} from '@/pages/activities/hooks/useBookingsPageBookingHandlers';
+} from '@/hooks/activities/useBookingsPageBookingHandlers';
 
 export function useBookingsPageController() {
   const secureSupabase = useSecureSupabase();
@@ -40,10 +40,10 @@ export function useBookingsPageController() {
       ? (selectedEvent as { organisation_id: string }).organisation_id
       : scope.organisationId ?? '';
 
-  const { can: canReadBookings, isLoading: readBookingsLoading } = useCan('read:page.bookings', scope);
-  const { can: canCreateBookings, isLoading: createPermLoading } = useCan('create:page.bookings', scope);
-  const { can: canUpdateBookings, isLoading: updatePermLoading } = useCan('update:page.bookings', scope);
-  const { can: canDeleteBookings, isLoading: deletePermLoading } = useCan('delete:page.bookings', scope);
+  const { can: canReadBookings, isLoading: readBookingsLoading } = useCan('read:page.BookingsPage', scope);
+  const { can: canCreateBookings, isLoading: createPermLoading } = useCan('create:page.BookingsPage', scope);
+  const { can: canUpdateBookings, isLoading: updatePermLoading } = useCan('update:page.BookingsPage', scope);
+  const { can: canDeleteBookings, isLoading: deletePermLoading } = useCan('delete:page.BookingsPage', scope);
 
   const bookingsQuery = useBookingsList(eventId, eventTimezone);
   const applicationsQuery = useApprovedApplicationsForBookingsQuery(eventId);

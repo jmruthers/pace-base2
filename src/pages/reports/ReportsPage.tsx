@@ -34,7 +34,7 @@ export function ReportsPage() {
   const { selectedEvent } = useEvents();
   const { user } = useUnifiedAuth();
   const { organisationId, eventId: resolvedEventId, appId } = useResolvedScope();
-  const { canCreate } = useResourcePermissions('reports');
+  const { canCreate } = useResourcePermissions('ReportsPage');
   const eventId = selectedEventId(selectedEvent);
   const userId = user?.id ?? null;
   const reportingSupabase = secureSupabase as unknown as Parameters<
@@ -101,7 +101,7 @@ export function ReportsPage() {
 
   return (
     <PagePermissionGuard
-      pageName="reports"
+      pageName="ReportsPage"
       operation="read"
       scope={{
         organisationId: organisationId ?? undefined,
@@ -119,7 +119,7 @@ export function ReportsPage() {
           initialExploreKey="base.participant"
           availableExploreKeys={['base.participant', 'base.unit', 'base.activity', 'base.scan']}
           scopeValue={eventId}
-          reportResultsRbac={{ pageName: 'reports' }}
+          reportResultsRbac={{ pageName: 'ReportsPage' }}
           visibilityLabels={{
             private: 'Private (only me)',
             shared: 'Event-shared (all with access)',

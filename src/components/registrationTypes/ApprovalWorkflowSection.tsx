@@ -141,17 +141,18 @@ function SortableWorkflowRow(props: SortableWorkflowRowProps) {
           onReviewingOrgChange={(value) => props.onReviewingOrgChange(props.rule.localId, value)}
         />
 
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          disabled={props.isPending}
-          className="justify-self-center"
-          aria-label={`Remove ${rowLabel}`}
-          onClick={() => props.onRemove(props.rule.localId)}
-        >
-          <Trash2 aria-hidden />
-        </Button>
+        <span className="justify-self-center">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            disabled={props.isPending}
+            aria-label={`Remove ${rowLabel}`}
+            onClick={() => props.onRemove(props.rule.localId)}
+          >
+            <Trash2 aria-hidden />
+          </Button>
+        </span>
       </section>
     </article>
   );
@@ -185,7 +186,7 @@ export function ApprovalWorkflowSection(props: ApprovalWorkflowSectionProps) {
 
   return (
     <PagePermissionGuard
-      pageName="registration-types"
+      pageName="RegistrationTypesPage"
       operation="update"
       scope={props.scope}
       fallback={null}

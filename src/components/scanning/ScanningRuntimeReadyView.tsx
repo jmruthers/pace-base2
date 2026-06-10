@@ -41,13 +41,11 @@ export function ScanningRuntimeReadyView({ surface, cardInputRef }: Props) {
             <Badge variant={getQueueSyncBadge('pending').variant} role="status">
               {getQueueSyncBadge('pending').label}: {surface.queueCounts.pending}
             </Badge>
-            <Badge
-              variant={getQueueSyncBadge('syncing').variant}
-              className={getQueueSyncBadge('syncing').className}
-              role="status"
-            >
-              {getQueueSyncBadge('syncing').label}: {surface.queueCounts.syncing}
-            </Badge>
+            <span className={getQueueSyncBadge('syncing').className}>
+              <Badge variant={getQueueSyncBadge('syncing').variant} role="status">
+                {getQueueSyncBadge('syncing').label}: {surface.queueCounts.syncing}
+              </Badge>
+            </span>
             <Badge variant={getQueueSyncBadge('failed').variant} role="status">
               {getQueueSyncBadge('failed').label}: {surface.queueCounts.failed}
             </Badge>

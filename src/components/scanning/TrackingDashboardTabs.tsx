@@ -6,9 +6,9 @@ import {
   LoadingSpinner,
   TabsContent,
 } from '@solvera/pace-core/components';
-import type { ScanningTrackingPageController } from '@/pages/scanning/hooks/useScanningTrackingPageController';
-import { TrackingExpandableGroupList, TrackingExpandablePointRows } from '@/pages/scanning/components/TrackingExpandableLists';
-import { TrackingQueryCapNotice, TrackingQueryErrorPanel } from '@/pages/scanning/components/TrackingQueryPanels';
+import type { ScanningTrackingPageController } from '@/hooks/scanning/useScanningTrackingPageController';
+import { TrackingExpandableGroupList, TrackingExpandablePointRows } from '@/components/scanning/TrackingExpandableLists';
+import { TrackingQueryCapNotice, TrackingQueryErrorPanel } from '@/components/scanning/TrackingQueryPanels';
 
 export function TrackingSitePresenceTab({ ctl }: { ctl: ScanningTrackingPageController }) {
   return (

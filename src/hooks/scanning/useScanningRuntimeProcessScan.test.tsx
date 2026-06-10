@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ok } from '@solvera/pace-core/types';
 import { validateScan } from '@/features/scanningRuntime/validation/validateScan';
 import { useScanningRuntimeProcessScan } from './useScanningRuntimeProcessScan';
-import type { ScanningRuntimePanelState } from '../scanningRuntimePageTypes';
+import type { ScanningRuntimePanelState } from '@/pages/scanning/scanningRuntimePageTypes';
 
 vi.mock('@/features/scanningRuntime/validation/validateScan', () => ({
   validateScan: vi.fn(),

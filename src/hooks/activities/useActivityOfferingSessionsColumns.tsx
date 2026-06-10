@@ -57,12 +57,12 @@ export function useActivityOfferingSessionsColumns(
         header: 'Actions',
         cell: ({ row }: { row: ActivitySessionRow }) => (
           <section className="grid grid-cols-1 gap-1 md:grid-cols-2">
-            <PagePermissionGuard pageName="activities" operation="update" scope={scope} fallback={null}>
+            <PagePermissionGuard pageName="ActivitiesPage" operation="update" scope={scope} fallback={null}>
               <Button type="button" variant="outline" size="small" onClick={() => onEditSession(row)}>
                 Edit
               </Button>
             </PagePermissionGuard>
-            <PagePermissionGuard pageName="activities" operation="delete" scope={scope} fallback={null}>
+            <PagePermissionGuard pageName="ActivitiesPage" operation="delete" scope={scope} fallback={null}>
               <Button type="button" variant="destructive" size="small" onClick={() => onRequestDeleteSession(row)}>
                 Delete
               </Button>

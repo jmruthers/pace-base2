@@ -1,10 +1,10 @@
 import { Button, Card, CardDescription, CardHeader, CardTitle } from '@solvera/pace-core/components';
-import type { ScanningSetupController } from '@/pages/scanning/hooks/useScanningSetupController';
-import { ScanningSetupConfiguredContent } from '@/pages/scanning/components/ScanningSetupConfiguredContent';
+import type { ScanningSetupController } from '@/hooks/scanning/useScanningSetupController';
+import { ScanningSetupConfiguredContent } from '@/components/scanning/ScanningSetupConfiguredContent';
 import {
   ScanningSetupConflictDialogs,
   ScanningSetupScanDialogs,
-} from '@/pages/scanning/components/ScanningSetupDialogs';
+} from '@/components/scanning/ScanningSetupDialogs';
 
 export function ScanningSetupPageView({ ctl }: { ctl: ScanningSetupController }) {
   return (

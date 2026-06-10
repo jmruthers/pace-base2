@@ -1,7 +1,7 @@
 import { LoadingSpinner } from '@solvera/pace-core/components';
 import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
-import { BookingsPageView } from '@/pages/activities/components/BookingsPageView';
-import { useBookingsPageController } from '@/pages/activities/hooks/useBookingsPageController';
+import { BookingsPageView } from '@/components/activities/BookingsPageView';
+import { useBookingsPageController } from '@/hooks/activities/useBookingsPageController';
 
 function BookingsPageInner() {
   const ctl = useBookingsPageController();
@@ -26,7 +26,7 @@ export function BookingsPage() {
 
   return (
     <PagePermissionGuard
-      pageName="bookings"
+      pageName="BookingsPage"
       operation="read"
       scope={{ organisationId, eventId, appId: appId ?? undefined }}
       fallback={<AccessDenied />}

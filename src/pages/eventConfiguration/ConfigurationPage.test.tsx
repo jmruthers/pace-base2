@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EventConfigurationRoute } from './EventConfigurationRoute';
+import { ConfigurationPage } from './ConfigurationPage';
 
 type EventQueryState = {
   isLoading: boolean;
@@ -293,7 +293,7 @@ vi.mock('@/features/eventConfiguration/useEventLogoReference', () => ({
   useEventLogoReference: () => ({ data: routeState.logoRef, refetch: vi.fn() }),
 }));
 
-describe('EventConfigurationRoute', () => {
+describe('ConfigurationPage', () => {
   afterEach(() => {
     cleanup();
     routeState.selectedEventId = 'event-1';
@@ -344,7 +344,7 @@ describe('EventConfigurationRoute', () => {
   it('shows no-event state when no event is selected', () => {
     routeState.selectedEventId = null;
 
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     expect(screen.getByText('No event selected. Choose an event from the header to begin.')).toBeTruthy();
   });
@@ -356,7 +356,7 @@ describe('EventConfigurationRoute', () => {
       data: null,
     } as EventQueryState;
 
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     expect(screen.getByText('Loading event data…')).toBeTruthy();
   });
@@ -368,7 +368,7 @@ describe('EventConfigurationRoute', () => {
       data: null,
     } as EventQueryState;
 
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     expect(screen.getByText('Fetch failed')).toBeTruthy();
   });
@@ -376,7 +376,7 @@ describe('EventConfigurationRoute', () => {
   it('renders update-denied fallback with disabled fields and hidden save/upload actions', () => {
     routeState.allowUpdate = false;
 
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     expect(screen.getByLabelText('event_name').getAttribute('aria-disabled')).toBe('true');
     expect(screen.getByLabelText('registration_scope').getAttribute('aria-disabled')).toBe('true');
@@ -386,7 +386,7 @@ describe('EventConfigurationRoute', () => {
   });
 
   it('shows success feedback on save success', async () => {
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -414,7 +414,7 @@ describe('EventConfigurationRoute', () => {
       isPending: false,
     };
 
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -430,7 +430,7 @@ describe('EventConfigurationRoute', () => {
   it('blocks save before mutation when required RBAC context is missing', async () => {
     routeState.appId = null;
 
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     await waitFor(() => {
       expect(
@@ -451,7 +451,7 @@ describe('EventConfigurationRoute', () => {
       isPending: false,
     };
 
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -466,7 +466,7 @@ describe('EventConfigurationRoute', () => {
   });
 
   it('routes upload failures through the mutation error helper', () => {
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload logo' }));
 
@@ -478,7 +478,7 @@ describe('EventConfigurationRoute', () => {
   });
 
   it('persists core_events.logo_id before applying uploaded local logo reference', async () => {
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload logo success' }));
 
@@ -507,7 +507,7 @@ describe('EventConfigurationRoute', () => {
       },
     };
 
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     expect(
       screen.getByText('Required RBAC context is unavailable. Re-select your organisation and event.')
@@ -523,7 +523,7 @@ describe('EventConfigurationRoute', () => {
       file_path: 'configuration/event_logos/logo.png',
     };
 
-    render(<EventConfigurationRoute />);
+    render(<ConfigurationPage />);
 
     expect(screen.getByText('Logo Preview')).toBeTruthy();
     expect(routeState.fileDisplayProps).toMatchObject({

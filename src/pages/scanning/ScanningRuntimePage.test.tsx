@@ -21,8 +21,8 @@ const controllerState = vi.hoisted(() => ({
   panel: { kind: 'idle' } as ScanningRuntimePanelState,
 }));
 
-vi.mock('@/pages/scanning/hooks/useScanningRuntimePageController', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/pages/scanning/hooks/useScanningRuntimePageController')>();
+vi.mock('@/hooks/scanning/useScanningRuntimePageController', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/scanning/useScanningRuntimePageController')>();
   return {
   useScanningRuntimePageController: () => {
     if (!controllerState.useMockController) {
@@ -163,7 +163,7 @@ describe('ScanningRuntimePage', () => {
         </Routes>
       </MemoryRouter>
     );
-    expect(guardState.pageName).toBe('scanning-runtime');
+    expect(guardState.pageName).toBe('ScanningRuntimePage');
   });
 
   it('shows loading spinner while scan point is loading', () => {

@@ -96,8 +96,8 @@ vi.mock('./pages/eventConfiguration/EventDashboardPage', () => ({
   EventDashboardPage: () => <main>Event Dashboard Page</main>,
 }));
 
-vi.mock('./pages/eventConfiguration/EventConfigurationRoute', () => ({
-  EventConfigurationRoute: () => <main>Event Configuration Page</main>,
+vi.mock('./pages/eventConfiguration/ConfigurationPage', () => ({
+  ConfigurationPage: () => <main>Event Configuration Page</main>,
 }));
 
 vi.mock('./pages/forms/FormsListPage', () => ({
@@ -185,7 +185,7 @@ describe('BA00 navigation contract', () => {
     );
     expect(communicationsRoute?.includeInShell).toBe(true);
     expect(communicationsRoute?.includeInNavigation).toBe(true);
-    expect(communicationsRoute?.pageName).toBe('communications');
+    expect(communicationsRoute?.pageName).toBe('CommunicationsPage');
   });
 
   it('maps scanning setup and runtime routes to distinct RBAC page keys', () => {
@@ -193,8 +193,8 @@ describe('BA00 navigation contract', () => {
     const runtimeRoute = BASE_ROUTE_REGISTRY.find(
       (route) => route.path === '/scanning/:scanPointId'
     );
-    expect(setupRoute?.pageName).toBe('scanning');
-    expect(runtimeRoute?.pageName).toBe('scanning-runtime');
+    expect(setupRoute?.pageName).toBe('ScanningPage');
+    expect(runtimeRoute?.pageName).toBe('ScanningRuntimePage');
   });
 });
 

@@ -1,8 +1,8 @@
 import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
 
-import { useScanningRuntimePageController } from '@/pages/scanning/hooks/useScanningRuntimePageController';
+import { useScanningRuntimePageController } from '@/hooks/scanning/useScanningRuntimePageController';
 
-import { ScanningRuntimePageView } from '@/pages/scanning/components/ScanningRuntimePageView';
+import { ScanningRuntimePageView } from '@/components/scanning/ScanningRuntimePageView';
 
 function ScanningRuntimePageInner() {
   const page = useScanningRuntimePageController();
@@ -13,7 +13,7 @@ export function ScanningRuntimePage() {
   const { organisationId, eventId, appId } = useResolvedScope();
   return (
     <PagePermissionGuard
-      pageName="scanning-runtime"
+      pageName="ScanningRuntimePage"
       operation="read"
       scope={{ organisationId, eventId, appId: appId ?? undefined }}
       fallback={<AccessDenied />}

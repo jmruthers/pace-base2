@@ -32,7 +32,7 @@ import {
   eventNameFromSelection,
   eventTimezoneFromSelection,
   organisationIdFromSelection,
-} from '../components/scanSetupHelpers';
+} from '@/components/scanning/scanSetupHelpers';
 import { useScanningSetupConflictColumns } from './useScanningSetupConflictColumns';
 import { useScanningSetupHistoryColumns } from './useScanningSetupHistoryColumns';
 import { useScanningSetupManifestDownload } from './useScanningSetupManifestDownload';
@@ -53,9 +53,9 @@ export function useScanningSetupController() {
   const organisationId =
     organisationIdFromSelection(selectedEvent) ?? selectedOrganisationId ?? scope.organisationId ?? null;
 
-  const { can: canReadPage } = useCan('read:page.scanning', scope);
-  const { can: canCreate, isLoading: createLoading } = useCan('create:page.scanning', scope);
-  const { can: canUpdate, isLoading: updateLoading } = useCan('update:page.scanning', scope);
+  const { can: canReadPage } = useCan('read:page.ScanningPage', scope);
+  const { can: canCreate, isLoading: createLoading } = useCan('create:page.ScanningPage', scope);
+  const { can: canUpdate, isLoading: updateLoading } = useCan('update:page.ScanningPage', scope);
 
   const scanPointsQuery = useScanPoints(eventId, organisationId);
   const conflictsQuery = useScanConflicts(eventId, organisationId);

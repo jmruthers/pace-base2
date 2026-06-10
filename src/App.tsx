@@ -14,7 +14,7 @@ import { BaseNotFoundPage } from './pages/shell/BaseNotFoundPage';
 import { FeaturePlaceholderPanel } from '@/components/shell/FeaturePlaceholderPanel';
 import { ScanningRuntimePage } from './pages/scanning/ScanningRuntimePage';
 import { EventDashboardPage } from './pages/eventConfiguration/EventDashboardPage';
-import { EventConfigurationRoute } from './pages/eventConfiguration/EventConfigurationRoute';
+import { ConfigurationPage } from './pages/eventConfiguration/ConfigurationPage';
 import { FormsListPage } from './pages/forms/FormsListPage';
 import { FormBuilderPage } from './pages/forms/FormBuilderPage';
 import { RegistrationTypesPage } from './pages/registrationTypes/RegistrationTypesPage';
@@ -110,7 +110,7 @@ function App() {
                         {route.path === '/event-dashboard' ? (
                           <EventDashboardPage />
                         ) : route.path === '/configuration' ? (
-                          <EventConfigurationRoute />
+                          <ConfigurationPage />
                         ) : route.path === '/forms' ? (
                           <FormsListPage />
                         ) : route.path === '/form-builder' ? (

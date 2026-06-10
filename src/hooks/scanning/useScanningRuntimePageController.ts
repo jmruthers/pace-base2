@@ -17,7 +17,7 @@ import {
   useScanSyncSnapshot,
 } from '@/features/scanningRuntime/sync/scanSyncWorker';
 import type { ManualParticipantSearchRow, ScanQueueEntry } from '@/features/scanningRuntime/types';
-import { eventIdFromSelection, eventNameFromSelection, eventTimezoneFromSelection } from '@/pages/scanning/components/scanSetupHelpers';
+import { eventIdFromSelection, eventNameFromSelection, eventTimezoneFromSelection } from '@/components/scanning/scanSetupHelpers';
 import type {
   ScanningRuntimePageController,
   ScanningRuntimeReadySurface,
@@ -66,7 +66,7 @@ export function useScanningRuntimePageController(): ScanningRuntimePageControlle
     [scanPoint?.event_id, scanPoint?.organisation_id, scope.appId],
   );
 
-  const { can: canUpdateScanning } = useCan('update:page.scanning', updateScope);
+  const { can: canUpdateScanning } = useCan('update:page.ScanningPage', updateScope);
 
   const eventId = eventIdFromSelection(selectedEvent);
   const eventName = eventNameFromSelection(selectedEvent);

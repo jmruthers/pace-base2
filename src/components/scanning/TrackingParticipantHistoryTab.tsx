@@ -6,9 +6,9 @@ import {
   LoadingSpinner,
   TabsContent,
 } from '@solvera/pace-core/components';
-import type { ScanningTrackingPageController } from '@/pages/scanning/hooks/useScanningTrackingPageController';
-import { useTrackingHistoryColumns } from '@/pages/scanning/hooks/useTrackingHistoryColumns';
-import { TrackingQueryCapNotice, TrackingQueryErrorPanel } from '@/pages/scanning/components/TrackingQueryPanels';
+import type { ScanningTrackingPageController } from '@/hooks/scanning/useScanningTrackingPageController';
+import { useTrackingHistoryColumns } from '@/hooks/scanning/useTrackingHistoryColumns';
+import { TrackingQueryCapNotice, TrackingQueryErrorPanel } from '@/components/scanning/TrackingQueryPanels';
 
 export function TrackingParticipantHistoryTab({ ctl }: { ctl: ScanningTrackingPageController }) {
   const historyColumns = useTrackingHistoryColumns();
@@ -114,7 +114,7 @@ export function TrackingParticipantHistoryTab({ ctl }: { ctl: ScanningTrackingPa
               <DataTable
                 data={ctl.historyRows as unknown as Array<Record<string, unknown>>}
                 columns={historyColumns as never}
-                rbac={{ pageName: 'scanning' }}
+                rbac={{ pageName: 'ScanningPage' }}
                 title="Participant history"
                 isLoading={ctl.participantHistoryQuery.isLoading}
                 emptyState={{

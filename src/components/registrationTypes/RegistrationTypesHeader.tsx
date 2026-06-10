@@ -16,7 +16,7 @@ export function RegistrationTypesHeader(props: RegistrationTypesHeaderProps) {
       </header>
 
       {props.selectedEventId != null ? (
-        <PagePermissionGuard pageName="registration-types" operation="create" scope={props.scope} fallback={null}>
+        <PagePermissionGuard pageName="RegistrationTypesPage" operation="create" scope={props.scope} fallback={null}>
           <Button type="button" onClick={props.onCreate}>
             Create registration type
           </Button>

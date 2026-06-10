@@ -1,7 +1,7 @@
 import { Button, Card, CardContent } from '@solvera/pace-core/components';
 
 import type { ScanQueueEntry } from '@/features/scanningRuntime/types';
-import { queueFailureReasonLabel } from '@/pages/scanning/components/scanSetupHelpers';
+import { queueFailureReasonLabel } from '@/components/scanning/scanSetupHelpers';
 
 type Props = {
   failedQueueEntries: ScanQueueEntry[];

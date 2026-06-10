@@ -9,8 +9,8 @@ import {
   DialogTitle,
 } from '@solvera/pace-core/components';
 import { formatDateTime } from '@solvera/pace-core/utils';
-import type { ScanningSetupController } from '@/pages/scanning/hooks/useScanningSetupController';
-import { ScanPointDialog } from '@/pages/scanning/components/ScanPointDialog';
+import type { ScanningSetupController } from '@/hooks/scanning/useScanningSetupController';
+import { ScanPointDialog } from '@/components/scanning/ScanPointDialog';
 
 export function ScanningSetupScanDialogs({ ctl }: { ctl: ScanningSetupController }) {
   return (

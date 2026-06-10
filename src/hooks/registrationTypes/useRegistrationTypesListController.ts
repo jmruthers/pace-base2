@@ -3,7 +3,7 @@ import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { useResolvedScope } from '@solvera/pace-core/rbac';
 import { useRegistrationTypesList } from '@/features/registrationSetup/configuration';
 import type { RegistrationTypeRow } from '@/features/registrationSetup/types';
-import { registrationScope } from '../registrationScope';
+import { registrationScope } from '@/pages/registrationTypes/registrationScope';
 
 export function useRegistrationTypesListController() {
   const navigate = useNavigate();

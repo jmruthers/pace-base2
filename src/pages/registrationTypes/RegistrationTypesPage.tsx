@@ -23,9 +23,9 @@ import {
 } from '@/features/registrationSetup/deletePolicy';
 import type { RegistrationTypeRow } from '@/features/registrationSetup/types';
 import { asCount } from '@/features/formsAuthoring/stateHelpers';
-import { RegistrationTypesContent } from './components/RegistrationTypesContent';
-import { RegistrationTypesHeader } from './components/RegistrationTypesHeader';
-import { useRegistrationTypesListController } from './hooks/useRegistrationTypesListController';
+import { RegistrationTypesContent } from '@/components/registrationTypes/RegistrationTypesContent';
+import { RegistrationTypesHeader } from '@/components/registrationTypes/RegistrationTypesHeader';
+import { useRegistrationTypesListController } from '@/hooks/registrationTypes/useRegistrationTypesListController';
 
 export function RegistrationTypesPage() {
   const controller = useRegistrationTypesListController();
@@ -109,7 +109,7 @@ export function RegistrationTypesPage() {
 
   return (
     <PagePermissionGuard
-      pageName="registration-types"
+      pageName="RegistrationTypesPage"
       operation="read"
       scope={controller.scope}
       fallback={<AccessDenied />}

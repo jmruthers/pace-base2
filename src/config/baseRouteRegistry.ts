@@ -13,7 +13,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/login',
     label: 'Login',
-    pageName: 'login',
+    pageName: 'LoginPage',
     sliceId: 'app-shell-and-access',
     includeInShell: false,
     includeInNavigation: false,
@@ -21,7 +21,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/',
     label: 'Root Entry Redirect',
-    pageName: 'root-entry',
+    pageName: 'RootEntryRedirectPage',
     sliceId: 'app-shell-and-access',
     includeInShell: true,
     includeInNavigation: false,
@@ -29,7 +29,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '*',
     label: 'Not Found',
-    pageName: 'not-found',
+    pageName: 'BaseNotFoundPage',
     sliceId: 'app-shell-and-access',
     includeInShell: true,
     includeInNavigation: false,
@@ -37,7 +37,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/event-dashboard',
     label: 'Event Dashboard',
-    pageName: 'event-dashboard',
+    pageName: 'EventDashboardPage',
     sliceId: 'event-workspace-and-configuration',
     includeInShell: true,
     includeInNavigation: true,
@@ -45,7 +45,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/configuration',
     label: 'Configuration',
-    pageName: 'configuration',
+    pageName: 'ConfigurationPage',
     sliceId: 'event-workspace-and-configuration',
     includeInShell: true,
     includeInNavigation: true,
@@ -53,7 +53,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/forms',
     label: 'Forms',
-    pageName: 'forms',
+    pageName: 'FormsPage',
     sliceId: 'forms-authoring-and-base-integration',
     includeInShell: true,
     includeInNavigation: true,
@@ -61,7 +61,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/form-builder',
     label: 'Form Builder',
-    pageName: 'form-builder',
+    pageName: 'FormBuilderPage',
     sliceId: 'forms-authoring-and-base-integration',
     includeInShell: true,
     includeInNavigation: false,
@@ -69,7 +69,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/registration-types',
     label: 'Registration Types',
-    pageName: 'registration-types',
+    pageName: 'RegistrationTypesPage',
     sliceId: 'registration-setup-and-policy',
     includeInShell: true,
     includeInNavigation: true,
@@ -77,7 +77,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/registration-type-builder',
     label: 'Registration Type Builder',
-    pageName: 'registration-types',
+    pageName: 'RegistrationTypesPage',
     sliceId: 'registration-setup-and-policy',
     includeInShell: true,
     includeInNavigation: false,
@@ -85,7 +85,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/applications',
     label: 'Applications',
-    pageName: 'applications',
+    pageName: 'ApplicationsPage',
     sliceId: 'applications-admin-and-review',
     includeInShell: true,
     includeInNavigation: true,
@@ -93,7 +93,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/communications',
     label: 'Communications',
-    pageName: 'communications',
+    pageName: 'CommunicationsPage',
     sliceId: 'communications-and-system-notifications',
     includeInShell: true,
     includeInNavigation: true,
@@ -101,7 +101,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/units',
     label: 'Units',
-    pageName: 'units',
+    pageName: 'UnitsPage',
     sliceId: 'units-and-group-coordination',
     includeInShell: true,
     includeInNavigation: true,
@@ -109,7 +109,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/unit-preferences',
     label: 'Unit Preferences',
-    pageName: 'unit-preferences',
+    pageName: 'UnitPreferencesPage',
     sliceId: 'units-and-group-coordination',
     includeInShell: true,
     includeInNavigation: false,
@@ -117,7 +117,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/activities',
     label: 'Activities',
-    pageName: 'activities',
+    pageName: 'ActivitiesPage',
     sliceId: 'activity-offering-and-session-setup',
     includeInShell: true,
     includeInNavigation: true,
@@ -125,7 +125,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/activities/bookings',
     label: 'Bookings',
-    pageName: 'bookings',
+    pageName: 'BookingsPage',
     sliceId: 'activity-booking-operations-oversight',
     includeInShell: true,
     includeInNavigation: false,
@@ -133,7 +133,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/activities/:offeringId',
     label: 'Activity Offering',
-    pageName: 'activities',
+    pageName: 'ActivitiesPage',
     sliceId: 'activity-offering-and-session-setup',
     includeInShell: true,
     includeInNavigation: false,
@@ -141,7 +141,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/scanning',
     label: 'Scanning',
-    pageName: 'scanning',
+    pageName: 'ScanningPage',
     sliceId: 'scanning-setup',
     includeInShell: true,
     includeInNavigation: true,
@@ -149,7 +149,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/scanning/tracking',
     label: 'Tracking Dashboard',
-    pageName: 'scanning',
+    pageName: 'ScanningPage',
     sliceId: 'scanning-tracking-dashboard',
     includeInShell: true,
     includeInNavigation: false,
@@ -157,7 +157,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/scanning/:scanPointId',
     label: 'Scan Runtime',
-    pageName: 'scanning-runtime',
+    pageName: 'ScanningRuntimePage',
     sliceId: 'scanning-runtime-and-validation',
     includeInShell: false,
     includeInNavigation: false,
@@ -165,7 +165,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   {
     path: '/reports',
     label: 'Reports',
-    pageName: 'reports',
+    pageName: 'ReportsPage',
     sliceId: 'reporting',
     includeInShell: true,
     includeInNavigation: true,

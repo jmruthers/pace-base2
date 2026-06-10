@@ -18,7 +18,7 @@ const controllerState = vi.hoisted(() => ({
   saveWorkflow: vi.fn(),
 }));
 
-vi.mock('./hooks/useRegistrationTypeBuilderShell', () => ({
+vi.mock('@/hooks/registrationTypes/useRegistrationTypeBuilderShell', () => ({
   useRegistrationTypeBuilderShell: () => ({
     scope: { organisationId: 'org-1', eventId: 'event-1', appId: 'base-app' },
     setSearchParams: vi.fn(),
@@ -37,7 +37,7 @@ vi.mock('./hooks/useRegistrationTypeBuilderShell', () => ({
   }),
 }));
 
-vi.mock('./hooks/useRegistrationTypeBuilderController', () => ({
+vi.mock('@/hooks/registrationTypes/useRegistrationTypeBuilderController', () => ({
   useCombinedRegistrationBuilder: () => ({
     upsertMutation: { isPending: false },
     requirementsQuery: { isLoading: false, error: null },
@@ -96,11 +96,11 @@ vi.mock('@solvera/pace-core/components', () => ({
   LoadingSpinner: () => <p>Loading Spinner</p>,
 }));
 
-vi.mock('./components/RegistrationTypeEditorFields', () => ({
+vi.mock('@/components/registrationTypes/RegistrationTypeEditorFields', () => ({
   RegistrationTypeEditorFields: () => <section>Type fields</section>,
 }));
 
-vi.mock('./components/ApprovalWorkflowSection', () => ({
+vi.mock('@/components/registrationTypes/ApprovalWorkflowSection', () => ({
   ApprovalWorkflowSection: ({ disabled }: { disabled?: boolean }) => (
     <section>{disabled ? 'Workflow disabled' : 'Workflow enabled'}</section>
   ),

@@ -2,7 +2,7 @@ import { Button } from '@solvera/pace-core/components';
 import { PagePermissionGuard } from '@solvera/pace-core/rbac';
 import { useMemo } from 'react';
 import type { UnitsTableRow } from '@/pages/units/unitsPageTypes';
-import type { UnitsPageScope } from '@/pages/units/hooks/unitsPageScope';
+import type { UnitsPageScope } from '@/hooks/units/unitsPageScope';
 
 export function useUnitsDataColumns(
   scope: UnitsPageScope,
@@ -54,7 +54,7 @@ export function useUnitsDataColumns(
         id: 'unitActions',
         header: 'Actions',
         cell: ({ row }: { row: UnitsTableRow }) => (
-          <PagePermissionGuard pageName="units" operation="delete" scope={scope} fallback={null}>
+          <PagePermissionGuard pageName="UnitsPage" operation="delete" scope={scope} fallback={null}>
             <Button type="button" variant="destructive" onClick={() => onDeleteUnit(row)}>
               Delete
             </Button>

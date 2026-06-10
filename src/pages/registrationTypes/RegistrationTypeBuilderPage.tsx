@@ -10,11 +10,11 @@ import {
 } from '@solvera/pace-core/components';
 import { AccessDenied, PagePermissionGuard } from '@solvera/pace-core/rbac';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
-import { ApprovalWorkflowSection } from './components/ApprovalWorkflowSection';
-import { RegistrationTypeEditorFields } from './components/RegistrationTypeEditorFields';
-import type { RegistrationTypeBuilderShell } from './hooks/useRegistrationTypeBuilderShell';
-import { useCombinedRegistrationBuilder } from './hooks/useRegistrationTypeBuilderController';
-import { useRegistrationTypeBuilderShell } from './hooks/useRegistrationTypeBuilderShell';
+import { ApprovalWorkflowSection } from '@/components/registrationTypes/ApprovalWorkflowSection';
+import { RegistrationTypeEditorFields } from '@/components/registrationTypes/RegistrationTypeEditorFields';
+import type { RegistrationTypeBuilderShell } from '@/hooks/registrationTypes/useRegistrationTypeBuilderShell';
+import { useCombinedRegistrationBuilder } from '@/hooks/registrationTypes/useRegistrationTypeBuilderController';
+import { useRegistrationTypeBuilderShell } from '@/hooks/registrationTypes/useRegistrationTypeBuilderShell';
 
 export function RegistrationTypeBuilderPage() {
   return <RegistrationTypeBuilderPageContent />;
@@ -100,7 +100,7 @@ function RegistrationTypeBuilderPageContent() {
 
   return (
     <PagePermissionGuard
-      pageName="registration-types"
+      pageName="RegistrationTypesPage"
       operation="update"
       scope={shell.scope}
       fallback={<AccessDenied />}

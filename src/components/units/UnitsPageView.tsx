@@ -26,9 +26,9 @@ import { PagePermissionGuard } from '@solvera/pace-core/rbac';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
 import { formatUnitDisplayLabel } from '@/features/unitsCoordination/unitsDisplayAndPreferenceHelpers';
 import type { UnitRoleTypeRow } from '@/features/unitsCoordination/types';
-import type { UnitsPageController } from '@/pages/units/hooks/useUnitsPageController';
-import { useAssignmentsTableColumns, useUnitsRoleTypesColumns } from '@/pages/units/hooks/useUnitsSupportingTableColumns';
-import { useUnitsDataColumns } from '@/pages/units/hooks/useUnitsDataColumns';
+import type { UnitsPageController } from '@/hooks/units/useUnitsPageController';
+import { useAssignmentsTableColumns, useUnitsRoleTypesColumns } from '@/hooks/units/useUnitsSupportingTableColumns';
+import { useUnitsDataColumns } from '@/hooks/units/useUnitsDataColumns';
 import type { UnitsTableRow } from '@/pages/units/unitsPageTypes';
 
 export function UnitsPageView({ ctl }: { ctl: UnitsPageController }) {
@@ -81,7 +81,7 @@ export function UnitsPageView({ ctl }: { ctl: UnitsPageController }) {
                   <DataTable<UnitsTableRow>
                     data={ctl.unitsRows}
                     columns={unitsColumns}
-                    rbac={{ pageName: 'units' }}
+                    rbac={{ pageName: 'UnitsPage' }}
                     isLoading={ctl.unitsQuery.isLoading}
                     emptyState={{ description: 'No units have been created for this event.' }}
                     initialPageSize={25}
@@ -130,7 +130,7 @@ export function UnitsPageView({ ctl }: { ctl: UnitsPageController }) {
                   <DataTable<UnitRoleTypeRow>
                     data={ctl.roleTypesQuery.data ?? []}
                     columns={roleTypesColumns}
-                    rbac={{ pageName: 'units' }}
+                    rbac={{ pageName: 'UnitsPage' }}
                     isLoading={ctl.roleTypesQuery.isLoading}
                     emptyState={{ description: 'No role types have been defined for this event.' }}
                     initialPageSize={25}
@@ -206,7 +206,7 @@ export function UnitsPageView({ ctl }: { ctl: UnitsPageController }) {
                       </Alert>
                     ) : null}
 
-                    <PagePermissionGuard pageName="units" operation="update" scope={ctl.scope} fallback={null}>
+                    <PagePermissionGuard pageName="UnitsPage" operation="update" scope={ctl.scope} fallback={null}>
                       <section className="grid gap-2 md:grid-cols-3">
                         <Label htmlFor="units-applicant-selector">
                           <span>Applicant</span>
@@ -258,7 +258,7 @@ export function UnitsPageView({ ctl }: { ctl: UnitsPageController }) {
                     <DataTable<(typeof ctl.assignmentRows)[number]>
                       data={ctl.assignmentRows}
                       columns={assignmentsColumns}
-                      rbac={{ pageName: 'units' }}
+                      rbac={{ pageName: 'UnitsPage' }}
                       isLoading={ctl.approvedApplicationsQuery.isLoading || ctl.assignmentsQuery.isLoading}
                       emptyState={{ description: 'No approved applicants were found for this event.' }}
                       initialPageSize={25}

@@ -128,9 +128,9 @@ vi.mock('@solvera/pace-core/rbac', () => ({
   useSecureSupabase: () => ({}),
   useCan: (permission: string) => ({
     can:
-      permission === 'read:page.scanning'
+      permission === 'read:page.ScanningPage'
         ? state.canRead
-        : permission === 'create:page.scanning'
+        : permission === 'create:page.ScanningPage'
           ? state.canCreate
           : state.canUpdate,
     isLoading: false,

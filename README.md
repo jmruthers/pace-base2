@@ -30,13 +30,13 @@ For new pages expected to grow beyond ~200 lines, use the controller/view split 
 
 ```
 Page.tsx                  → PagePermissionGuard + controller hook only
-hooks/use*Controller.ts   → queries, mutations, local state, handlers
-components/*PageView.tsx  → presentational markup
+hooks/use*Controller.ts   → queries, mutations, local state, handlers (under src/hooks/{feature}/)
+components/*PageView.tsx  → presentational markup (under src/components/{feature}/)
 components/*Dialog.tsx    → modal sub-surfaces (optional)
 hooks/use*TableColumns.tsx → table column config (optional)
 ```
 
-Reference: [`src/pages/activities/BookingsPage.tsx`](src/pages/activities/BookingsPage.tsx) + [`useBookingsPageController.ts`](src/pages/activities/hooks/useBookingsPageController.ts) + [`BookingsPageView.tsx`](src/pages/activities/components/BookingsPageView.tsx).
+Reference: [`src/pages/activities/BookingsPage.tsx`](src/pages/activities/BookingsPage.tsx) + [`useBookingsPageController.ts`](src/hooks/activities/useBookingsPageController.ts) + [`BookingsPageView.tsx`](src/components/activities/BookingsPageView.tsx).
 
 ### Page test mocks
 

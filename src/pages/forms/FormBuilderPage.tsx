@@ -320,7 +320,7 @@ function FormBuilderEditor({
                   <section className="grid gap-2">
                     <p>There are no registration types defined yet for this event. You must have registration types defined for members to be able to apply for the event.</p>
                     <PagePermissionGuard
-                      pageName="registration-types"
+                      pageName="RegistrationTypesPage"
                       operation="create"
                       scope={scope}
                       fallback={null}
@@ -400,7 +400,7 @@ function FormBuilderEditor({
 
   return (
     <PagePermissionGuard
-      pageName="form-builder"
+      pageName="FormBuilderPage"
       operation="update"
       scope={scope}
       fallback={renderShell(true)}
@@ -462,7 +462,7 @@ export function FormBuilderPage() {
 
   return (
     <PagePermissionGuard
-      pageName="form-builder"
+      pageName="FormBuilderPage"
       operation="read"
       scope={scope}
       fallback={<AccessDenied />}

@@ -12,16 +12,16 @@ import {
   LoadingSpinner,
 } from '@solvera/pace-core/components';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
-import type { ApplicationTableRow } from '@/pages/applications/components/applicationQueueTypes';
-import type { ApplicationsPageController } from '@/pages/applications/hooks/useApplicationsPageController';
-import { ApplicationQueueClipboardIcon } from '@/pages/applications/components/ApplicationQueueClipboardIcon';
+import type { ApplicationTableRow } from '@/components/applications/applicationQueueTypes';
+import type { ApplicationsPageController } from '@/hooks/applications/useApplicationsPageController';
+import { ApplicationQueueClipboardIcon } from '@/components/applications/ApplicationQueueClipboardIcon';
 import {
   ApplicationConfirmationDialogs,
-} from '@/pages/applications/components/ApplicationConfirmationDialogs';
+} from '@/components/applications/ApplicationConfirmationDialogs';
 import {
   ApplicationDetailDialog,
   ApplicationReviewStepsDialog,
-} from '@/pages/applications/components/ApplicationDetailDialog';
+} from '@/components/applications/ApplicationDetailDialog';
 
 export function ApplicationsPageView({ ctl }: { ctl: ApplicationsPageController }) {
   return (
@@ -81,7 +81,7 @@ export function ApplicationsPageView({ ctl }: { ctl: ApplicationsPageController 
           <DataTable<ApplicationTableRow>
             data={ctl.tableRows}
             columns={ctl.tableColumns}
-            rbac={{ pageName: 'applications' }}
+            rbac={{ pageName: 'ApplicationsPage' }}
             isLoading={ctl.queueQuery.isLoading}
             emptyState={{ description: 'No applications have been submitted for this event.' }}
             features={{

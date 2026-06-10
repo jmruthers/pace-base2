@@ -13,8 +13,8 @@ import {
 } from '@solvera/pace-core/components';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
 import { getQueueSyncBadge } from '@/features/scanningSetup/scanningBadges';
-import type { ScanningSetupController } from '@/pages/scanning/hooks/useScanningSetupController';
-import { SCAN_SETUP_MANIFEST_TYPES, queueFailureReasonLabel } from '@/pages/scanning/components/scanSetupHelpers';
+import type { ScanningSetupController } from '@/hooks/scanning/useScanningSetupController';
+import { SCAN_SETUP_MANIFEST_TYPES, queueFailureReasonLabel } from '@/components/scanning/scanSetupHelpers';
 
 const STANDARD_DATA_TABLE_FEATURES = {
   search: true,
@@ -97,7 +97,7 @@ function ScanningSetupScanPointsSection({ ctl }: { ctl: ScanningSetupController 
           <DataTable
             data={ctl.scanPoints as unknown as Array<Record<string, unknown>>}
             columns={ctl.scanPointColumns as never}
-            rbac={{ pageName: 'scanning' }}
+            rbac={{ pageName: 'ScanningPage' }}
             title="Scan Points"
             isLoading={ctl.scanPointsQuery.isLoading}
             emptyState={{
@@ -132,13 +132,11 @@ function ScanningSetupQueueSection({ ctl }: { ctl: ScanningSetupController }) {
             <Badge variant={getQueueSyncBadge('pending').variant} role="status">
               {getQueueSyncBadge('pending').label}: {ctl.queueCounts.pending}
             </Badge>
-            <Badge
-              variant={getQueueSyncBadge('syncing').variant}
-              className={getQueueSyncBadge('syncing').className}
-              role="status"
-            >
-              {getQueueSyncBadge('syncing').label}: {ctl.queueCounts.syncing}
-            </Badge>
+            <span className={getQueueSyncBadge('syncing').className}>
+              <Badge variant={getQueueSyncBadge('syncing').variant} role="status">
+                {getQueueSyncBadge('syncing').label}: {ctl.queueCounts.syncing}
+              </Badge>
+            </span>
             <Badge variant={getQueueSyncBadge('synced').variant} role="status">
               {getQueueSyncBadge('synced').label}: {ctl.queueCounts.synced}
             </Badge>
@@ -192,7 +190,7 @@ function ScanningSetupConflictsSection({ ctl }: { ctl: ScanningSetupController }
         <DataTable
           data={(ctl.conflictsQuery.data ?? []) as unknown as Array<Record<string, unknown>>}
           columns={ctl.conflictColumns as never}
-          rbac={{ pageName: 'scanning' }}
+          rbac={{ pageName: 'ScanningPage' }}
           title="Sync Conflicts"
           isLoading={ctl.conflictsQuery.isLoading}
           emptyState={{ description: 'No unresolved sync conflicts.' }}
@@ -219,7 +217,7 @@ function ScanningSetupHistorySection({ ctl }: { ctl: ScanningSetupController }) 
         <DataTable
           data={(ctl.historyQuery.data ?? []) as unknown as Array<Record<string, unknown>>}
           columns={ctl.historyColumns as never}
-          rbac={{ pageName: 'scanning' }}
+          rbac={{ pageName: 'ScanningPage' }}
           title="Scan History"
           isLoading={ctl.historyQuery.isLoading}
           emptyState={{ description: 'No scan events recorded yet.' }}

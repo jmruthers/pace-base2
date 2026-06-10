@@ -9,7 +9,7 @@ import {
   useReviewingOrganisationsForEvent,
 } from '@/features/registrationSetup/configuration';
 import type { RegistrationTypeEligibilityRow, RegistrationTypeRow } from '@/features/registrationSetup/types';
-import { registrationScope } from '../registrationScope';
+import { registrationScope } from '@/pages/registrationTypes/registrationScope';
 
 export type RegistrationTypeEditPayload = {
   row: RegistrationTypeRow;

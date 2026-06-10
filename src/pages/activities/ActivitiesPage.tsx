@@ -409,7 +409,7 @@ export function ActivitiesPage() {
             <Button type="button" variant="outline" size="small" onClick={() => navigate(`/activities/${row.id}`)}>
               View
             </Button>
-            <PagePermissionGuard pageName="activities" operation="delete" scope={scope} fallback={null}>
+            <PagePermissionGuard pageName="ActivitiesPage" operation="delete" scope={scope} fallback={null}>
               <Button type="button" variant="destructive" size="small" onClick={() => setDeleteOffering(row)}>
                 Delete
               </Button>
@@ -492,7 +492,7 @@ export function ActivitiesPage() {
         <p>Manage activity offerings and sessions for {eventName}.</p>
       </header>
 
-      <PagePermissionGuard pageName="activities" operation="create" scope={scope} fallback={null}>
+      <PagePermissionGuard pageName="ActivitiesPage" operation="create" scope={scope} fallback={null}>
         <section>
           <Button
             type="button"
@@ -520,7 +520,7 @@ export function ActivitiesPage() {
       <DataTable<(typeof tableRows)[number]>
         data={tableRows}
         columns={columns}
-        rbac={{ pageName: 'activities' }}
+        rbac={{ pageName: 'ActivitiesPage' }}
         title="Activity Offerings"
         description={`${tableRows.length} offerings for ${eventName}`}
         isLoading={offeringsQuery.isLoading}

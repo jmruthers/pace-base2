@@ -14,14 +14,14 @@ import {
 } from '@solvera/pace-core/components';
 import { PagePermissionGuard } from '@solvera/pace-core/rbac';
 import { NormalizeSupabaseError, formatDateTime } from '@solvera/pace-core/utils';
-import { ActivityOfferingOfferingEditDialog } from '@/pages/activities/components/ActivityOfferingOfferingEditDialog';
-import type { ActivityOfferingPageController } from '@/pages/activities/hooks/useActivityOfferingPageController';
-import { ActivityOfferingDeleteSessionDialog } from '@/pages/activities/components/ActivityOfferingDeleteSessionDialog';
-import { ActivityOfferingSessionDialog } from '@/pages/activities/components/ActivityOfferingSessionDialog';
+import { ActivityOfferingOfferingEditDialog } from '@/components/activities/ActivityOfferingOfferingEditDialog';
+import type { ActivityOfferingPageController } from '@/hooks/activities/useActivityOfferingPageController';
+import { ActivityOfferingDeleteSessionDialog } from '@/components/activities/ActivityOfferingDeleteSessionDialog';
+import { ActivityOfferingSessionDialog } from '@/components/activities/ActivityOfferingSessionDialog';
 import {
   formatOfferingCostDisplay,
 } from '@/pages/activities/activityOfferingPageHelpers';
-import { useActivityOfferingSessionsColumns } from '@/pages/activities/hooks/useActivityOfferingSessionsColumns';
+import { useActivityOfferingSessionsColumns } from '@/hooks/activities/useActivityOfferingSessionsColumns';
 import { isBookingOpenNow } from '@/features/activityOfferingSetup/shared';
 import type { ActivitySessionRow } from '@/features/activityOfferingSetup/types';
 
@@ -109,7 +109,7 @@ export function ActivityOfferingPageView({ ctl }: { ctl: ActivityOfferingPageCon
         <CardHeader>
           <CardTitle>{offering.name}</CardTitle>
           <CardDescription>Offering details</CardDescription>
-          <PagePermissionGuard pageName="activities" operation="update" scope={ctl.scope} fallback={null}>
+          <PagePermissionGuard pageName="ActivitiesPage" operation="update" scope={ctl.scope} fallback={null}>
             <section>
               <Button type="button" variant="outline" onClick={() => ctl.offerEditOffering(offering)}>
                 Edit offering
@@ -147,7 +147,7 @@ export function ActivityOfferingPageView({ ctl }: { ctl: ActivityOfferingPageCon
         </Alert>
       ) : null}
 
-      <PagePermissionGuard pageName="activities" operation="create" scope={ctl.scope} fallback={null}>
+      <PagePermissionGuard pageName="ActivitiesPage" operation="create" scope={ctl.scope} fallback={null}>
         <section>
           <Button type="button" onClick={ctl.offerCreateSession}>
             Add session
@@ -158,7 +158,7 @@ export function ActivityOfferingPageView({ ctl }: { ctl: ActivityOfferingPageCon
       <DataTable<(ActivitySessionRow & Record<string, unknown>)>
         data={ctl.sessionRows as Array<ActivitySessionRow & Record<string, unknown>>}
         columns={sessionColumns}
-        rbac={{ pageName: 'activities' }}
+        rbac={{ pageName: 'ActivitiesPage' }}
         title="Sessions"
         description="Sessions for this offering."
         isLoading={ctl.sessionsQuery.isLoading}

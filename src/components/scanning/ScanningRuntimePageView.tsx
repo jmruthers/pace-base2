@@ -8,7 +8,7 @@ import {
 
 import type { ScanningRuntimePageController } from '@/pages/scanning/scanningRuntimeControllerTypes';
 
-import { ScanningRuntimeReadyView } from '@/pages/scanning/components/ScanningRuntimeReadyView';
+import { ScanningRuntimeReadyView } from '@/components/scanning/ScanningRuntimeReadyView';
 
 type Props = {
   page: ScanningRuntimePageController;

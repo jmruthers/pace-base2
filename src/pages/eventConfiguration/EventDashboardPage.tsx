@@ -234,7 +234,7 @@ export function EventDashboardPage() {
 
   return (
     <PagePermissionGuard
-      pageName="event-dashboard"
+      pageName="EventDashboardPage"
       operation="read"
       scope={{
         organisationId,

@@ -1,7 +1,7 @@
 import { LoadingSpinner } from '@solvera/pace-core/components';
 import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
-import { ScanningTrackingPageView } from '@/pages/scanning/components/ScanningTrackingPageView';
-import { useScanningTrackingPageController } from '@/pages/scanning/hooks/useScanningTrackingPageController';
+import { ScanningTrackingPageView } from '@/components/scanning/ScanningTrackingPageView';
+import { useScanningTrackingPageController } from '@/hooks/scanning/useScanningTrackingPageController';
 
 function ScanningTrackingPageInner() {
   const ctl = useScanningTrackingPageController();
@@ -22,7 +22,7 @@ export function ScanningTrackingPage() {
 
   return (
     <PagePermissionGuard
-      pageName="scanning"
+      pageName="ScanningPage"
       operation="read"
       scope={{ organisationId, eventId, appId: appId ?? undefined }}
       fallback={<AccessDenied />}

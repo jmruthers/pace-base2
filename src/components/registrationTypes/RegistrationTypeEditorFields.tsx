@@ -42,7 +42,7 @@ interface RegistrationTypeEditorFieldsProps {
 export function RegistrationTypeEditorFields(props: RegistrationTypeEditorFieldsProps) {
   return (
     <PagePermissionGuard
-      pageName="registration-types"
+      pageName="RegistrationTypesPage"
       operation="update"
       scope={props.scope}
       fallback={null}

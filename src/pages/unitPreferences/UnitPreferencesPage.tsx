@@ -1,6 +1,6 @@
 import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
-import { UnitPreferencesPageView } from '@/pages/unitPreferences/components/UnitPreferencesPageView';
-import { useUnitPreferencesPageController } from '@/pages/unitPreferences/hooks/useUnitPreferencesPageController';
+import { UnitPreferencesPageView } from '@/components/unitPreferences/UnitPreferencesPageView';
+import { useUnitPreferencesPageController } from '@/hooks/unitPreferences/useUnitPreferencesPageController';
 
 function UnitPreferencesPageInner() {
   const ctl = useUnitPreferencesPageController();
@@ -12,7 +12,7 @@ export function UnitPreferencesPage() {
 
   return (
     <PagePermissionGuard
-      pageName="unit-preferences"
+      pageName="UnitPreferencesPage"
       operation="read"
       scope={{ organisationId, eventId, appId: appId ?? undefined }}
       fallback={<AccessDenied />}

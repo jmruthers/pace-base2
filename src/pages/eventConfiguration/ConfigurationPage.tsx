@@ -301,7 +301,7 @@ function EventStylingFields({ readOnly }: EventStylingFieldsProps) {
   );
 }
 
-export function EventConfigurationRoute() {
+export function ConfigurationPage() {
   const { toast } = useToast();
   const storageSupabase = useStorageCapableClient();
   const { selectedEventId, user } = useUnifiedAuth();
@@ -435,7 +435,7 @@ export function EventConfigurationRoute() {
               </CardHeader>
               <CardContent>
                 <PagePermissionGuard
-                  pageName="configuration"
+                  pageName="ConfigurationPage"
                   operation="update"
                   scope={updateScope}
                   fallback={<ConfigurationFields methods={methods} readOnly />}
@@ -444,10 +444,12 @@ export function EventConfigurationRoute() {
                 </PagePermissionGuard>
               </CardContent>
               <CardFooter className="text-right">
-                <PagePermissionGuard pageName="configuration" operation="update" scope={updateScope} fallback={null}>
-                  <Button type="submit" disabled={saveMutation.isPending} className="min-w-32">
-                    {saveMutation.isPending ? 'Saving…' : 'Save'}
-                  </Button>
+                <PagePermissionGuard pageName="ConfigurationPage" operation="update" scope={updateScope} fallback={null}>
+                  <section className="inline-grid min-w-32">
+                    <Button type="submit" disabled={saveMutation.isPending}>
+                      {saveMutation.isPending ? 'Saving…' : 'Save'}
+                    </Button>
+                  </section>
                 </PagePermissionGuard>
               </CardFooter>
             </Card>
@@ -473,7 +475,7 @@ export function EventConfigurationRoute() {
                     )}
                   </article>
                   <article className="grid gap-2">
-                    <PagePermissionGuard pageName="configuration" operation="update" scope={updateScope} fallback={null}>
+                    <PagePermissionGuard pageName="ConfigurationPage" operation="update" scope={updateScope} fallback={null}>
                       {isScopeLoading ? (
                         <p>Loading app configuration…</p>
                       ) : appId == null ? (
@@ -490,7 +492,7 @@ export function EventConfigurationRoute() {
                           app_id={appId}
                           category="event_logos"
                           folder="event_logos"
-                          pageContext="configuration"
+                          pageContext="ConfigurationPage"
                           event_id={selectedEventId}
                           is_public
                           accept="image/*"
@@ -544,7 +546,7 @@ export function EventConfigurationRoute() {
                   </article>
                 </section>
                 <PagePermissionGuard
-                  pageName="configuration"
+                  pageName="ConfigurationPage"
                   operation="update"
                   scope={updateScope}
                   fallback={<EventStylingFields readOnly />}

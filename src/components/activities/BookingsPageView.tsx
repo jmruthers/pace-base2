@@ -10,12 +10,12 @@ import {
 } from '@solvera/pace-core/components';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
 import type { BookingTableRow } from '@/features/bookingOversight/types';
-import type { BookingsPageController } from '@/pages/activities/hooks/useBookingsPageController';
-import { BookingCancelConfirmDialog } from '@/pages/activities/components/BookingCancelConfirmDialog';
-import { BookingOnBehalfDialog } from '@/pages/activities/components/BookingOnBehalfDialog';
-import { BookingOverrideReasonDialog } from '@/pages/activities/components/BookingOverrideReasonDialog';
-import { BookingPromoteConfirmDialog } from '@/pages/activities/components/BookingPromoteConfirmDialog';
-import { useBookingsTableColumns } from '@/pages/activities/hooks/useBookingsTableColumns';
+import type { BookingsPageController } from '@/hooks/activities/useBookingsPageController';
+import { BookingCancelConfirmDialog } from '@/components/activities/BookingCancelConfirmDialog';
+import { BookingOnBehalfDialog } from '@/components/activities/BookingOnBehalfDialog';
+import { BookingOverrideReasonDialog } from '@/components/activities/BookingOverrideReasonDialog';
+import { BookingPromoteConfirmDialog } from '@/components/activities/BookingPromoteConfirmDialog';
+import { useBookingsTableColumns } from '@/hooks/activities/useBookingsTableColumns';
 
 export function BookingsPageView({ ctl }: { ctl: BookingsPageController }) {
   const columns = useBookingsTableColumns({
@@ -65,7 +65,7 @@ export function BookingsPageView({ ctl }: { ctl: BookingsPageController }) {
               <DataTable<BookingTableRow>
                 data={ctl.tableRows}
                 columns={columns}
-                rbac={{ pageName: 'bookings' }}
+                rbac={{ pageName: 'BookingsPage' }}
                 title="Activity Bookings"
                 description={`${ctl.tableRows.length} bookings for ${ctl.eventName}`}
                 isLoading={ctl.bookingsQuery.isLoading}

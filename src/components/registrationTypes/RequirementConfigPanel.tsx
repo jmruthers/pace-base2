@@ -37,7 +37,7 @@ export function RequirementConfigPanel(props: RequirementConfigPanelProps) {
   const layout = props.layout ?? 'default';
 
   return (
-    <PagePermissionGuard pageName="registration-types" operation="update" scope={props.scope} fallback={null}>
+    <PagePermissionGuard pageName="RegistrationTypesPage" operation="update" scope={props.scope} fallback={null}>
       {props.rule.check_type === 'guardian_approval' ? (
         layout === 'table' ? (
           <section className="grid min-w-0 gap-2">

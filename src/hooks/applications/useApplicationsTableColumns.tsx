@@ -5,7 +5,7 @@ import {
   applicationStatusVariant,
   getChecksSummary,
 } from '@/features/applicationsAdmin/stateHelpers';
-import type { ApplicationTableRow } from '@/pages/applications/components/applicationQueueTypes';
+import type { ApplicationTableRow } from '@/components/applications/applicationQueueTypes';
 
 export function useApplicationsTableColumns(args: {
   registrationTypeFilterOptions: Array<{ value: string; label: string }>;

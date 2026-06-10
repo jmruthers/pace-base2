@@ -168,7 +168,7 @@ describe('EventDashboardPage', () => {
     render(<EventDashboardPage />);
 
     expect(guardPropsState.lastProps).toMatchObject({
-      pageName: 'event-dashboard',
+      pageName: 'EventDashboardPage',
       operation: 'read',
       scope: {
         organisationId: 'org-1',

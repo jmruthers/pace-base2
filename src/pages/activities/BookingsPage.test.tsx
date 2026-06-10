@@ -59,10 +59,10 @@ vi.mock('@solvera/pace-core/rbac', () => ({
   }),
   useSecureSupabase: () => ({}),
   useCan: (permission: string) => {
-    if (permission === 'read:page.bookings') return { can: state.canRead, isLoading: false };
-    if (permission === 'create:page.bookings') return { can: state.canCreate, isLoading: false };
-    if (permission === 'update:page.bookings') return { can: state.canUpdate, isLoading: false };
-    if (permission === 'delete:page.bookings') return { can: state.canDelete, isLoading: false };
+    if (permission === 'read:page.BookingsPage') return { can: state.canRead, isLoading: false };
+    if (permission === 'create:page.BookingsPage') return { can: state.canCreate, isLoading: false };
+    if (permission === 'update:page.BookingsPage') return { can: state.canUpdate, isLoading: false };
+    if (permission === 'delete:page.BookingsPage') return { can: state.canDelete, isLoading: false };
     return { can: false, isLoading: false };
   },
   PagePermissionGuard: ({

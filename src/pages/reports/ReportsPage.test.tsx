@@ -65,7 +65,7 @@ describe('ReportsPage', () => {
         initialExploreKey: 'base.participant',
         availableExploreKeys: ['base.participant', 'base.unit', 'base.activity', 'base.scan'],
         scopeValue: 'event-1',
-        reportResultsRbac: { pageName: 'reports' },
+        reportResultsRbac: { pageName: 'ReportsPage' },
       })
     );
   });

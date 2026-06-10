@@ -24,7 +24,7 @@ import {
   formatSessionDisplayLabel,
   formatUnitDisplayLabel,
 } from '@/features/unitsCoordination/unitsDisplayAndPreferenceHelpers';
-import type { UnitPreferencesPageController } from '@/pages/unitPreferences/hooks/useUnitPreferencesPageController';
+import type { UnitPreferencesPageController } from '@/hooks/unitPreferences/useUnitPreferencesPageController';
 
 export function UnitPreferencesPageView({ ctl }: { ctl: UnitPreferencesPageController }) {
   return (
@@ -153,7 +153,7 @@ export function UnitPreferencesPageView({ ctl }: { ctl: UnitPreferencesPageContr
                       <p>{formatSessionDisplayLabel(session)}</p>
                       <p>{session.start_time != null ? formatDateTime(session.start_time) : 'No start time'}</p>
                     </section>
-                    <PagePermissionGuard pageName="unit-preferences" operation="update" scope={ctl.scope} fallback={null}>
+                    <PagePermissionGuard pageName="UnitPreferencesPage" operation="update" scope={ctl.scope} fallback={null}>
                       <Button
                         type="button"
                         variant="outline"
@@ -199,7 +199,7 @@ export function UnitPreferencesPageView({ ctl }: { ctl: UnitPreferencesPageContr
                         <p>{session != null ? formatSessionDisplayLabel(session) : preference.session_id}</p>
                         <p>{session?.start_time != null ? formatDateTime(session.start_time) : 'No start time'}</p>
                       </section>
-                      <PagePermissionGuard pageName="unit-preferences" operation="update" scope={ctl.scope} fallback={null}>
+                      <PagePermissionGuard pageName="UnitPreferencesPage" operation="update" scope={ctl.scope} fallback={null}>
                         <Button
                           type="button"
                           variant="destructive"
@@ -219,7 +219,7 @@ export function UnitPreferencesPageView({ ctl }: { ctl: UnitPreferencesPageContr
                 <p>Ranks must be contiguous starting at 1 before preferences can be submitted.</p>
               ) : null}
 
-              <PagePermissionGuard pageName="unit-preferences" operation="update" scope={ctl.scope} fallback={null}>
+              <PagePermissionGuard pageName="UnitPreferencesPage" operation="update" scope={ctl.scope} fallback={null}>
                 <Button
                   type="button"
                   onClick={() => ctl.setPendingSubmitConfirmOpen(true)}

@@ -244,7 +244,7 @@ export function FormsListPage() {
   };
 
   return (
-    <PagePermissionGuard pageName="forms" operation="read" scope={scope} fallback={<AccessDenied />}>
+    <PagePermissionGuard pageName="FormsPage" operation="read" scope={scope} fallback={<AccessDenied />}>
       <main className="grid gap-4">
         <section className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
           <header className="grid gap-1">
@@ -253,7 +253,7 @@ export function FormsListPage() {
           </header>
 
           {selectedEventId != null ? (
-            <PagePermissionGuard pageName="forms" operation="create" scope={scope} fallback={null}>
+            <PagePermissionGuard pageName="FormsPage" operation="create" scope={scope} fallback={null}>
               <Button type="button" onClick={() => navigate('/form-builder')}>
                 Create Form
               </Button>
@@ -322,7 +322,7 @@ export function FormsListPage() {
                   <Button type="button" aria-label={`Preview ${form.name}`} onClick={() => handlePreview(form)}>
                     <PreviewIcon />
                   </Button>
-                  <PagePermissionGuard pageName="forms" operation="update" scope={scope} fallback={null}>
+                  <PagePermissionGuard pageName="FormsPage" operation="update" scope={scope} fallback={null}>
                     <Button
                       type="button"
                       aria-label={`Delete ${form.name}`}

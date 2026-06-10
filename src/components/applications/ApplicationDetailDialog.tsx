@@ -31,7 +31,7 @@ import {
   renderJsonValue,
 } from '@/features/applicationsAdmin/stateHelpers';
 import type { UseQueryResult } from '@tanstack/react-query';
-import type { ApplicationTableRow } from '@/pages/applications/components/applicationQueueTypes';
+import type { ApplicationTableRow } from '@/components/applications/applicationQueueTypes';
 import {
   isOverrideAllowed,
   isReissueEligible,
@@ -264,7 +264,7 @@ function ApplicationDetailChecksSection({
                 {check.notes != null ? <p>Notes: {check.notes}</p> : null}
 
                 {showEventActions ? (
-                  <PagePermissionGuard pageName="applications" operation="update" scope={scope} fallback={null}>
+                  <PagePermissionGuard pageName="ApplicationsPage" operation="update" scope={scope} fallback={null}>
                     <section className="grid grid-cols-1 gap-2 md:grid-cols-2">
                       <Button type="button" variant="outline" onClick={() => onRequestSatisfyCheck(check.id)}>
                         Satisfy check
@@ -277,7 +277,7 @@ function ApplicationDetailChecksSection({
                 ) : null}
 
                 {isReissueEligible(check) ? (
-                  <PagePermissionGuard pageName="applications" operation="update" scope={scope} fallback={null}>
+                  <PagePermissionGuard pageName="ApplicationsPage" operation="update" scope={scope} fallback={null}>
                     <section>
                       <Button type="button" variant="outline" onClick={() => onRequestReissueLink(check.id)}>
                         Reissue link
@@ -308,7 +308,7 @@ function ApplicationDetailFooterActions({
   return (
     <DialogFooter className="text-right">
       {isOverrideAllowed(detailRow.status) ? (
-        <PagePermissionGuard pageName="applications" operation="update" scope={scope} fallback={null}>
+        <PagePermissionGuard pageName="ApplicationsPage" operation="update" scope={scope} fallback={null}>
           <section className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <Button type="button" onClick={onApproveRequest}>
               Approve application

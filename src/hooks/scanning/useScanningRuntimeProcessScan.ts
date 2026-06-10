@@ -6,7 +6,7 @@ import { isOk } from '@solvera/pace-core/types';
 import type { ScanPointRecord } from '@/features/scanningRuntime/types';
 import { buildQueueEntry } from '@/features/scanningRuntime/queue/scanQueueHelpers';
 import { validateScan } from '@/features/scanningRuntime/validation/validateScan';
-import type { PendingScanOverrideState, ScanningRuntimePanelState } from '../scanningRuntimePageTypes';
+import type { PendingScanOverrideState, ScanningRuntimePanelState } from '@/pages/scanning/scanningRuntimePageTypes';
 
 type ProcessScanDeps = {
   scanGenRef: MutableRefObject<number>;

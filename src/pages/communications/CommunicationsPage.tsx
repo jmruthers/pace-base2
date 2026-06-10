@@ -59,7 +59,7 @@ export function CommunicationsPage() {
   );
 
   const communicationsPermissions = useResourcePermissions(
-    'communications',
+    'CommunicationsPage',
     ['read', 'create', 'update'],
     permissionScope
   );
@@ -74,7 +74,7 @@ export function CommunicationsPage() {
 
   return (
     <PagePermissionGuard
-      pageName="communications"
+      pageName="CommunicationsPage"
       operation="read"
       scope={permissionScope}
       fallback={<AccessDenied />}
@@ -268,14 +268,15 @@ function CommunicationsPageContent({
           </section>
 
           {hasActiveCommunicationFilters(filters) ? (
-            <Button
-              type="button"
-              variant="link"
-              className="justify-self-end"
-              onClick={() => setFilters(EMPTY_COMMUNICATION_FILTERS)}
-            >
-              Clear filters
-            </Button>
+            <section className="justify-self-end">
+              <Button
+                type="button"
+                variant="link"
+                onClick={() => setFilters(EMPTY_COMMUNICATION_FILTERS)}
+              >
+                Clear filters
+              </Button>
+            </section>
           ) : null}
         </>
       ) : (

@@ -2,7 +2,7 @@ import { Badge, Button } from '@solvera/pace-core/components';
 import { PagePermissionGuard } from '@solvera/pace-core/rbac';
 import { useMemo } from 'react';
 import type { UnitAssignmentTableRow, UnitRoleTypeRow } from '@/features/unitsCoordination/types';
-import type { UnitsPageScope } from '@/pages/units/hooks/unitsPageScope';
+import type { UnitsPageScope } from '@/hooks/units/unitsPageScope';
 
 export function useUnitsRoleTypesColumns(scope: UnitsPageScope, onDeleteRoleType: (row: UnitRoleTypeRow) => void) {
   return useMemo(
@@ -18,7 +18,7 @@ export function useUnitsRoleTypesColumns(scope: UnitsPageScope, onDeleteRoleType
         id: 'roleTypeActions',
         header: 'Actions',
         cell: ({ row }: { row: UnitRoleTypeRow }) => (
-          <PagePermissionGuard pageName="units" operation="delete" scope={scope} fallback={null}>
+          <PagePermissionGuard pageName="UnitsPage" operation="delete" scope={scope} fallback={null}>
             <Button type="button" variant="destructive" onClick={() => onDeleteRoleType(row)}>
               Delete
             </Button>
@@ -69,7 +69,7 @@ export function useAssignmentsTableColumns(
         header: 'Actions',
         cell: ({ row }: { row: UnitAssignmentTableRow }) =>
           row.role_assignment_id == null ? null : (
-            <PagePermissionGuard pageName="units" operation="update" scope={scope} fallback={null}>
+            <PagePermissionGuard pageName="UnitsPage" operation="update" scope={scope} fallback={null}>
               <Button
                 type="button"
                 variant="destructive"

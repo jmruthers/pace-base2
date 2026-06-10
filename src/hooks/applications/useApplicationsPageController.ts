@@ -21,12 +21,12 @@ import {
   applicationStatusLabel,
 } from '@/features/applicationsAdmin/stateHelpers';
 import { useRetryRefetchHandler } from '@/features/applicationsAdmin/queryHelpers';
-import type { ApplicationTableRow } from '@/pages/applications/components/applicationQueueTypes';
+import type { ApplicationTableRow } from '@/components/applications/applicationQueueTypes';
 import {
   eventNameFromSelection,
   isTransitionConflict,
 } from '@/pages/applications/applicationPagePure';
-import { useApplicationsTableColumns } from '@/pages/applications/hooks/useApplicationsTableColumns';
+import { useApplicationsTableColumns } from '@/hooks/applications/useApplicationsTableColumns';
 
 export function useApplicationsPageController() {
   const queryClient = useQueryClient();
