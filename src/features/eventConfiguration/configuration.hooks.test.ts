@@ -55,7 +55,8 @@ function createValues(overrides: Partial<EventConfigurationFormValues> = {}): Ev
     typical_unit_size: 5,
     description: 'Description',
     registration_scope: 'hierarchy',
-    is_visible: true,
+    visibility: 'listed',
+    status: 'active',
     event_colours: '{"primary":"#000000"}',
     ...overrides,
   };
@@ -173,6 +174,8 @@ describe('eventConfiguration configuration hooks', () => {
       'app_event_configuration_update',
       expect.objectContaining({
         p_event_id: 'event-1',
+        p_visibility: 'listed',
+        p_status: 'active',
       })
     );
   });

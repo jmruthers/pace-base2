@@ -13,7 +13,8 @@ export interface EventConfigurationRecord {
   expected_participants: number | null;
   typical_unit_size: number | null;
   event_colours: unknown;
-  is_visible: boolean | null;
+  visibility: 'listed' | 'unlisted' | 'public' | null;
+  status: 'draft' | 'active' | 'closed' | 'cancelled' | 'archived' | null;
   organisation_id: string | null;
   description: string | null;
   registration_scope: 'org_only' | 'hierarchy' | 'open' | null;
@@ -34,7 +35,8 @@ export interface EventConfigurationFormValues {
   typical_unit_size: number;
   description: string | null;
   registration_scope: 'org_only' | 'hierarchy' | 'open' | null;
-  is_visible: boolean;
+  visibility: 'listed' | 'unlisted';
+  status: 'draft' | 'active' | 'closed' | 'cancelled' | 'archived';
   event_colours: string | null;
 }
 

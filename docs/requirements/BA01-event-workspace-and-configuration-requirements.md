@@ -4,7 +4,7 @@
 
 - Status: Draft
 - Depends on: BA00 (App Shell and Access)
-- Backend impact: Read + write contracts; no schema changes
+- Backend impact: Read + write contracts; consumes `core_events.visibility` and `core_events.status` (DEC-087)
 - Frontend impact: UI
 
 ## 2. Overview
@@ -49,9 +49,9 @@ This slice owns the authenticated organiser's entry surface for working inside a
 - This slice does not own catering, news, round-down, or youth-multiplier fields (CAKE-owned, lives in a separate app's slice).
 - This slice does not own any participant-facing fields (`participant_blurb`, `participant_admin_email`, `participant_website_url`) — those are owned by pace-portal.
 - This slice does not own `event_billing` (system-managed).
-- This slice does not own `public_readable` (deprecated; not surfaced).
 - This slice does not own the global event picker.
-- This slice does not own org-level event provisioning (event creation, deletion, lifecycle transitions).
+- This slice does not own org-level event provisioning (event creation, deletion).
+- This slice surfaces `visibility` and `status` on `/configuration`; confirmation UX for destructive status transitions (e.g. `cancelled`) may be added in a follow-up.
 
 **Architectural posture.**
 - Import policy is root-first for consuming apps: use `@solvera/pace-core` as the default import surface. Scoped entrypoints (for example `/rbac`, `/hooks`, `/components`, `/forms`) are exception-only and used only when the root export does not expose the required symbol or a documented advanced/performance/migration case requires the scoped path.
@@ -149,11 +149,12 @@ The card's content body contains the following fields, in the order listed, grou
 33. C-PC-09 — Field "Typical Unit Size". Number input, integer, min 0, default 0. Maps to `core_events.typical_unit_size`.
 34. C-PC-10 — Field "Event Description". Multi-line textarea (4 rows initial), optional, max 5000 chars. Maps to `core_events.description`.
 35. C-PC-11 — Field "Registration Scope". Required Select with three options (`Org only` / `Hierarchy` / `Open`). Maps to `core_events.registration_scope`. Allowed-value rule per §6.7.
-36. C-PC-12 — Field "Event is visible". Switch (boolean), default true. Maps to `core_events.is_visible`.
+36. C-PC-12 — Field "Visibility". Required Select (`Listed` / `Unlisted`). Maps to `core_events.visibility`. `listed` = appears in the event browser for in-scope members when `status = active`; `unlisted` = link-only, joins the personal list after registering.
+37. C-PC-12b — Field "Status". Required Select (`Draft` / `Active` / `Closed` / `Cancelled` / `Archived`). Maps to `core_events.status`. Lifecycle semantics per DEC-087; any transition is permitted at DB level.
 
 **Primary content — Event Styling card**
-37. C-PC-13 — A two-column section (per §6.11). Left column: logo display area managed per §6.13. When `logoRef` (state) is not null, render `FileDisplay` with `bucket="public-files"`. In the current pace-core contract, `variant="inline"` renders an inline download/view link container (not an `<img>` element). When `logoRef` is null, render a styled fallback placeholder (same dimensions) containing the abbreviated event name per §6.5. Right column: logo upload via `FileUpload` (wrapped in `PagePermissionGuard pageName="configuration" operation="update" fallback={null}`).
-38. C-PC-14 — Below the logo section: field "Event Colours (JSON)". Multi-line textarea (4 rows initial). Helper text reads "Enter valid JSON format for event colours". Placeholder reads `{"primary": "#000000", "secondary": "#ffffff"}`. Validation rule per §6.8.
+38. C-PC-13 — A two-column section (per §6.11). Left column: logo display area managed per §6.13. When `logoRef` (state) is not null, render `FileDisplay` with `bucket="public-files"`. In the current pace-core contract, `variant="inline"` renders an inline download/view link container (not an `<img>` element). When `logoRef` is null, render a styled fallback placeholder (same dimensions) containing the abbreviated event name per §6.5. Right column: logo upload via `FileUpload` (wrapped in `PagePermissionGuard pageName="configuration" operation="update" fallback={null}`).
+39. C-PC-14 — Below the logo section: field "Event Colours (JSON)". Multi-line textarea (4 rows initial). Helper text reads "Enter valid JSON format for event colours". Placeholder reads `{"primary": "#000000", "secondary": "#ffffff"}`. Validation rule per §6.8.
 
 **Primary actions**
 39. C-PA-01 — A "Save" button is rendered at the bottom-right of the main configuration card. Minimum width 120px. Wrapped in `PagePermissionGuard` with `pageName="configuration"`, `operation="update"`, and `fallback={null}` (button hidden if not authorised).
@@ -247,8 +248,21 @@ The BA01 form implementation uses `useZodForm` with pace-core `Form` surfaces. V
 | `typical_unit_size` | integer, min 0, default 0. |
 | `description` | optional, nullable; max 5000 chars. |
 | `registration_scope` | required; one of `'org_only'`, `'hierarchy'`, `'open'`; "Registration scope is required". |
-| `is_visible` | boolean, default true. |
+| `visibility` | required; one of `'listed'`, `'unlisted'`; default `'unlisted'` when creating new form state (loaded record overrides). |
+| `status` | required; one of `'draft'`, `'active'`, `'closed'`, `'cancelled'`, `'archived'`; default `'draft'` when creating new form state (loaded record overrides). |
 | `event_colours` | optional, nullable string; JSON validity checked separately per §6.8. |
+
+### 6.7a Visibility and status allowed values
+
+| Field | Persisted value | Display label | Meaning |
+|-------|-----------------|---------------|---------|
+| `visibility` | `listed` | Listed | When `status = active`, event appears in the browser for in-scope members. |
+| `visibility` | `unlisted` | Unlisted | Link-only; appears in the personal list after the member registers. |
+| `status` | `draft` | Draft | Admin-only; invisible to participants. |
+| `status` | `active` | Active | Live; `visibility` applies. |
+| `status` | `closed` | Closed | No new registrations; hidden from browser; registered participants still see the event. |
+| `status` | `cancelled` | Cancelled | Registrations closed; registered participants see with cancelled indicator. |
+| `status` | `archived` | Archived | Fully hidden, including from registered participants. |
 
 ### 6.7 Registration scope allowed values and meanings
 The Registration Scope select offers exactly three options:
@@ -326,7 +340,7 @@ Select renders these as `SelectItem` rows in the order shown. The field is requi
 
 **Event read** (used by `/configuration` entry flow)
 - Source: BA01 read hook/service backed by `useSecureSupabase().from('core_events').select(...).eq('event_id', selectedEventId).single()`.
-- Selected columns: `event_id, event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, event_colours, is_visible, organisation_id, description, registration_scope, created_at, created_by, updated_at, updated_by`.
+- Selected columns: `event_id, event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, event_colours, visibility, status, organisation_id, description, registration_scope, created_at, created_by, updated_at, updated_by`.
 - Result shape: a single row object with all selected columns, or `null` if none / RLS denies.
 
 **Selected event read** (used by `/event-dashboard`)
@@ -354,8 +368,8 @@ Select renders these as `SelectItem` rows in the order shown. The field is requi
 
 **Event update** (triggered by save action on `/configuration`)
 - Target: BA01 mutation hook/service backed by `useSecureSupabase().rpc('app_event_configuration_update', ...)` with explicit `p_event_id`, `p_organisation_id`, `p_app_id`, and validated payload fields.
-- Allowed update columns (the editable scope owned by this slice): `event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, registration_scope, event_colours, is_visible, description, updated_at, updated_by`.
-- **Disallowed columns** (must not be in the update payload at all): `event_id, organisation_id, public_readable, event_billing, event_catering_email, event_news, event_rounddown, event_youthmultiplier, participant_blurb, participant_admin_email, participant_website_url, created_at, created_by`.
+- Allowed update columns (the editable scope owned by this slice): `event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, registration_scope, event_colours, visibility, status, description, updated_at, updated_by`.
+- **Disallowed columns** (must not be in the update payload at all): `event_id, organisation_id, event_billing, event_catering_email, event_news, event_rounddown, event_youthmultiplier, participant_blurb, participant_admin_email, participant_website_url, created_at, created_by`.
 - Success outcome: a single updated row returned by RPC (first row payload) with the select columns listed above. Form values stay populated with the saved data; no re-fetch.
 - Failure outcomes:
   - RLS / permission failure → standard Supabase error → friendly error message via formatter.
@@ -425,9 +439,9 @@ Where IDs cross hook or service boundaries within this slice, use the typed bran
 
 Only the following columns of `core_events` may be written by this slice's save action:
 
-`event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, registration_scope, event_colours, is_visible, description, updated_at, updated_by`.
+`event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, registration_scope, event_colours, visibility, status, description, updated_at, updated_by`.
 
-Out-of-scope `core_events` columns (not surfaced in this slice and not included in any update payload): `event_id, organisation_id, public_readable, event_billing, event_catering_email, event_news, event_rounddown, event_youthmultiplier, participant_blurb, participant_admin_email, participant_website_url, created_at, created_by`.
+Out-of-scope `core_events` columns (not surfaced in this slice and not included in any update payload): `event_id, organisation_id, event_billing, event_catering_email, event_news, event_rounddown, event_youthmultiplier, participant_blurb, participant_admin_email, participant_website_url, created_at, created_by`.
 
 ### 8.3 Verification steps (Supabase MCP, dev-db only)
 

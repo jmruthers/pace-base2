@@ -58,7 +58,8 @@ describe('event configuration shared helpers', () => {
       typical_unit_size: 0,
       description: null,
       registration_scope: null,
-      is_visible: true,
+      visibility: 'listed',
+      status: 'active',
       event_colours: null,
     });
 
@@ -83,7 +84,8 @@ describe('event configuration shared helpers', () => {
       expected_participants: 0,
       typical_unit_size: 0,
       event_colours: null,
-      is_visible: true,
+      visibility: 'listed',
+      status: 'active',
       organisation_id: 'org-1',
       description: null,
       registration_scope: 'org_only',

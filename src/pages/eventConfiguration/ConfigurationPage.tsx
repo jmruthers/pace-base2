@@ -23,7 +23,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch,
   Textarea,
 } from '@solvera/pace-core/components';
 import { Calendar } from '@solvera/pace-core/icons';
@@ -103,6 +102,21 @@ function ConfigurationFields({ methods, readOnly }: ConfigurationFieldsProps) {
         : registrationScopeValue === 'open'
           ? 'Open'
           : '';
+  const visibilityValue = (methods.watch('visibility') as string) ?? 'unlisted';
+  const visibilityLabel = visibilityValue === 'listed' ? 'Listed' : 'Unlisted';
+  const statusValue = (methods.watch('status') as string) ?? 'draft';
+  const statusLabel =
+    statusValue === 'draft'
+      ? 'Draft'
+      : statusValue === 'active'
+        ? 'Active'
+        : statusValue === 'closed'
+          ? 'Closed'
+          : statusValue === 'cancelled'
+            ? 'Cancelled'
+            : statusValue === 'archived'
+              ? 'Archived'
+              : '';
 
   return (
     <section className="grid gap-3">
@@ -266,13 +280,50 @@ function ConfigurationFields({ methods, readOnly }: ConfigurationFieldsProps) {
         </article>
 
         <article className="grid gap-1">
-          <Label htmlFor="is_visible">Event is visible</Label>
-          <Switch
-            id="is_visible"
-            checked={Boolean(methods.watch('is_visible'))}
-            onChange={(checked) => methods.setValue('is_visible', checked)}
-            disabled={readOnly}
-          />
+          <Label htmlFor="visibility">Visibility</Label>
+          {readOnly ? (
+            <Input id="visibility" value={visibilityLabel} disabled />
+          ) : (
+            <Select
+              value={visibilityValue}
+              onValueChange={(value) =>
+                methods.setValue('visibility', value as EventConfigurationFormValues['visibility'])
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select visibility">{visibilityLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="listed">Listed</SelectItem>
+                <SelectItem value="unlisted">Unlisted</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </article>
+
+        <article className="grid gap-1">
+          <Label htmlFor="status">Status</Label>
+          {readOnly ? (
+            <Input id="status" value={statusLabel} disabled />
+          ) : (
+            <Select
+              value={statusValue}
+              onValueChange={(value) =>
+                methods.setValue('status', value as EventConfigurationFormValues['status'])
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status">{statusLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </article>
       </fieldset>
     </section>

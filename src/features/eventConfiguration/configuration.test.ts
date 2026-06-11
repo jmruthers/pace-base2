@@ -23,7 +23,8 @@ describe('event configuration payload', () => {
       typical_unit_size: 6,
       description: 'Event description',
       registration_scope: 'hierarchy',
-      is_visible: true,
+      visibility: 'listed',
+      status: 'active',
       event_colours: '{"primary":"#000000"}',
     };
 
@@ -62,7 +63,8 @@ describe('event configuration payload', () => {
       typical_unit_size: 0,
       description: '  ',
       registration_scope: 'org_only',
-      is_visible: false,
+      visibility: 'unlisted',
+      status: 'draft',
       event_colours: '',
     };
 

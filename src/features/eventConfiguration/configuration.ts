@@ -107,7 +107,7 @@ async function fetchEventConfigurationRecord(
   const result = await (secureSupabase as unknown as SupabaseQueryClient)
     .from('core_events')
     .select(
-      'event_id, logo_id, event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, event_colours, is_visible, organisation_id, description, registration_scope, created_at, created_by, updated_at, updated_by'
+      'event_id, logo_id, event_name, event_code, event_email, event_date, event_days, event_venue, expected_participants, typical_unit_size, event_colours, visibility, status, organisation_id, description, registration_scope, created_at, created_by, updated_at, updated_by'
     )
     .eq('event_id', eventId)
     .single();
@@ -156,7 +156,8 @@ export function buildEventConfigurationUpdatePayload(params: SaveConfigurationPa
     typical_unit_size: params.values.typical_unit_size,
     registration_scope: params.values.registration_scope,
     event_colours: parseEventColours(params.values.event_colours),
-    is_visible: params.values.is_visible,
+    visibility: params.values.visibility,
+    status: params.values.status,
     description: normaliseOptionalString(params.values.description),
     updated_at: new Date().toISOString(),
     updated_by: params.userId,
@@ -197,7 +198,8 @@ async function saveEventConfigurationRecord(
       p_typical_unit_size: payload.typical_unit_size,
       p_registration_scope: payload.registration_scope,
       p_event_colours: payload.event_colours,
-      p_is_visible: payload.is_visible,
+      p_visibility: payload.visibility,
+      p_status: payload.status,
       p_description: payload.description,
     });
 

@@ -52,7 +52,8 @@ export const eventConfigurationSchema = z.object({
     .refine((value): value is 'org_only' | 'hierarchy' | 'open' => value != null, {
       message: 'Registration scope is required',
     }),
-  is_visible: z.boolean(),
+  visibility: z.enum(['listed', 'unlisted']).default('unlisted'),
+  status: z.enum(['draft', 'active', 'closed', 'cancelled', 'archived']).default('draft'),
   event_colours: z
     .union([z.string().max(5000, 'Event Colours JSON exceeds maximum length of 5000 characters'), z.literal(''), z.null()])
     .transform((value) => (value == null || value === '' ? null : value)),
@@ -145,7 +146,16 @@ export function mapRecordToFormValues(record: EventConfigurationRecord): EventCo
     typical_unit_size: record.typical_unit_size ?? 0,
     description: record.description ?? null,
     registration_scope: record.registration_scope ?? null,
-    is_visible: record.is_visible ?? true,
+    visibility:
+      record.visibility === 'listed' || record.visibility === 'unlisted' ? record.visibility : 'unlisted',
+    status:
+      record.status === 'draft' ||
+      record.status === 'active' ||
+      record.status === 'closed' ||
+      record.status === 'cancelled' ||
+      record.status === 'archived'
+        ? record.status
+        : 'draft',
     event_colours: record.event_colours == null ? null : JSON.stringify(record.event_colours, null, 2),
   };
 }
