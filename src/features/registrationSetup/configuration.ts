@@ -70,7 +70,7 @@ async function fetchRegistrationTypes(
   const { data, error } = await supabase
     .from('base_registration_type')
     .select(
-      'id, name, description, eligibility_message, cost, capacity, is_active, sort_order, organisation_id, event_id, created_at'
+      'id, name, description, eligibility_message, cost, capacity, is_active, sort_order, pre_submission_checks, organisation_id, event_id, created_at'
     )
     .eq('event_id', eventId)
     .order('sort_order', { ascending: true });

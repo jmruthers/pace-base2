@@ -26,7 +26,6 @@ function createValidState(): WorkflowAuthoringState {
       status: 'draft',
       workflowConfig: {},
       isActive: false,
-      isPrimaryEntrypoint: false,
     },
     fields: [
       {
@@ -136,22 +135,8 @@ describe('shared forms contracts', () => {
     ).toBe(true);
   });
 
-  it('enforces primary-entrypoint workflow restriction', () => {
+  it('builds base application preview target path', () => {
     const state = createValidState();
-    state.metadata.workflowType = 'information_collection';
-    state.metadata.isPrimaryEntrypoint = true;
-
-    const result = validateWorkflowAuthoringState(state);
-
-    expect(result.isValid).toBe(false);
-    expect(result.errors.some((issue) => issue.code === 'invalid_entrypoint')).toBe(
-      true
-    );
-  });
-
-  it('builds base primary preview target path', () => {
-    const state = createValidState();
-    state.metadata.isPrimaryEntrypoint = true;
 
     const target = buildWorkflowPreviewTarget(state, { eventSlug: 'camp-alpha' });
 

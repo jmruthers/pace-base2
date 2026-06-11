@@ -123,7 +123,7 @@ vi.mock('@solvera/pace-core/forms', () => ({
             ...state,
             metadata: {
               ...state.metadata,
-              workflowType: state.metadata.workflowType === 'base_registration' ? 'generic' : 'base_registration',
+              workflowType: state.metadata.workflowType === 'base_registration' ? 'information_collection' : 'base_registration',
             },
           });
         }}
@@ -264,8 +264,7 @@ describe('FormBuilderPage', () => {
         status: 'draft',
         workflow_config: {},
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         max_submissions: null,
         confirmation_message: null,
@@ -294,8 +293,7 @@ describe('FormBuilderPage', () => {
         status: 'draft',
         workflow_config: {},
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         max_submissions: null,
         confirmation_message: null,
@@ -325,8 +323,7 @@ describe('FormBuilderPage', () => {
         status: 'draft',
         workflow_config: {},
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         max_submissions: null,
         confirmation_message: null,
@@ -361,14 +358,13 @@ describe('FormBuilderPage', () => {
         status: 'draft',
         workflow_config: {},
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         max_submissions: null,
         confirmation_message: null,
       },
       fields: [],
-      bindings: [{ registration_type_id: 'type-1', is_default: true }],
+      bindings: [{ registration_type_id: 'type-1', is_required: true }],
     };
     state.registrationTypes = [
       {
@@ -399,7 +395,7 @@ describe('FormBuilderPage', () => {
     expect(screen.getByText('No cost set')).toBeTruthy();
     expect(screen.getByText('2 eligibility rules, 1 approval')).toBeTruthy();
     expect(screen.getByText('0 eligibility rules, 3 approvals')).toBeTruthy();
-    expect(screen.getAllByText('Set as default').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Required for this registration type').length).toBeGreaterThan(0);
   });
 
   it('rehydrates persisted bindings when toggling away from and back to base registration', () => {
@@ -416,14 +412,13 @@ describe('FormBuilderPage', () => {
         status: 'draft',
         workflow_config: {},
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         max_submissions: null,
         confirmation_message: null,
       },
       fields: [],
-      bindings: [{ registration_type_id: 'type-1', sort_order: 0, is_default: true }],
+      bindings: [{ registration_type_id: 'type-1', sort_order: 0, is_required: true }],
     };
     state.registrationTypes = [
       {

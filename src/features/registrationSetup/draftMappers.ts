@@ -9,6 +9,7 @@ import type {
   RequirementCheckType,
   RequirementRuleDraft,
 } from './types';
+import { parsePreSubmissionChecks } from './preSubmissionChecks';
 import { deriveAutomatedFlag } from './rules';
 
 function defaultRequirementConfig(checkType: RequirementCheckType): Record<string, unknown> | null {
@@ -58,6 +59,7 @@ export function createDefaultRegistrationTypeDraft(): RegistrationTypeDraft {
     capacity: '',
     is_active: false,
     sort_order: null,
+    preSubmissionChecks: [],
   };
 }
 
@@ -71,6 +73,7 @@ export function mapTypeToDraft(row: RegistrationTypeRow): RegistrationTypeDraft 
     capacity: row.capacity == null ? '' : String(row.capacity),
     is_active: row.is_active,
     sort_order: row.sort_order,
+    preSubmissionChecks: parsePreSubmissionChecks(row.pre_submission_checks),
   };
 }
 

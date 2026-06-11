@@ -64,8 +64,7 @@ function createState(workflowType: WorkflowAuthoringState['metadata']['workflowT
       closesAt: null,
       workflowConfig: {},
       isActive: true,
-      isPrimaryEntrypoint: false,
-    },
+          },
     fields: [
       {
         id: 'field-1',
@@ -100,8 +99,8 @@ describe('formsAuthoring configuration mutation sequencing', () => {
     await holder.mutateAsync({
       state: createState('base_registration'),
       bindings: [
-        { typeId: 'type-1', checked: true, isDefault: true },
-        { typeId: 'type-2', checked: false, isDefault: false },
+        { typeId: 'type-1', checked: true, isRequired: true },
+        { typeId: 'type-2', checked: false, isRequired: false },
       ],
       eventId: 'event-1',
       organisationId: 'org-1',
@@ -132,8 +131,8 @@ describe('formsAuthoring configuration mutation sequencing', () => {
     }
 
     await holder.mutateAsync({
-      state: createState('generic'),
-      bindings: [{ typeId: 'type-1', checked: true, isDefault: true }],
+      state: createState('information_collection'),
+      bindings: [{ typeId: 'type-1', checked: true, isRequired: true }],
       eventId: 'event-1',
       organisationId: 'org-1',
       userId: 'user-1',

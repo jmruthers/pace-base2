@@ -159,7 +159,6 @@ export function FormsListPage() {
           closesAt: null,
           workflowConfig: {},
           isActive: true,
-          isPrimaryEntrypoint: form.is_primary_entrypoint ?? false,
         },
         fields: [],
       },

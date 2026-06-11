@@ -13,38 +13,30 @@ export function parseNullableNumber(value: string): number | null {
   return parsed;
 }
 
-export function ensureSingleDefaultBinding(bindings: RegistrationBindingDraft[], typeId: string) {
-  return bindings.map((binding) => ({
-    ...binding,
-    isDefault: binding.typeId === typeId ? binding.checked : false,
-  }));
-}
-
 export function updateBindingCheckedState(
   bindings: RegistrationBindingDraft[],
   typeId: string,
   checked: boolean
 ) {
-  const next = bindings.map((binding) =>
+  return bindings.map((binding) =>
     binding.typeId === typeId
       ? {
           ...binding,
           checked,
-          isDefault: checked ? binding.isDefault : false,
+          isRequired: checked ? binding.isRequired : false,
         }
       : binding
   );
+}
 
-  const activeDefaults = next.filter((binding) => binding.checked && binding.isDefault);
-  if (activeDefaults.length > 1) {
-    const defaultTypeId = activeDefaults[0]?.typeId;
-    return next.map((binding) => ({
-      ...binding,
-      isDefault: binding.typeId === defaultTypeId && binding.checked,
-    }));
-  }
-
-  return next;
+export function updateBindingRequiredState(
+  bindings: RegistrationBindingDraft[],
+  typeId: string,
+  isRequired: boolean
+) {
+  return bindings.map((binding) =>
+    binding.typeId === typeId ? { ...binding, isRequired: binding.checked ? isRequired : false } : binding
+  );
 }
 
 /** Keys mirrored on `field_label` / `fieldType`; omit from `displayOptions` in authoring state. */
@@ -93,7 +85,6 @@ export function buildDefinitionPayload(state: WorkflowAuthoringState) {
     workflow_config: restWorkflowConfig,
     description: state.metadata.description ?? null,
     status: state.metadata.status,
-    is_primary_entrypoint: state.metadata.isPrimaryEntrypoint,
     is_active: state.metadata.isActive,
     opens_at: state.metadata.opensAt ?? null,
     closes_at: state.metadata.closesAt ?? null,

@@ -12,7 +12,6 @@ export interface CoreFormListRow {
   status: WorkflowFormStatus;
   workflow_type: WorkflowType;
   is_active: boolean | null;
-  is_primary_entrypoint: boolean | null;
   opens_at: string | null;
   closes_at: string | null;
   created_at: string | null;
@@ -30,7 +29,6 @@ export interface CoreFormDetailRow {
   access_mode: WorkflowAccessMode;
   workflow_config: Record<string, unknown> | null;
   is_active: boolean | null;
-  is_primary_entrypoint: boolean | null;
   opens_at: string | null;
   closes_at: string | null;
   max_submissions: number | null;
@@ -64,13 +62,13 @@ export interface RegistrationTypeRow {
 export interface FormRegistrationBindingRow {
   registration_type_id: string;
   sort_order: number;
-  is_default: boolean;
+  is_required: boolean;
 }
 
 export interface RegistrationBindingDraft {
   typeId: string;
   checked: boolean;
-  isDefault: boolean;
+  isRequired: boolean;
 }
 
 export interface DeleteFormRpcResult {

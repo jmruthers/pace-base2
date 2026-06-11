@@ -5,6 +5,7 @@ import type {
   RequirementRuleDraft,
 } from './types';
 import type { RegistrationTypeUpsertPayload } from './types.rpc';
+import { parsePreSubmissionChecks } from './preSubmissionChecks';
 import { deriveAutomatedFlag, isIsoDateValue } from './rules';
 
 export interface RegistrationTypeValidationErrors {
@@ -159,6 +160,7 @@ export function buildUpsertPayloadForTypeSave(params: {
       capacity,
       is_active: params.draft.is_active,
       sort_order: params.draft.sort_order,
+      pre_submission_checks: params.draft.preSubmissionChecks,
     },
     p_eligibility_rules: toEligibilityPayload(params.eligibilityDrafts),
     p_requirement_rules: toRequirementPayload(params.snapshots.requirementsSnapshot),
@@ -187,6 +189,9 @@ export function buildUpsertPayloadForRequirementsSave(params: {
       capacity: params.snapshots.typeSnapshot.capacity,
       is_active: params.snapshots.typeSnapshot.is_active,
       sort_order: params.snapshots.typeSnapshot.sort_order,
+      pre_submission_checks: parsePreSubmissionChecks(
+        params.snapshots.typeSnapshot.pre_submission_checks
+      ),
     },
     p_eligibility_rules: params.snapshots.eligibilitySnapshot.map((rule) => ({
       rule_type: rule.rule_type,

@@ -3,19 +3,19 @@ import type { WorkflowAuthoringState } from '@solvera/pace-core/forms';
 import {
   asCount,
   buildFieldsRpcPayload,
-  ensureSingleDefaultBinding,
   parseNullableNumber,
   sortFieldRows,
   toFieldCountMap,
   updateBindingCheckedState,
+  updateBindingRequiredState,
 } from './stateHelpers';
 import type { RegistrationBindingDraft } from './types';
 
 function createBindings(): RegistrationBindingDraft[] {
   return [
-    { typeId: 'type-1', checked: true, isDefault: true },
-    { typeId: 'type-2', checked: true, isDefault: true },
-    { typeId: 'type-3', checked: false, isDefault: false },
+    { typeId: 'type-1', checked: true, isRequired: true },
+    { typeId: 'type-2', checked: true, isRequired: false },
+    { typeId: 'type-3', checked: false, isRequired: false },
   ];
 }
 
@@ -52,20 +52,20 @@ describe('formsAuthoring stateHelpers', () => {
     expect(parseNullableNumber('3.5')).toBe(3.5);
   });
 
-  it('ensures a single default binding for the selected type', () => {
-    const next = ensureSingleDefaultBinding(createBindings(), 'type-2');
+  it('updates required flag for a checked binding', () => {
+    const next = updateBindingRequiredState(createBindings(), 'type-2', true);
     expect(next).toEqual([
-      { typeId: 'type-1', checked: true, isDefault: false },
-      { typeId: 'type-2', checked: true, isDefault: true },
-      { typeId: 'type-3', checked: false, isDefault: false },
+      { typeId: 'type-1', checked: true, isRequired: true },
+      { typeId: 'type-2', checked: true, isRequired: true },
+      { typeId: 'type-3', checked: false, isRequired: false },
     ]);
   });
 
-  it('clears default when a binding is unchecked and normalises duplicate defaults', () => {
+  it('clears required when a binding is unchecked', () => {
     const unchecked = updateBindingCheckedState(createBindings(), 'type-1', false);
-    expect(unchecked[0]).toEqual({ typeId: 'type-1', checked: false, isDefault: false });
-    expect(unchecked[1]).toEqual({ typeId: 'type-2', checked: true, isDefault: true });
-    expect(unchecked[2]).toEqual({ typeId: 'type-3', checked: false, isDefault: false });
+    expect(unchecked[0]).toEqual({ typeId: 'type-1', checked: false, isRequired: false });
+    expect(unchecked[1]).toEqual({ typeId: 'type-2', checked: true, isRequired: false });
+    expect(unchecked[2]).toEqual({ typeId: 'type-3', checked: false, isRequired: false });
   });
 
   it('uses fieldLabel over a stale label still present in displayOptions', () => {

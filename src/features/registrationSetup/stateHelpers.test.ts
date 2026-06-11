@@ -24,6 +24,7 @@ function createDraft(overrides: Partial<RegistrationTypeDraft> = {}): Registrati
     capacity: '50',
     is_active: true,
     sort_order: 2,
+    preSubmissionChecks: [],
     ...overrides,
   };
 }
@@ -50,6 +51,7 @@ function createSnapshots(): RegistrationSnapshots {
       capacity: 50,
       is_active: true,
       sort_order: 2,
+      pre_submission_checks: [],
       organisation_id: 'org-1',
       event_id: 'event-1',
       created_at: null,
@@ -124,6 +126,7 @@ describe('registrationSetup stateHelpers', () => {
       capacity: '',
       is_active: true,
       sort_order: null,
+      preSubmissionChecks: [],
     };
     const payload = buildUpsertPayloadForTypeSave({
       eventId: 'event-1',

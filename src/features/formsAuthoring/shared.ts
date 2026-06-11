@@ -14,7 +14,6 @@ export const BASE_WORKFLOW_TYPES: WorkflowType[] = [
   'activity_booking',
   'merch_order',
   'consent_capture',
-  'generic',
 ];
 
 function slugify(value: string): string {
@@ -77,14 +76,13 @@ export function createInitialAuthoringState(params: {
       slug: '',
       name: '',
       description: undefined,
-      workflowType: 'generic',
+      workflowType: 'information_collection',
       accessMode: 'authenticated_member',
       status: 'draft',
       opensAt: null,
       closesAt: null,
       workflowConfig: {},
       isActive: true,
-      isPrimaryEntrypoint: false,
     },
     fields: [],
   };
@@ -110,7 +108,6 @@ export function mapBuilderRecordToState(record: FormBuilderRecord): WorkflowAuth
         confirmation_message: record.form.confirmation_message ?? null,
       },
       isActive: record.form.is_active ?? true,
-      isPrimaryEntrypoint: record.form.is_primary_entrypoint ?? false,
     },
     fields: record.fields.map((field) => ({
       id: field.id,
@@ -127,7 +124,7 @@ export function mapBuilderRecordToState(record: FormBuilderRecord): WorkflowAuth
 
 export function createBindingDrafts(
   registrationTypes: RegistrationTypeRow[],
-  existingBindings: { registration_type_id: string; is_default: boolean }[]
+  existingBindings: { registration_type_id: string; is_required: boolean }[]
 ): RegistrationBindingDraft[] {
   const bindingsByTypeId = new Map(
     existingBindings.map((binding) => [binding.registration_type_id, binding])
@@ -137,7 +134,7 @@ export function createBindingDrafts(
     return {
       typeId: registrationType.id,
       checked: existing != null,
-      isDefault: existing?.is_default ?? false,
+      isRequired: existing?.is_required ?? false,
     };
   });
 }
@@ -148,7 +145,6 @@ export function buildPortalUrl(params: {
   form: {
     workflow_type: WorkflowType;
     slug: string;
-    is_primary_entrypoint: boolean | null;
   };
 }): string | null {
   const baseUrl = params.portalBaseUrl?.trim();
@@ -171,7 +167,6 @@ export function buildPortalUrl(params: {
       closesAt: null,
       workflowConfig: {},
       isActive: true,
-      isPrimaryEntrypoint: params.form.is_primary_entrypoint ?? false,
     },
     fields: [],
   };

@@ -25,9 +25,8 @@ const state = vi.hoisted(() => ({
     name: string;
     slug: string;
     status: 'draft' | 'published' | 'closed';
-    workflow_type: 'generic';
+    workflow_type: 'information_collection';
     is_active: boolean | null;
-    is_primary_entrypoint: boolean | null;
     opens_at: string | null;
     closes_at: string | null;
     created_at: string | null;
@@ -288,10 +287,9 @@ describe('FormsListPage', () => {
         name: 'Camp Form',
         slug: 'camp-form',
         status: 'draft',
-        workflow_type: 'generic',
+        workflow_type: 'information_collection',
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -301,7 +299,7 @@ describe('FormsListPage', () => {
     renderPage();
 
     expect(screen.getByText('Camp Form')).toBeTruthy();
-    expect(screen.getByText('Generic')).toBeTruthy();
+    expect(screen.getByText('Information collection')).toBeTruthy();
     const portalLink = screen.getByRole('link', { name: 'https://portal.example.com/forms/sample' });
     expect(portalLink.getAttribute('href')).toBe('https://portal.example.com/forms/sample');
     expect(portalLink.getAttribute('target')).toBe('_blank');
@@ -321,10 +319,9 @@ describe('FormsListPage', () => {
         name: 'Camp Form',
         slug: 'camp-form',
         status: 'draft',
-        workflow_type: 'generic',
+        workflow_type: 'information_collection',
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -343,10 +340,9 @@ describe('FormsListPage', () => {
         name: 'Camp Form',
         slug: 'camp-form',
         status: 'draft',
-        workflow_type: 'generic',
+        workflow_type: 'information_collection',
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -366,10 +362,9 @@ describe('FormsListPage', () => {
         name: 'Camp Form',
         slug: 'camp-form',
         status: 'draft',
-        workflow_type: 'generic',
+        workflow_type: 'information_collection',
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -395,10 +390,9 @@ describe('FormsListPage', () => {
         name: 'Published Form',
         slug: 'published-form',
         status: 'published',
-        workflow_type: 'generic',
+        workflow_type: 'information_collection',
         is_active: true,
-        is_primary_entrypoint: true,
-        opens_at: '2026-01-10T00:00:00.000Z',
+                opens_at: '2026-01-10T00:00:00.000Z',
         closes_at: '2026-01-20T00:00:00.000Z',
         created_at: null,
         updated_at: null,
@@ -408,10 +402,9 @@ describe('FormsListPage', () => {
         name: 'Closed Form',
         slug: 'closed-form',
         status: 'closed',
-        workflow_type: 'generic',
+        workflow_type: 'information_collection',
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -435,10 +428,9 @@ describe('FormsListPage', () => {
         name: 'Camp Form',
         slug: 'camp-form',
         status: 'draft',
-        workflow_type: 'generic',
+        workflow_type: 'information_collection',
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -474,10 +466,9 @@ describe('FormsListPage', () => {
         name: 'Second form',
         slug: 'second-form',
         status: 'published',
-        workflow_type: 'generic',
+        workflow_type: 'information_collection',
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -501,10 +492,9 @@ describe('FormsListPage', () => {
         name: 'Camp Form',
         slug: 'camp-form',
         status: 'draft',
-        workflow_type: 'generic',
+        workflow_type: 'information_collection',
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -534,10 +524,9 @@ describe('FormsListPage', () => {
         name: 'Camp Form',
         slug: 'camp-form',
         status: 'draft',
-        workflow_type: 'generic',
+        workflow_type: 'information_collection',
         is_active: true,
-        is_primary_entrypoint: false,
-        opens_at: null,
+                opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,

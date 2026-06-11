@@ -17,6 +17,7 @@ export interface RegistrationTypeRow {
   capacity: number | null;
   is_active: boolean;
   sort_order: number | null;
+  pre_submission_checks: unknown;
   organisation_id: string | null;
   event_id: string | null;
   created_at: string | null;
@@ -60,6 +61,7 @@ export interface RegistrationTypeDraft {
   capacity: string;
   is_active: boolean;
   sort_order: number | null;
+  preSubmissionChecks: string[];
 }
 
 export interface RegistrationSnapshots {

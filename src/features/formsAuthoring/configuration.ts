@@ -75,7 +75,7 @@ async function fetchFormsList(
   const { data, error } = await supabase
     .from('core_forms')
     .select(
-      'id, name, slug, status, workflow_type, is_active, is_primary_entrypoint, opens_at, closes_at, created_at, updated_at'
+      'id, name, slug, status, workflow_type, is_active, opens_at, closes_at, created_at, updated_at'
     )
     .eq('event_id', eventId)
     .order('created_at', { ascending: false });
@@ -112,7 +112,7 @@ async function fetchFormDetail(
   const { data, error } = await supabase
     .from('core_forms')
     .select(
-      'id, name, title, description, slug, status, workflow_type, access_mode, workflow_config, is_active, is_primary_entrypoint, is_required, opens_at, closes_at, max_submissions, confirmation_message, event_id, organisation_id, owner_app_id'
+      'id, name, title, description, slug, status, workflow_type, access_mode, workflow_config, is_active, opens_at, closes_at, max_submissions, confirmation_message, event_id, organisation_id, owner_app_id'
     )
     .eq('id', formId)
     .eq('event_id', eventId)
@@ -155,11 +155,11 @@ async function fetchFormBindings(
   const rows = ((data as Array<{
     registration_type_id: string;
     sort_order: number;
-    is_default: boolean;
+    is_required: boolean;
   }> | null) ?? []).map((row) => ({
     registration_type_id: row.registration_type_id,
     sort_order: row.sort_order,
-    is_default: row.is_default,
+    is_required: row.is_required,
   }));
   return apiSuccess(rows);
 }
@@ -262,7 +262,7 @@ async function saveBindings(params: {
   const payload = checkedBindings.map((binding, index) => ({
     registration_type_id: binding.typeId,
     sort_order: index,
-    is_default: binding.isDefault,
+    is_required: binding.isRequired,
   }));
 
   const rpcArgs: Record<string, unknown> = {

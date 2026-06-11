@@ -43,10 +43,10 @@ import {
 } from '@/features/formsAuthoring/shared';
 import { formatCurrencyFromCents } from '@/features/registrationSetup/presentation';
 import {
-  ensureSingleDefaultBinding,
   isPublishedForm,
   parseNullableNumber,
   updateBindingCheckedState,
+  updateBindingRequiredState,
 } from '@/features/formsAuthoring/stateHelpers';
 import type { RegistrationBindingDraft, RegistrationTypeRow } from '@/features/formsAuthoring/types';
 
@@ -135,7 +135,7 @@ function FormBuilderEditor({
           existing ?? {
             typeId: registrationType.id,
             checked: false,
-            isDefault: false,
+            isRequired: false,
           }
         );
       }),
@@ -334,7 +334,7 @@ function FormBuilderEditor({
                       const binding = visibleBindings.find((entry) => entry.typeId === registrationType.id) ?? {
                         typeId: registrationType.id,
                         checked: false,
-                        isDefault: false,
+                        isRequired: false,
                       };
                       return (
                         <Card key={registrationType.id}>
@@ -369,20 +369,24 @@ function FormBuilderEditor({
                               Include on this form
                             </Label>
                             <Label
-                              htmlFor={`default-${registrationType.id}`}
+                              htmlFor={`required-${registrationType.id}`}
                               className="grid grid-flow-col auto-cols-max items-center gap-2"
                             >
                               <Checkbox
-                                id={`default-${registrationType.id}`}
-                                checked={binding.checked && binding.isDefault}
+                                id={`required-${registrationType.id}`}
+                                checked={binding.checked && binding.isRequired}
                                 disabled={!binding.checked}
-                                onChange={() => {
+                                onChange={(checked: boolean) => {
                                   setBindings(
-                                    ensureSingleDefaultBinding(visibleBindings, registrationType.id)
+                                    updateBindingRequiredState(
+                                      visibleBindings,
+                                      registrationType.id,
+                                      checked
+                                    )
                                   );
                                 }}
                               />
-                              Set as default
+                              Required for this registration type
                             </Label>
                           </CardContent>
                         </Card>
@@ -449,7 +453,7 @@ export function FormBuilderPage() {
     return builderQuery.data.bindings.map((binding) => ({
       typeId: binding.registration_type_id,
       checked: true,
-      isDefault: binding.is_default,
+      isRequired: binding.is_required,
     }));
   }, [builderQuery.data, isEditMode]);
 

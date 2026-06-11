@@ -63,6 +63,7 @@ describe('BA04 draftMappers', () => {
       capacity: 40,
       is_active: true,
       sort_order: 1,
+      pre_submission_checks: [],
       organisation_id: 'org-1',
       event_id: 'event-1',
       created_at: null,

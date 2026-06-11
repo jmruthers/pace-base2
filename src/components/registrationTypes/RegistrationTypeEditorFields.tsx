@@ -3,6 +3,7 @@ import {
   AlertDescription,
   AlertTitle,
   Button,
+  Checkbox,
   Input,
   Label,
   Select,
@@ -17,6 +18,11 @@ import { PagePermissionGuard } from '@solvera/pace-core/rbac';
 import { Trash2 } from '@solvera/pace-core/icons';
 import { defaultEligibilityRuleType } from '@/features/registrationSetup/draftMappers';
 import { eligibilityRuleTypeLabel } from '@/features/registrationSetup/presentation';
+import {
+  REGISTRATION_PRE_SUBMISSION_CHECK_OPTIONS,
+  togglePreSubmissionCheck,
+  type RegistrationPreSubmissionCheckKey,
+} from '@/features/registrationSetup/preSubmissionChecks';
 import type { EligibilityRuleDraft, RegistrationTypeDraft } from '@/features/registrationSetup/types';
 
 export type RegistrationTypeValidationErrors = {
@@ -111,6 +117,34 @@ export function RegistrationTypeEditorFields(props: RegistrationTypeEditorFields
           onChange={(checked) => props.onDraftChange({ ...props.draft, is_active: checked })}
         />
       </Label>
+
+      <article className="grid gap-2">
+        <h3>Pre-submission checks</h3>
+        <p>Participants must confirm these profile areas are current before the registration form opens.</p>
+        {REGISTRATION_PRE_SUBMISSION_CHECK_OPTIONS.map((option) => (
+          <Label
+            key={option.key}
+            htmlFor={`pre-submission-${option.key}`}
+            className="grid grid-flow-col auto-cols-max items-center gap-2"
+          >
+            <Checkbox
+              id={`pre-submission-${option.key}`}
+              checked={props.draft.preSubmissionChecks.includes(option.key)}
+              onChange={(checked) =>
+                props.onDraftChange({
+                  ...props.draft,
+                  preSubmissionChecks: togglePreSubmissionCheck(
+                    props.draft.preSubmissionChecks as RegistrationPreSubmissionCheckKey[],
+                    option.key,
+                    checked
+                  ),
+                })
+              }
+            />
+            {option.label}
+          </Label>
+        ))}
+      </article>
 
       <Alert className="grid gap-3">
         <AlertTitle>Eligibility rules</AlertTitle>

@@ -12,6 +12,7 @@ export interface RegistrationTypeUpsertPayload {
     capacity: number | null;
     is_active: boolean;
     sort_order: number | null;
+    pre_submission_checks: string[];
   };
   p_eligibility_rules: Array<{
     rule_type: EligibilityRuleType;
