@@ -342,6 +342,36 @@ export async function getQueueStatusCounts(scanPointIds?: string[]): Promise<Rec
   return counts;
 }
 
+export interface ScanPointQueueSummary {
+  pending: number;
+  syncing: number;
+  failed: number;
+}
+
+export async function getQueueSyncSummaryByScanPoint(
+  scanPointIds: string[]
+): Promise<Record<string, ScanPointQueueSummary>> {
+  const listResult = await listScanQueueEntries();
+  const rows = isOk(listResult) ? listResult.data : [];
+  const summary = scanPointIds.reduce<Record<string, ScanPointQueueSummary>>((accumulator, scanPointId) => {
+    accumulator[scanPointId] = { pending: 0, syncing: 0, failed: 0 };
+    return accumulator;
+  }, {});
+  if (scanPointIds.length === 0) {
+    return summary;
+  }
+  const allowed = new Set(scanPointIds);
+  rows.forEach((row) => {
+    if (!allowed.has(row.scan_point_id)) {
+      return;
+    }
+    if (row.sync_status === 'pending' || row.sync_status === 'syncing' || row.sync_status === 'failed') {
+      summary[row.scan_point_id][row.sync_status] += 1;
+    }
+  });
+  return summary;
+}
+
 export async function startScanSyncWorker(supabaseClient: SecureSupabaseLike): Promise<ApiResult<void>> {
   try {
     secureSupabaseClient = supabaseClient;

@@ -27,8 +27,15 @@ export function parseOptionalCost(value: string): number | null {
 }
 
 export function getOfferingSessionCount(offering: ActivityOfferingRow): number {
-  const count = offering.sessions?.[0]?.count;
-  return typeof count === 'number' ? count : 0;
+  const sessions = offering.sessions ?? [];
+  if (sessions.length === 0) {
+    return 0;
+  }
+  const aggregateCount = sessions[0]?.count;
+  if (typeof aggregateCount === 'number') {
+    return aggregateCount;
+  }
+  return sessions.length;
 }
 
 export function isBookingOpenNow(offering: ActivityOfferingRow, nowIso: string = new Date().toISOString()): boolean {

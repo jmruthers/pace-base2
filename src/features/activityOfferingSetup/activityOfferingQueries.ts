@@ -33,7 +33,10 @@ export function useOfferingsList(eventId: string | null) {
             name,
             event_id
           ),
-          sessions:base_activity_session ( count )
+          sessions:base_activity_session (
+            capacity,
+            bookings:base_activity_booking ( count )
+          )
         `)
         .eq('event_id', eventId as string)
         .order('name', { ascending: true });

@@ -11,6 +11,7 @@ import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AuthenticatedShell } from './components/layout/AuthenticatedShell';
 import { APP_NAME } from '@/config/appName';
 import { BaseNotFoundPage } from './pages/shell/BaseNotFoundPage';
+import { ShellLandingPage } from './pages/shell/ShellLandingPage';
 import { FeaturePlaceholderPanel } from '@/components/shell/FeaturePlaceholderPanel';
 import { ScanningRuntimePage } from './pages/scanning/ScanningRuntimePage';
 import { EventDashboardPage } from './pages/eventConfiguration/EventDashboardPage';
@@ -20,6 +21,7 @@ import { FormBuilderPage } from './pages/forms/FormBuilderPage';
 import { RegistrationTypesPage } from './pages/registrationTypes/RegistrationTypesPage';
 import { RegistrationTypeBuilderPage } from './pages/registrationTypes/RegistrationTypeBuilderPage';
 import { ApplicationsPage } from './pages/applications/ApplicationsPage';
+import { ApplicationDetailPage } from './pages/applications/ApplicationDetailPage';
 import { UnitsPage } from './pages/units/UnitsPage';
 import { UnitPreferencesPage } from './pages/unitPreferences/UnitPreferencesPage';
 import { CommunicationsPage } from './pages/communications/CommunicationsPage';
@@ -87,7 +89,7 @@ function App() {
           element={<ProtectedRoute loginPath="/login" requireEvent={false} />}
         >
           <Route element={<ProtectedAppLayout />}>
-            <Route path="/" element={<Navigate to="/event-dashboard" replace />} />
+            <Route path="/" element={<ShellLandingPage />} />
 
             <Route element={<AuthenticatedShell />}>
               {shellProtectedRoutes
@@ -121,6 +123,8 @@ function App() {
                           <RegistrationTypeBuilderPage />
                         ) : route.path === '/applications' ? (
                           <ApplicationsPage />
+                        ) : route.path === '/applications/:applicationId' ? (
+                          <ApplicationDetailPage />
                         ) : route.path === '/communications' ? (
                           <CommunicationsPage />
                         ) : route.path === '/units' ? (

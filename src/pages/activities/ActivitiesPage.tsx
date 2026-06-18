@@ -5,13 +5,11 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Badge,
   Button,
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
-  DataTable,
   DateTimeField,
   Dialog,
   DialogBody,
@@ -33,7 +31,7 @@ import {
 } from '@solvera/pace-core/components';
 import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { PagePermissionGuard, useResolvedScope, useSecureSupabase } from '@solvera/pace-core/rbac';
-import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage, formatDateTime } from '@solvera/pace-core/utils';
+import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage } from '@solvera/pace-core/utils';
 import { useRetryRefetchHandler } from '@/features/applicationsAdmin/queryHelpers';
 import {
   useOfferingsList,
@@ -44,9 +42,8 @@ import {
   useCreateOfferingMutation,
   useDeleteOfferingMutation,
 } from '@/features/activityOfferingSetup/activityOfferingMutations';
+import { ActivitiesOfferingCardGrid } from '@/components/activities/ActivitiesOfferingCardGrid';
 import {
-  getOfferingSessionCount,
-  isBookingOpenNow,
   parseOptionalCost,
   validateOfferingForm,
   type ValidationErrors,
@@ -80,13 +77,6 @@ function toDate(value: string | null): Date | null {
     return null;
   }
   return new Date(value);
-}
-
-function formatCost(value: number | null): string {
-  if (value == null) {
-    return '—';
-  }
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(value);
 }
 
 function buildDefaultValues(): OfferingFormValues {
@@ -335,91 +325,7 @@ export function ActivitiesPage() {
   const tracActivities = tracActivitiesQuery.data ?? [];
   const retryOfferingsQuery = useRetryRefetchHandler(offeringsQuery);
 
-  const tableRows = useMemo(
-    () =>
-      (offeringsQuery.data ?? []).map((offering) => ({
-        ...offering,
-        sessionCount: getOfferingSessionCount(offering),
-      })),
-    [offeringsQuery.data]
-  );
-
-  const columns = useMemo(
-    () => [
-      {
-        id: 'name',
-        accessorKey: 'name',
-        header: 'Name',
-        sortable: true,
-        cell: ({ row }: { row: (typeof tableRows)[number] }) => (
-          <Button type="button" variant="outline" size="small" onClick={() => navigate(`/activities/${row.id}`)}>
-            {row.name}
-          </Button>
-        ),
-      },
-      {
-        id: 'sessionCount',
-        accessorKey: 'sessionCount',
-        header: 'Sessions',
-        sortable: true,
-        cell: ({ row }: { row: (typeof tableRows)[number] }) => (
-          <Badge variant="solid-sec-muted">{row.sessionCount}</Badge>
-        ),
-      },
-      {
-        id: 'booking_open_at',
-        accessorKey: 'booking_open_at',
-        header: 'Booking Opens',
-        sortable: true,
-        cell: ({ row }: { row: (typeof tableRows)[number] }) =>
-          row.booking_open_at != null ? formatDateTime(row.booking_open_at) : '—',
-      },
-      {
-        id: 'booking_close_at',
-        accessorKey: 'booking_close_at',
-        header: 'Booking Closes',
-        sortable: true,
-        cell: ({ row }: { row: (typeof tableRows)[number] }) => (
-          <section className="grid gap-1">
-            <span>{row.booking_close_at != null ? formatDateTime(row.booking_close_at) : '—'}</span>
-            <Badge variant={isBookingOpenNow(row) ? 'solid-main-normal' : 'outline-acc-muted'}>
-              {isBookingOpenNow(row) ? 'Booking open' : 'Booking closed'}
-            </Badge>
-          </section>
-        ),
-      },
-      {
-        id: 'cost',
-        accessorKey: 'cost',
-        header: 'Cost',
-        sortable: true,
-        cell: ({ row }: { row: (typeof tableRows)[number] }) => formatCost(row.cost),
-      },
-      {
-        id: 'trac_activity',
-        accessorKey: 'trac_activity',
-        header: 'TRAC Activity',
-        cell: ({ row }: { row: (typeof tableRows)[number] }) => row.trac_activity?.name ?? '—',
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }: { row: (typeof tableRows)[number] }) => (
-          <section className="grid grid-cols-1 gap-1 md:grid-cols-2">
-            <Button type="button" variant="outline" size="small" onClick={() => navigate(`/activities/${row.id}`)}>
-              View
-            </Button>
-            <PagePermissionGuard pageName="ActivitiesPage" operation="delete" scope={scope} fallback={null}>
-              <Button type="button" variant="destructive" size="small" onClick={() => setDeleteOffering(row)}>
-                Delete
-              </Button>
-            </PagePermissionGuard>
-          </section>
-        ),
-      },
-    ],
-    [navigate, scope]
-  );
+  const offerings = offeringsQuery.data ?? [];
 
   async function refreshOfferings() {
     await queryClient.invalidateQueries({ queryKey: ['ba09', 'offerings', selectedEventId] });
@@ -487,9 +393,14 @@ export function ActivitiesPage() {
 
   return (
     <main className="grid gap-4">
-      <header className="grid gap-1">
-        <h1>Activities</h1>
-        <p>Manage activity offerings and sessions for {eventName}.</p>
+      <header className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
+        <section className="grid gap-1">
+          <h1>Activities</h1>
+          <p>Manage activity offerings and sessions for {eventName}.</p>
+        </section>
+        <Button type="button" variant="outline" onClick={() => navigate('/activities/bookings')}>
+          All bookings
+        </Button>
       </header>
 
       <PagePermissionGuard pageName="ActivitiesPage" operation="create" scope={scope} fallback={null}>
@@ -517,32 +428,13 @@ export function ActivitiesPage() {
         </Alert>
       ) : null}
 
-      <DataTable<(typeof tableRows)[number]>
-        data={tableRows}
-        columns={columns}
-        rbac={{ pageName: 'ActivitiesPage' }}
-        title="Activity Offerings"
-        description={`${tableRows.length} offerings for ${eventName}`}
+      <ActivitiesOfferingCardGrid
+        offerings={offerings}
         isLoading={offeringsQuery.isLoading}
-        initialPageSize={25}
-        emptyState={{ description: 'No activity offerings have been created for this event.' }}
-        features={{
-          search: true,
-          pagination: true,
-          sorting: true,
-          export: false,
-          import: false,
-          grouping: false,
-          columnVisibility: false,
-          editing: false,
-          creation: false,
-          filtering: false,
-          selection: false,
-          deletion: false,
-          deleteSelected: false,
-          columnReordering: false,
-          hierarchical: false,
-        }}
+        eventName={eventName}
+        scope={scope}
+        onOpenOffering={(offeringId) => navigate(`/activities/${offeringId}`)}
+        onDeleteOffering={setDeleteOffering}
       />
 
       <OfferingDialog

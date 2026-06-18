@@ -64,10 +64,26 @@ export function useDashboardCounts(eventId: string | null): DashboardCountState 
           return result.ok ? result.data : null;
         },
       },
+      {
+        queryKey: ['event-dashboard-units-count', eventId],
+        enabled: eventId != null,
+        queryFn: async () => {
+          const result = await fetchCount(secureSupabase, 'base_units', eventId as string);
+          return result.ok ? result.data : null;
+        },
+      },
+      {
+        queryKey: ['event-dashboard-activities-count', eventId],
+        enabled: eventId != null,
+        queryFn: async () => {
+          const result = await fetchCount(secureSupabase, 'base_activity_offering', eventId as string);
+          return result.ok ? result.data : null;
+        },
+      },
     ],
   });
 
-  const [forms, applications, registrationTypes] = queryResults;
+  const [forms, applications, registrationTypes, units, activities] = queryResults;
   const isLoading = queryResults.some((result) => result.isLoading);
 
   return {
@@ -77,6 +93,8 @@ export function useDashboardCounts(eventId: string | null): DashboardCountState 
     registrationTypes:
       registrationTypes.data ??
       (registrationTypes.isLoading ? null : registrationTypes.isError ? null : 0),
+    units: units.data ?? (units.isLoading ? null : units.isError ? null : 0),
+    activities: activities.data ?? (activities.isLoading ? null : activities.isError ? null : 0),
     isLoading,
   };
 }

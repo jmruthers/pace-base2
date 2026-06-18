@@ -4,12 +4,14 @@ import { MemoryRouter, Navigate, Outlet } from 'react-router-dom';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { BASE_ROUTE_REGISTRY, getShellNavigationItems } from './config/baseRouteRegistry';
+import { BASE_ROUTE_REGISTRY } from './config/baseRouteRegistry';
+import { getContextAwareShellNavigationItems } from './config/shellNavigation';
 
 const authState = vi.hoisted(() => ({
   isAuthenticated: false,
   isLoading: false,
   isRestoring: false,
+  selectedEventId: null as string | null,
 }));
 
 const permissionState = vi.hoisted(() => ({
@@ -73,6 +75,18 @@ vi.mock('@/features/scanningRuntime/sync/scanSyncWorker', () => ({
   stopScanSyncWorker: vi.fn(() => undefined),
 }));
 
+vi.mock('./pages/shell/ShellLandingPage', () => ({
+  ShellLandingPage: () => <main>Shell Landing Page</main>,
+}));
+
+vi.mock('./pages/shell/BaseNotFoundPage', () => ({
+  BaseNotFoundPage: () => (
+    <main>
+      <h1>404 — Page Not Found</h1>
+      <a href="/">Back to events</a>
+    </main>
+  ),
+}));
 vi.mock('./components/layout/AuthenticatedShell', () => ({
   AuthenticatedShell: () => (
     <main>
@@ -116,6 +130,10 @@ vi.mock('./pages/applications/ApplicationsPage', () => ({
   ApplicationsPage: () => <main>Applications Page</main>,
 }));
 
+vi.mock('./pages/applications/ApplicationDetailPage', () => ({
+  ApplicationDetailPage: () => <main>Application Detail Page</main>,
+}));
+
 vi.mock('./pages/communications/CommunicationsPage', () => ({
   CommunicationsPage: () => <main>Communications Page</main>,
 }));
@@ -157,26 +175,20 @@ afterEach(() => {
 });
 
 describe('BA00 navigation contract', () => {
-  it('defines the required fixed 10-item nav order', () => {
-    const navItems = getShellNavigationItems();
-    expect(navItems.map((item) => item.label)).toEqual([
-      'Event Dashboard',
-      'Configuration',
-      'Forms',
-      'Registration Types',
-      'Applications',
-      'Communications',
-      'Units',
-      'Activities',
-      'Scanning',
-      'Reports',
-    ]);
+  it('defines context-aware landing nav when no event is selected', () => {
+    const items = getContextAwareShellNavigationItems(null);
+    expect(items.map((item) => item.label)).toEqual(['Events']);
+    expect(items[0]?.href).toBe('/');
   });
 
-  it('keeps root entry and 404 out of shell nav', () => {
-    const navPaths = new Set(getShellNavigationItems().map((item) => item.href));
-    expect(navPaths.has('/')).toBe(false);
-    expect(navPaths.has('*')).toBe(false);
+  it('defines context-aware in-event nav when an event is selected', () => {
+    const items = getContextAwareShellNavigationItems('event-1');
+    expect(items.map((item) => item.label)).toEqual([
+      'Overview',
+      'Applications',
+      'Communications',
+      'Reports',
+    ]);
   });
 
   it('registers communications as a shell route', () => {
@@ -203,6 +215,7 @@ describe('BA00 route behavior', () => {
     authState.isAuthenticated = false;
     authState.isLoading = false;
     authState.isRestoring = false;
+    authState.selectedEventId = null;
     permissionState.allowRead = true;
   });
 
@@ -220,16 +233,18 @@ describe('BA00 route behavior', () => {
     expect(screen.queryByText('Shell Layout')).toBeNull();
   });
 
-  it('redirects authenticated root users to /event-dashboard', async () => {
+  it('redirects authenticated root users to shell landing', async () => {
     authState.isAuthenticated = true;
+    authState.selectedEventId = null;
     renderAt('/');
-    expect(await screen.findByText('Event Dashboard Page')).toBeTruthy();
+    expect(await screen.findByText('Shell Landing Page')).toBeTruthy();
   });
 
-  it('redirects authenticated /login visits back through root to event dashboard', async () => {
+  it('redirects authenticated /login visits back to shell landing', async () => {
     authState.isAuthenticated = true;
+    authState.selectedEventId = null;
     renderAt('/login');
-    expect(await screen.findByText('Event Dashboard Page')).toBeTruthy();
+    expect(await screen.findByText('Shell Landing Page')).toBeTruthy();
   });
 
   it('renders scanning runtime route outside standard app shell when authenticated', async () => {
@@ -244,14 +259,14 @@ describe('BA00 route behavior', () => {
     expect(await screen.findByText('Login Page BASE')).toBeTruthy();
   });
 
-  it('renders in-shell 404 with a return link to event dashboard', async () => {
+  it('renders in-shell 404 with a return link to shell landing', async () => {
     authState.isAuthenticated = true;
     renderAt('/does-not-exist');
     expect(await screen.findByText('404 — Page Not Found')).toBeTruthy();
     const returnLink = screen.getByRole('link', {
-      name: 'Return to Event Dashboard',
+      name: 'Back to events',
     });
-    expect(returnLink.getAttribute('href')).toBe('/event-dashboard');
+    expect(returnLink.getAttribute('href')).toBe('/');
   });
 
   it('shows access denied when route read permission is denied', async () => {
@@ -339,6 +354,13 @@ describe('BA00 route behavior', () => {
     renderAt('/applications');
     expect(await screen.findByText('Shell Layout')).toBeTruthy();
     expect(await screen.findByText('Applications Page')).toBeTruthy();
+  });
+
+  it('renders application detail route inside shell when authenticated', async () => {
+    authState.isAuthenticated = true;
+    renderAt('/applications/application-1');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
+    expect(await screen.findByText('Application Detail Page')).toBeTruthy();
   });
 
   it('renders communications route inside shell when authenticated', async () => {

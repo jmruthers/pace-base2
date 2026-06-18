@@ -2,11 +2,48 @@ import { useMemo } from 'react';
 import type { NavigateFunction } from 'react-router-dom';
 import { Badge, Button } from '@solvera/pace-core/components';
 import { ChevronRight, Plus, SquarePen, X } from '@solvera/pace-core/icons';
-import { getContextBadge, getDirectionBadge, getOfflineBadge, getStatusBadge } from '@/features/scanningSetup/scanningBadges';
+import { getContextBadge, getDirectionBadge, getOfflineBadge, getQueueSyncBadge, getStatusBadge } from '@/features/scanningSetup/scanningBadges';
 import type { ScanPointRow } from '@/features/scanningSetup/types';
+import type { ScanPointQueueSummary } from '@/features/scanningRuntime/sync/scanSyncWorker';
+
+function renderScanPointSyncBadge(summary: ScanPointQueueSummary | undefined) {
+  if (summary == null) {
+    return null;
+  }
+  if (summary.failed > 0) {
+    const badge = getQueueSyncBadge('failed');
+    return (
+      <Badge variant={badge.variant} role="status">
+        {badge.label}
+        {summary.failed > 1 ? ` (${summary.failed})` : ''}
+      </Badge>
+    );
+  }
+  if (summary.pending > 0) {
+    const badge = getQueueSyncBadge('pending');
+    return (
+      <Badge variant={badge.variant} role="status">
+        {badge.label}
+        {summary.pending > 1 ? ` (${summary.pending})` : ''}
+      </Badge>
+    );
+  }
+  if (summary.syncing > 0) {
+    const badge = getQueueSyncBadge('syncing');
+    return (
+      <span className={badge.className}>
+        <Badge variant={badge.variant} role="status">
+          {badge.label}
+        </Badge>
+      </span>
+    );
+  }
+  return null;
+}
 
 export function useScanningSetupScanPointColumns(args: {
   resourceLabelById: Record<string, string>;
+  queueByScanPoint: Record<string, ScanPointQueueSummary>;
   canUpdate: boolean;
   updateLoading: boolean;
   navigate: NavigateFunction;
@@ -16,6 +53,7 @@ export function useScanningSetupScanPointColumns(args: {
 }): unknown[] {
   const {
     resourceLabelById,
+    queueByScanPoint,
     canUpdate,
     updateLoading,
     navigate,
@@ -78,6 +116,11 @@ export function useScanningSetupScanPointColumns(args: {
         },
       },
       {
+        id: 'sync',
+        header: 'Sync',
+        cell: ({ row }: { row: ScanPointRow }) => renderScanPointSyncBadge(queueByScanPoint[row.id]),
+      },
+      {
         id: 'actions',
         header: 'Actions',
         cell: ({ row }: { row: ScanPointRow }) => (
@@ -134,6 +177,7 @@ export function useScanningSetupScanPointColumns(args: {
       onActivate,
       onDeactivateRequested,
       onRowsEditRequested,
+      queueByScanPoint,
       resourceLabelById,
       updateLoading,
     ]

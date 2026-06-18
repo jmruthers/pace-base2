@@ -110,7 +110,10 @@ export function ReportsPage() {
       }}
       fallback={<AccessDenied />}
     >
-      <main>
+      <main className="grid gap-4">
+        <header>
+          <h1>Reports</h1>
+        </header>
         <ReportBuilder
           metadataProvider={metadataProvider}
           executionAdapter={executionAdapter}

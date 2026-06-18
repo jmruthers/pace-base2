@@ -44,6 +44,7 @@ vi.mock('@/features/unitsCoordination/configuration', () => ({
   useRoleTypesList: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
   useApprovedApplications: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
   useUnitRoleAssignments: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
+  useEventUnitMemberCounts: () => ({ data: {}, isLoading: false, error: null, refetch: vi.fn() }),
 }));
 
 vi.mock('@/features/unitsCoordination/unitsUnitAndRoleMutations', () => ({

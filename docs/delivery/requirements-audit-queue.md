@@ -59,4 +59,12 @@ Shared shell: `pace-prototype/apps/_pace-core/`.
 
 ## Pass 2
 
-Implementation is tracked in [base-build-queue.md](./base-build-queue.md). Do not flip build queue rows during pass 1.
+Implementation uplift against updated requirements: [requirements-build-queue.md](./requirements-build-queue.md). Orchestration rule: `.cursor/rules/base-requirements-build-pass2.mdc`.
+
+Kickoff (Agent mode):
+
+```text
+Continue BASE requirements pass 2 from docs/delivery/requirements-build-queue.md
+```
+
+Historical Evidence remains in [base-build-queue.md](./base-build-queue.md). Do not flip pass 2 rows during pass 1.

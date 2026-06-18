@@ -126,6 +126,7 @@ export function RegistrationTypesPage() {
           listQuery={controller.listQuery}
           rows={controller.listRows}
           eligibilityCounts={controller.eligibilityCounts}
+          applicationCounts={controller.applicationCounts}
           onEdit={controller.openEdit}
           deleteCheckingTypeId={deleteCheckTypeId}
           onRequestDelete={(row) => void handleRequestDelete(row)}

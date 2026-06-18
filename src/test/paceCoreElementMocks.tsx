@@ -73,6 +73,49 @@ type MockTextFieldProps = {
   onChange?: (value: string) => void;
 };
 
+function bindMockInputValue(element: HTMLElement, onChange?: (value: string) => void): void {
+  if (element.dataset.mockInputBound === 'true') {
+    return;
+  }
+  element.dataset.mockInputBound = 'true';
+  Object.defineProperty(element, 'value', {
+    configurable: true,
+    get() {
+      return element.dataset.value ?? '';
+    },
+    set(next: string) {
+      element.dataset.value = next;
+      onChange?.(next);
+    },
+  });
+}
+
+/** Numeric field stand-in with spinbutton role for RTL `fireEvent.change` compatibility. */
+export function MockNumberField({
+  id,
+  value,
+  disabled,
+  'aria-label': ariaLabel,
+  onChange,
+}: MockTextFieldProps) {
+  const fieldId = id ?? ariaLabel ?? 'mock-number-field';
+
+  return (
+    <section
+      role="spinbutton"
+      id={fieldId}
+      aria-label={ariaLabel ?? fieldId}
+      aria-disabled={disabled}
+      data-value={value ?? ''}
+      ref={(element) => {
+        if (element != null) {
+          bindMockInputValue(element, onChange);
+        }
+      }}
+    />
+  );
+}
+
 export function MockTextField({
   id,
   value,

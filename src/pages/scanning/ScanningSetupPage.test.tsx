@@ -187,6 +187,7 @@ vi.mock('@/features/scanningRuntime/sync/scanSyncWorker', () => ({
   getQueueEntriesByStatus: vi.fn(async (statuses: string[]) =>
     statuses.includes('failed') ? state.queueFailedEntries : []
   ),
+  getQueueSyncSummaryByScanPoint: vi.fn(async () => ({})),
   retryFailedQueueEntries: retryFailedQueueEntriesMock,
 }));
 
@@ -449,7 +450,7 @@ describe('ScanningSetupPage', () => {
   it('renders default-variant tracking button and navigates to tracking page', () => {
     renderPage();
     const button = screen.getByRole('button', { name: 'View Tracking Dashboard' });
-    expect(button.getAttribute('data-variant')).toBe('default');
+    expect(button.getAttribute('data-variant')).toBe('outline');
     fireEvent.click(button);
     expect(navigateMock).toHaveBeenCalledWith('/scanning/tracking');
   });

@@ -82,6 +82,29 @@ export function useApprovedApplications(eventId: string | null) {
   });
 }
 
+export function useEventUnitMemberCounts(eventId: string | null) {
+  const secureSupabase = useSecureSupabase();
+  return useQuery({
+    queryKey: ['ba08', 'unit-member-counts', eventId],
+    enabled: eventId != null && secureSupabase != null,
+    queryFn: async () => {
+      const supabase = asSupabaseClient(secureSupabase);
+      const { data, error } = await supabase
+        .from('base_unit_roles')
+        .select('unit_id')
+        .eq('event_id', eventId as string);
+      if (error != null) {
+        throw new Error(toErrorMessage(error, 'Failed to load unit member counts.'));
+      }
+      const counts: Record<string, number> = {};
+      for (const row of (data as Array<{ unit_id: string }> | null) ?? []) {
+        counts[row.unit_id] = (counts[row.unit_id] ?? 0) + 1;
+      }
+      return counts;
+    },
+  });
+}
+
 export function useUnitRoleAssignments(unitId: string | null) {
   const secureSupabase = useSecureSupabase();
   return useQuery({

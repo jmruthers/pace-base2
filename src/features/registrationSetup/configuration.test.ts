@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => {
   const store = {
     registrationTypes: [] as unknown[],
     eligibilityRows: [] as unknown[],
+    applicationRows: [] as unknown[],
     requirementsRows: [] as unknown[],
     eventOrganisation: { organisation_id: 'org-1' } as { organisation_id: string | null },
     membershipRows: [] as unknown[],
@@ -56,6 +57,9 @@ const mocks = vi.hoisted(() => {
             }
             if (table === 'core_organisations') {
               return { data: store.organisationRows, error: store.tableErrors[table] ?? null };
+            }
+            if (table === 'base_application') {
+              return { data: store.applicationRows, error: store.tableErrors[table] ?? null };
             }
             return { data: [], error: store.tableErrors[table] ?? null };
           }),
@@ -138,6 +142,7 @@ describe('registrationSetup configuration hooks', () => {
         { id: 'type-2', name: 'Zulu', sort_order: null },
       ],
       eligibilityCountsByTypeId: { 'type-1': 2 },
+      applicationCountsByTypeId: {},
       eligibilityByTypeId: {
         'type-1': [
           { registration_type_id: 'type-1', rule_type: 'membership_type', value: '1' },

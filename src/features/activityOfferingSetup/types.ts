@@ -16,7 +16,11 @@ export interface ActivityOfferingRow {
   event_id: string;
   organisation_id: string;
   trac_activity: TracActivityRow | null;
-  sessions: Array<{ count: number }> | null;
+  sessions: Array<{
+    count?: number;
+    capacity?: number;
+    bookings?: Array<{ count: number }>;
+  }> | null;
 }
 
 export interface ActivitySessionRow {

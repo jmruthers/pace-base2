@@ -28,11 +28,9 @@ import { formatUnitDisplayLabel } from '@/features/unitsCoordination/unitsDispla
 import type { UnitRoleTypeRow } from '@/features/unitsCoordination/types';
 import type { UnitsPageController } from '@/hooks/units/useUnitsPageController';
 import { useAssignmentsTableColumns, useUnitsRoleTypesColumns } from '@/hooks/units/useUnitsSupportingTableColumns';
-import { useUnitsDataColumns } from '@/hooks/units/useUnitsDataColumns';
-import type { UnitsTableRow } from '@/pages/units/unitsPageTypes';
+import { UnitsTabCardGrid } from '@/components/units/UnitsTabCardGrid';
 
 export function UnitsPageView({ ctl }: { ctl: UnitsPageController }) {
-  const unitsColumns = useUnitsDataColumns(ctl.scope, ctl.unitOptions, ctl.queueDeleteUnit);
   const roleTypesColumns = useUnitsRoleTypesColumns(ctl.scope, ctl.queueDeleteRoleType);
   const assignmentsColumns = useAssignmentsTableColumns(ctl.scope, ctl.queueRemoveAssignment);
 
@@ -78,34 +76,7 @@ export function UnitsPageView({ ctl }: { ctl: UnitsPageController }) {
                     </Button>
                   </Alert>
                 ) : (
-                  <DataTable<UnitsTableRow>
-                    data={ctl.unitsRows}
-                    columns={unitsColumns}
-                    rbac={{ pageName: 'UnitsPage' }}
-                    isLoading={ctl.unitsQuery.isLoading}
-                    emptyState={{ description: 'No units have been created for this event.' }}
-                    initialPageSize={25}
-                    onCreateRow={(rowData) => ctl.handleCreateUnit(rowData)}
-                    onEditRow={(row, rowData) => ctl.handleUpdateUnit(row, rowData)}
-                    onImport={ctl.handleImportUnits}
-                    features={{
-                      search: true,
-                      pagination: true,
-                      sorting: true,
-                      export: true,
-                      grouping: true,
-                      columnVisibility: true,
-                      editing: true,
-                      creation: true,
-                      import: true,
-                      filtering: false,
-                      selection: false,
-                      deletion: false,
-                      deleteSelected: false,
-                      columnReordering: false,
-                      hierarchical: false,
-                    }}
-                  />
+                  <UnitsTabCardGrid ctl={ctl} />
                 )}
               </CardContent>
             </Card>

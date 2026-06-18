@@ -15,13 +15,7 @@ import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
 import type { ApplicationTableRow } from '@/components/applications/applicationQueueTypes';
 import type { ApplicationsPageController } from '@/hooks/applications/useApplicationsPageController';
 import { ApplicationQueueClipboardIcon } from '@/components/applications/ApplicationQueueClipboardIcon';
-import {
-  ApplicationConfirmationDialogs,
-} from '@/components/applications/ApplicationConfirmationDialogs';
-import {
-  ApplicationDetailDialog,
-  ApplicationReviewStepsDialog,
-} from '@/components/applications/ApplicationDetailDialog';
+import { ApplicationReviewStepsDialog } from '@/components/applications/ApplicationDetailDialog';
 
 export function ApplicationsPageView({ ctl }: { ctl: ApplicationsPageController }) {
   return (
@@ -105,34 +99,6 @@ export function ApplicationsPageView({ ctl }: { ctl: ApplicationsPageController 
         </section>
       )}
 
-      <ApplicationDetailDialog
-        detailRow={ctl.detailRow}
-        onOpenChange={(open) => {
-          if (!open) {
-            ctl.setDetailApplicationId(null);
-          }
-        }}
-        evidenceQuery={ctl.evidenceQuery}
-        onRetryEvidence={ctl.retryEvidence}
-        sortedChecks={ctl.sortedDetailChecks}
-        rpcCheckActionsEnabled={ctl.rpcCheckActionsEnabled}
-        scope={ctl.scope}
-        onRequestSatisfyCheck={(checkId) => {
-          ctl.setActiveCheckId(checkId);
-          ctl.setSatisfyCheckConfirmOpen(true);
-        }}
-        onRequestRejectCheck={(checkId) => {
-          ctl.setActiveCheckId(checkId);
-          ctl.setRejectCheckConfirmOpen(true);
-        }}
-        onRequestReissueLink={(checkId) => {
-          ctl.setActiveCheckId(checkId);
-          ctl.setReissueConfirmOpen(true);
-        }}
-        onApproveRequest={() => ctl.setApproveConfirmOpen(true)}
-        onRejectRequest={() => ctl.setRejectAppDialogOpen(true)}
-      />
-
       <ApplicationReviewStepsDialog
         reviewStepsRow={ctl.reviewStepsRow}
         sortedReviewChecks={ctl.sortedReviewChecks}
@@ -141,32 +107,6 @@ export function ApplicationsPageView({ ctl }: { ctl: ApplicationsPageController 
             ctl.setReviewStepsApplicationId(null);
           }
         }}
-      />
-
-      <ApplicationConfirmationDialogs
-        approveConfirmOpen={ctl.approveConfirmOpen}
-        setApproveConfirmOpen={ctl.setApproveConfirmOpen}
-        rejectAppDialogOpen={ctl.rejectAppDialogOpen}
-        setRejectAppDialogOpen={ctl.setRejectAppDialogOpen}
-        rejectApplicationNotes={ctl.rejectApplicationNotes}
-        setRejectApplicationNotes={ctl.setRejectApplicationNotes}
-        satisfyCheckConfirmOpen={ctl.satisfyCheckConfirmOpen}
-        setSatisfyCheckConfirmOpen={ctl.setSatisfyCheckConfirmOpen}
-        reissueConfirmOpen={ctl.reissueConfirmOpen}
-        setReissueConfirmOpen={ctl.setReissueConfirmOpen}
-        rejectCheckConfirmOpen={ctl.rejectCheckConfirmOpen}
-        setRejectCheckConfirmOpen={ctl.setRejectCheckConfirmOpen}
-        rejectCheckNotes={ctl.rejectCheckNotes}
-        setRejectCheckNotes={ctl.setRejectCheckNotes}
-        setActiveCheckId={ctl.setActiveCheckId}
-        handleApproveApplication={ctl.handleApproveApplication}
-        handleRejectApplication={ctl.handleRejectApplication}
-        handleSatisfyCheck={ctl.handleSatisfyCheck}
-        handleRejectCheck={ctl.handleRejectCheck}
-        handleReissueToken={ctl.handleReissueToken}
-        setApplicationStatusPending={ctl.setApplicationStatusMutation.isPending}
-        setCheckStatusPending={ctl.setCheckStatusMutation.isPending}
-        reissueTokenPending={ctl.reissueTokenMutation.isPending}
       />
     </main>
   );

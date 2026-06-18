@@ -104,6 +104,24 @@ async function fetchFieldCountRows(
   return apiSuccess(toFieldCountMap(((data as Array<{ form_id: string }> | null) ?? [])));
 }
 
+async function fetchResponseCountRows(
+  supabase: SupabaseLike,
+  formIds: string[]
+): Promise<ApiResult<Record<string, number>>> {
+  if (formIds.length === 0) {
+    return apiSuccess({});
+  }
+  const { data, error } = await supabase
+    .from('core_form_responses')
+    .select('form_id')
+    .in('form_id', formIds)
+    .order('form_id', { ascending: true });
+  if (error != null) {
+    return apiFailure('response-count-read-error', 'Failed to load response counts', error);
+  }
+  return apiSuccess(toFieldCountMap(((data as Array<{ form_id: string }> | null) ?? [])));
+}
+
 async function fetchFormDetail(
   supabase: SupabaseLike,
   eventId: string,
@@ -416,7 +434,7 @@ async function deleteForm(
   });
 }
 
-export function builderRecordQueryKey(eventId: string, formId: string) {
+function builderRecordQueryKey(eventId: string, formId: string) {
   return ['forms-authoring', 'builder-record', eventId, formId] as const;
 }
 
@@ -428,6 +446,7 @@ export async function invalidateFormsAuthoringAfterSave(
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ['forms-authoring', 'forms-list', params.eventId] }),
     queryClient.invalidateQueries({ queryKey: ['forms-authoring', 'field-counts', params.eventId] }),
+    queryClient.invalidateQueries({ queryKey: ['forms-authoring', 'response-counts', params.eventId] }),
     queryClient.invalidateQueries({
       queryKey: builderRecordQueryKey(params.eventId, params.formId),
     }),
@@ -460,6 +479,26 @@ export function useFormFieldCounts(eventId: string | null, forms: CoreFormListRo
     queryFn: async () => {
       const supabase = asSupabaseClient(secureSupabase);
       const result = await fetchFieldCountRows(
+        supabase,
+        (forms ?? []).map((form) => form.id)
+      );
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
+    },
+  });
+}
+
+export function useFormResponseCounts(eventId: string | null, forms: CoreFormListRow[] | undefined) {
+  const secureSupabase = useSecureSupabase();
+
+  return useQuery({
+    queryKey: ['forms-authoring', 'response-counts', eventId, forms?.map((form) => form.id).join(',')],
+    enabled: eventId != null && secureSupabase != null && (forms?.length ?? 0) > 0,
+    queryFn: async () => {
+      const supabase = asSupabaseClient(secureSupabase);
+      const result = await fetchResponseCountRows(
         supabase,
         (forms ?? []).map((form) => form.id)
       );

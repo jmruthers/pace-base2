@@ -12,6 +12,7 @@ import {
 } from '@/features/unitsCoordination/unitsDisplayAndPreferenceHelpers';
 import {
   useApprovedApplications,
+  useEventUnitMemberCounts,
   useRoleTypesList,
   useUnitRoleAssignments,
   useUnitsList,
@@ -51,6 +52,7 @@ export function useUnitsPageController() {
   const unitsQuery = useUnitsList(selectedEventId);
   const roleTypesQuery = useRoleTypesList(selectedEventId);
   const approvedApplicationsQuery = useApprovedApplications(selectedEventId);
+  const memberCountsQuery = useEventUnitMemberCounts(selectedEventId);
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const assignmentsQuery = useUnitRoleAssignments(selectedUnitId);
@@ -137,6 +139,7 @@ export function useUnitsPageController() {
 
   const refetchUnits = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['ba08', 'units', selectedEventId] });
+    await queryClient.invalidateQueries({ queryKey: ['ba08', 'unit-member-counts', selectedEventId] });
   }, [queryClient, selectedEventId]);
 
   const refetchRoleTypes = useCallback(async () => {
@@ -329,6 +332,10 @@ export function useUnitsPageController() {
     unitsQuery,
     roleTypesQuery,
     approvedApplicationsQuery,
+    memberCountsQuery,
+    memberCountsByUnitId: memberCountsQuery.data ?? {},
+    createUnitMutation,
+    updateUnitMutation,
     selectedUnitId,
     setSelectedUnitId,
     assignmentsQuery,

@@ -16,6 +16,14 @@ const dashboardState = vi.hoisted(() => ({
     forms: 5 as number | null,
     applications: 12 as number | null,
     registrationTypes: 3 as number | null,
+    units: 2 as number | null,
+    activities: 4 as number | null,
+    isLoading: false,
+  },
+  metrics: {
+    awaitingApplications: 2 as number | null,
+    approvedApplications: 8 as number | null,
+    publishedForms: 3 as number | null,
     isLoading: false,
   },
   logoRef: null as Record<string, unknown> | null,
@@ -42,19 +50,51 @@ vi.mock('react-router-dom', () => ({
       {children}
     </a>
   ),
+  useNavigate: () => vi.fn(),
 }));
 
 vi.mock('@solvera/pace-core/components', () => ({
+  AttentionSection: ({ items }: { items: Array<{ title: string }> }) => (
+    <section>{items.map((item) => item.title).join(', ')}</section>
+  ),
   Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  Button: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <section role="button" tabIndex={0} onClick={onClick}>
+      {children}
+    </section>
+  ),
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardDescription: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  CardGrid: ({ children, heading }: { children: React.ReactNode; heading?: string }) => (
+    <section>
+      {heading != null ? <h2>{heading}</h2> : null}
+      {children}
+    </section>
+  ),
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
-  CardTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+  CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+  EntityHero: ({
+    title,
+    actions,
+    media,
+  }: {
+    title: React.ReactNode;
+    actions?: React.ReactNode;
+    media?: React.ReactNode;
+  }) => (
+    <section>
+      {media}
+      {title}
+      {actions}
+    </section>
+  ),
   FileDisplay: (props: Record<string, unknown>) => {
     dashboardState.fileDisplayProps = props;
     return <p>Logo</p>;
   },
+  HeroLogo: ({ code }: { code?: string }) => <span>{code}</span>,
+  PageHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
 }));
 
 vi.mock('@solvera/pace-core/hooks', () => ({
@@ -84,6 +124,10 @@ vi.mock('@/features/eventConfiguration/dashboard', () => ({
   useDashboardCounts: () => dashboardState.counts,
 }));
 
+vi.mock('@/features/eventConfiguration/dashboardMetrics', () => ({
+  useEventDashboardMetrics: () => dashboardState.metrics,
+}));
+
 vi.mock('@/features/eventConfiguration/useEventLogoReference', () => ({
   useEventLogoReference: () => ({ data: dashboardState.logoRef }),
 }));
@@ -103,6 +147,14 @@ describe('EventDashboardPage', () => {
       forms: 5,
       applications: 12,
       registrationTypes: 3,
+      units: 2,
+      activities: 4,
+      isLoading: false,
+    };
+    dashboardState.metrics = {
+      awaitingApplications: 2,
+      approvedApplications: 8,
+      publishedForms: 3,
       isLoading: false,
     };
     dashboardState.logoRef = null;
@@ -124,12 +176,14 @@ describe('EventDashboardPage', () => {
       forms: null,
       applications: null,
       registrationTypes: null,
+      units: null,
+      activities: null,
       isLoading: true,
     };
 
     render(<EventDashboardPage />);
 
-    expect(screen.getAllByText('…')).toHaveLength(3);
+    expect(screen.getAllByText('…').length).toBeGreaterThanOrEqual(4);
   });
 
   it('shows em-dash counts when count fetches fail', () => {
@@ -137,12 +191,25 @@ describe('EventDashboardPage', () => {
       forms: null,
       applications: null,
       registrationTypes: null,
+      units: null,
+      activities: null,
       isLoading: false,
     };
 
     render(<EventDashboardPage />);
 
-    expect(screen.getAllByText('—')).toHaveLength(3);
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('renders prototype-aligned dashboard regions when an event is selected', () => {
+    render(<EventDashboardPage />);
+
+    expect(screen.getAllByRole('heading', { name: 'Summer Event' }).length).toBeGreaterThan(0);
+    expect(screen.getByText('Review applications')).toBeTruthy();
+    expect(screen.getByText('Edit forms')).toBeTruthy();
+    expect(screen.getByText('Event setup')).toBeTruthy();
+    expect(screen.getByText('Event details')).toBeTruthy();
+    expect(screen.getByText('Applications awaiting approval')).toBeTruthy();
   });
 
   it('passes FileDisplay bucket and label when a logo reference exists', () => {

@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogBody,
@@ -11,9 +11,7 @@ import {
 import { AccessDenied } from '@solvera/pace-core/rbac';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { APP_NAME } from '@/config/appName';
-import { getShellNavigationItems } from '@/config/baseRouteRegistry';
-
-const NAV_ITEMS = [...getShellNavigationItems()];
+import { getContextAwareShellNavigationItems } from '@/config/shellNavigation';
 
 function deriveUserFullName(
   user: ReturnType<typeof useUnifiedAuth>['user']
@@ -30,8 +28,18 @@ function deriveUserFullName(
 
 export function AuthenticatedShell() {
   const navigate = useNavigate();
-  const { isLoading, user, signOut, updatePassword } = useUnifiedAuth();
+  const location = useLocation();
+  const { isLoading, user, signOut, updatePassword, selectedEventId } = useUnifiedAuth();
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+
+  const navItems = useMemo(
+    () => [...getContextAwareShellNavigationItems(selectedEventId)],
+    [selectedEventId]
+  );
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   const handleUserMenuSignOut = useCallback(async () => {
     await signOut();
@@ -62,7 +70,7 @@ export function AuthenticatedShell() {
       <PaceAppLayout
         appName={APP_NAME}
         logoHref="/"
-        navItems={NAV_ITEMS}
+        navItems={navItems}
         showContextSelector
         showOrganisations
         showEvents

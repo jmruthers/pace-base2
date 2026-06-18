@@ -103,6 +103,30 @@ async function fetchEligibilityRows(
   return apiSuccess((data as RegistrationTypeEligibilityRow[] | null) ?? []);
 }
 
+async function fetchApplicationCountsByType(
+  supabase: SupabaseLike,
+  eventId: string
+): Promise<ApiResult<Record<string, number>>> {
+  const { data, error } = await supabase
+    .from('base_application')
+    .select('registration_type_id')
+    .eq('event_id', eventId)
+    .order('registration_type_id', { ascending: true });
+  if (error != null) {
+    return apiFailure('application-counts-read-error', 'Failed to load application counts', error);
+  }
+  const counts = ((data as Array<{ registration_type_id: string | null }> | null) ?? []).reduce<
+    Record<string, number>
+  >((accumulator, row) => {
+    if (row.registration_type_id == null) {
+      return accumulator;
+    }
+    accumulator[row.registration_type_id] = (accumulator[row.registration_type_id] ?? 0) + 1;
+    return accumulator;
+  }, {});
+  return apiSuccess(counts);
+}
+
 async function fetchRequirements(
   supabase: SupabaseLike,
   registrationTypeId: string
@@ -286,15 +310,19 @@ export function useRegistrationTypesList(eventId: string | null) {
     enabled: eventId != null && secureSupabase != null,
     queryFn: async () => {
       const supabase = asSupabaseClient(secureSupabase);
-      const [typesResult, eligibilityResult] = await Promise.all([
+      const [typesResult, eligibilityResult, applicationCountsResult] = await Promise.all([
         fetchRegistrationTypes(supabase, eventId as string),
         fetchEligibilityRows(supabase, eventId as string),
+        fetchApplicationCountsByType(supabase, eventId as string),
       ]);
       if (!typesResult.ok) {
         throw new Error(typesResult.error.message);
       }
       if (!eligibilityResult.ok) {
         throw new Error(eligibilityResult.error.message);
+      }
+      if (!applicationCountsResult.ok) {
+        throw new Error(applicationCountsResult.error.message);
       }
       const types = typesResult.data;
       const eligibility = eligibilityResult.data;
@@ -308,6 +336,7 @@ export function useRegistrationTypesList(eventId: string | null) {
       return {
         types,
         eligibilityCountsByTypeId: counts,
+        applicationCountsByTypeId: applicationCountsResult.data,
         eligibilityByTypeId: eligibility.reduce<Record<string, RegistrationTypeEligibilityRow[]>>(
           (accumulator, row) => {
             accumulator[row.registration_type_id] = [

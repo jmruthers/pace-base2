@@ -53,6 +53,7 @@ const state = vi.hoisted(() => ({
       created_at: string | null;
     }>,
     eligibilityCountsByTypeId: {} as Record<string, number>,
+    applicationCountsByTypeId: {} as Record<string, number>,
     eligibilityByTypeId: {} as Record<string, Array<{ registration_type_id: string; rule_type: 'membership_type' | 'dob_before' | 'dob_after'; value: string }>>,
   },
 }));
@@ -122,6 +123,9 @@ vi.mock('@solvera/pace-core/components', async () => {
   Input: MockTextField,
   Label: MockFieldLabel,
   LoadingSpinner: () => <p>Loading Spinner</p>,
+  Progress: ({ value, max }: { value?: number; max?: number }) => (
+    <meter value={value} max={max} aria-hidden />
+  ),
   Select: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
@@ -224,6 +228,7 @@ describe('RegistrationTypesPage', () => {
     state.listData = {
       types: [],
       eligibilityCountsByTypeId: {},
+      applicationCountsByTypeId: {},
       eligibilityByTypeId: {},
     };
     state.invalidateQueries.mockClear();
@@ -306,6 +311,7 @@ describe('RegistrationTypesPage', () => {
         },
       ],
       eligibilityCountsByTypeId: { 'type-1': 0 },
+      applicationCountsByTypeId: {},
       eligibilityByTypeId: { 'type-1': [] },
     };
     renderPage();
@@ -332,6 +338,7 @@ describe('RegistrationTypesPage', () => {
         },
       ],
       eligibilityCountsByTypeId: { 'type-1': 0 },
+      applicationCountsByTypeId: {},
       eligibilityByTypeId: { 'type-1': [] },
     };
 
@@ -360,6 +367,7 @@ describe('RegistrationTypesPage', () => {
         },
       ],
       eligibilityCountsByTypeId: { 'type-1': 2 },
+      applicationCountsByTypeId: {},
       eligibilityByTypeId: { 'type-1': [] },
     };
 
@@ -398,6 +406,7 @@ describe('RegistrationTypesPage', () => {
         },
       ],
       eligibilityCountsByTypeId: { 'type-1': 0 },
+      applicationCountsByTypeId: {},
       eligibilityByTypeId: { 'type-1': [] },
     };
 
@@ -429,6 +438,7 @@ describe('RegistrationTypesPage', () => {
         },
       ],
       eligibilityCountsByTypeId: { 'type-1': 0 },
+      applicationCountsByTypeId: {},
       eligibilityByTypeId: { 'type-1': [] },
     };
 

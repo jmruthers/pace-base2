@@ -20,6 +20,9 @@ const state = vi.hoisted(() => ({
   fieldCountsLoading: false,
   fieldCountsError: null as Error | null,
   fieldCountsData: {} as Record<string, number>,
+  responseCountsLoading: false,
+  responseCountsError: null as Error | null,
+  responseCountsData: {} as Record<string, number>,
   formsData: [] as Array<{
     id: string;
     name: string;
@@ -106,13 +109,7 @@ vi.mock('@solvera/pace-core/components', () => ({
     onClick?: () => void;
   }) => createElement('button', { type: 'button', onClick, ...props }, children),
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
-  CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
-  CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  CardFooter: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <footer className={className}>{children}</footer>
-  ),
   ConfirmationDialog: ({
     open,
     title,
@@ -133,6 +130,46 @@ vi.mock('@solvera/pace-core/components', () => ({
         </article>
       </section>
     ) : null,
+  DataTable: ({
+    data,
+    columns,
+    onRowActivate,
+    isLoading,
+    emptyState,
+  }: {
+    data: Array<Record<string, unknown>>;
+    columns: Array<{
+      id?: string;
+      accessorKey?: string;
+      header: string;
+      cell?: (info: { row: Record<string, unknown> }) => React.ReactNode;
+    }>;
+    onRowActivate?: (row: Record<string, unknown>) => void;
+    isLoading?: boolean;
+    emptyState?: { description?: string };
+  }) =>
+    isLoading ? (
+      <p>Loading Spinner</p>
+    ) : data.length === 0 ? (
+      <p>{emptyState?.description}</p>
+    ) : (
+      <section>
+        {data.map((row) => (
+          <article
+            key={String(row.id)}
+            role="button"
+            aria-label={`row-${String(row.id)}`}
+            onClick={() => onRowActivate?.(row)}
+          >
+            {columns.map((column) => (
+              <section key={column.id ?? column.accessorKey ?? column.header}>
+                {column.cell != null ? column.cell({ row }) : null}
+              </section>
+            ))}
+          </article>
+        ))}
+      </section>
+    ),
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
     open ? <section>{children}</section> : null,
   DialogContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
@@ -140,7 +177,6 @@ vi.mock('@solvera/pace-core/components', () => ({
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   DialogFooter: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  LoadingSpinner: () => <p>Loading Spinner</p>,
 }));
 
 vi.mock('@solvera/pace-core/forms', async (importOriginal) => {
@@ -170,6 +206,11 @@ vi.mock('@/features/formsAuthoring/configuration', () => ({
     isLoading: state.fieldCountsLoading,
     error: state.fieldCountsError,
     data: state.fieldCountsData,
+  }),
+  useFormResponseCounts: () => ({
+    isLoading: state.responseCountsLoading,
+    error: state.responseCountsError,
+    data: state.responseCountsData,
   }),
   useDeleteFormMutation: () => ({
     isPending: false,
@@ -206,6 +247,9 @@ describe('FormsListPage', () => {
     state.fieldCountsLoading = false;
     state.fieldCountsError = null;
     state.fieldCountsData = {};
+    state.responseCountsLoading = false;
+    state.responseCountsError = null;
+    state.responseCountsData = {};
     state.formsData = [];
     state.toastMock = vi.fn();
     state.deleteMutateAsync = vi.fn(async () => ({
@@ -233,7 +277,7 @@ describe('FormsListPage', () => {
     state.formsData = [];
     renderPage();
     expect(screen.getByText('Select an event from the header to manage forms.')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Create Form' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'New form' })).toBeNull();
   });
 
   it('shows loading state while forms are loading', () => {
@@ -251,7 +295,7 @@ describe('FormsListPage', () => {
     state.allowCreate = true;
     renderPage();
     expect(screen.getByText('No forms yet. Create your first form to get started.')).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: 'Create Form' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'New form' }).length).toBeGreaterThan(0);
   });
 
   it('shows access denied when read permission is denied', () => {
@@ -279,7 +323,7 @@ describe('FormsListPage', () => {
     });
   });
 
-  it('renders form cards with action row and hides delete when update denied', () => {
+  it('renders form table rows with actions and hides delete when update denied', () => {
     state.allowUpdate = false;
     state.formsData = [
       {
@@ -289,7 +333,7 @@ describe('FormsListPage', () => {
         status: 'draft',
         workflow_type: 'information_collection',
         is_active: true,
-                opens_at: null,
+        opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -299,38 +343,11 @@ describe('FormsListPage', () => {
     renderPage();
 
     expect(screen.getByText('Camp Form')).toBeTruthy();
-    expect(screen.getByText('Information collection')).toBeTruthy();
-    const portalLink = screen.getByRole('link', { name: 'https://portal.example.com/forms/sample' });
-    expect(portalLink.getAttribute('href')).toBe('https://portal.example.com/forms/sample');
-    expect(portalLink.getAttribute('target')).toBe('_blank');
-    expect(portalLink.getAttribute('rel')).toBe('noopener noreferrer');
-    const footer = screen.getByRole('contentinfo');
-    expect(footer.className.includes('grid')).toBe(true);
-    expect(screen.queryByLabelText('Delete Camp Form')).toBeNull();
+    expect(screen.getByText('/camp-form')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Preview' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
     expect(screen.queryByText('You do not have permission to view this page.')).toBeNull();
-    expect(screen.queryByLabelText('Copy URL for Camp Form')).toBeNull();
-  });
-
-  it('omits portal url link when VITE_PORTAL_BASE_URL is not set', () => {
-    vi.stubEnv('VITE_PORTAL_BASE_URL', '');
-    state.formsData = [
-      {
-        id: 'form-1',
-        name: 'Camp Form',
-        slug: 'camp-form',
-        status: 'draft',
-        workflow_type: 'information_collection',
-        is_active: true,
-                opens_at: null,
-        closes_at: null,
-        created_at: null,
-        updated_at: null,
-      },
-    ];
-
-    renderPage();
-
-    expect(screen.queryByRole('link', { name: /portal\.example\.com/ })).toBeNull();
   });
 
   it('opens preview url when preview clicked', () => {
@@ -342,7 +359,7 @@ describe('FormsListPage', () => {
         status: 'draft',
         workflow_type: 'information_collection',
         is_active: true,
-                opens_at: null,
+        opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -350,7 +367,7 @@ describe('FormsListPage', () => {
     ];
 
     renderPage();
-    fireEvent.click(screen.getByLabelText('Preview Camp Form'));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
     expect(globalThis.open).toHaveBeenCalledWith('https://portal.example.com/forms/sample', '_blank');
   });
 
@@ -364,7 +381,7 @@ describe('FormsListPage', () => {
         status: 'draft',
         workflow_type: 'information_collection',
         is_active: true,
-                opens_at: null,
+        opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -372,7 +389,7 @@ describe('FormsListPage', () => {
     ];
 
     renderPage();
-    fireEvent.click(screen.getByLabelText('Preview Camp Form'));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
 
     expect(globalThis.open).not.toHaveBeenCalled();
     expect(state.toastMock).toHaveBeenCalledWith(
@@ -383,7 +400,7 @@ describe('FormsListPage', () => {
     );
   });
 
-  it('renders status variants and date lines when populated', () => {
+  it('renders status badges and count columns when populated', () => {
     state.formsData = [
       {
         id: 'form-1',
@@ -392,10 +409,10 @@ describe('FormsListPage', () => {
         status: 'published',
         workflow_type: 'information_collection',
         is_active: true,
-                opens_at: '2026-01-10T00:00:00.000Z',
+        opens_at: '2026-01-10T00:00:00.000Z',
         closes_at: '2026-01-20T00:00:00.000Z',
         created_at: null,
-        updated_at: null,
+        updated_at: '2026-01-15T00:00:00.000Z',
       },
       {
         id: 'form-2',
@@ -404,24 +421,25 @@ describe('FormsListPage', () => {
         status: 'closed',
         workflow_type: 'information_collection',
         is_active: true,
-                opens_at: null,
+        opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
       },
     ];
     state.fieldCountsData = { 'form-1': 3, 'form-2': 1 };
+    state.responseCountsData = { 'form-1': 5, 'form-2': 0 };
 
     renderPage();
     expect(screen.getByText('Published Form')).toBeTruthy();
     expect(screen.getByText('published')).toBeTruthy();
     expect(screen.getByText('Closed Form')).toBeTruthy();
     expect(screen.getByText('closed')).toBeTruthy();
-    expect(screen.getByText('Opens: 10/01/2026 · Closes: 20/01/2026')).toBeTruthy();
-    expect(screen.getByText('3 fields')).toBeTruthy();
+    expect(screen.getByText('3')).toBeTruthy();
+    expect(screen.getByText('5')).toBeTruthy();
   });
 
-  it('shows field-count fallback labels for loading and error branches', () => {
+  it('shows count fallback labels for loading and error branches', () => {
     state.formsData = [
       {
         id: 'form-1',
@@ -430,7 +448,7 @@ describe('FormsListPage', () => {
         status: 'draft',
         workflow_type: 'information_collection',
         is_active: true,
-                opens_at: null,
+        opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -439,7 +457,7 @@ describe('FormsListPage', () => {
     state.fieldCountsLoading = true;
     state.fieldCountsData = undefined as unknown as Record<string, number>;
     const { rerender } = renderPage();
-    expect(screen.getByText('— fields')).toBeTruthy();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
 
     state.fieldCountsLoading = false;
     state.fieldCountsError = new Error('count fail');
@@ -448,7 +466,7 @@ describe('FormsListPage', () => {
         <FormsListPage />
       </MemoryRouter>
     );
-    expect(screen.getByText('? fields')).toBeTruthy();
+    expect(screen.getAllByText('?').length).toBeGreaterThan(0);
   });
 
   it('shows cannot-delete dialog without confirmation when dependencies block delete', async () => {
@@ -468,7 +486,7 @@ describe('FormsListPage', () => {
         status: 'published',
         workflow_type: 'information_collection',
         is_active: true,
-                opens_at: null,
+        opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -476,7 +494,7 @@ describe('FormsListPage', () => {
     ];
 
     renderPage();
-    await user.click(screen.getByLabelText('Delete Second form'));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
 
     expect(await screen.findByText('Cannot delete form')).toBeTruthy();
     expect(screen.getByText(/1 submission/i)).toBeTruthy();
@@ -494,7 +512,7 @@ describe('FormsListPage', () => {
         status: 'draft',
         workflow_type: 'information_collection',
         is_active: true,
-                opens_at: null,
+        opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -503,7 +521,7 @@ describe('FormsListPage', () => {
 
     renderPage();
 
-    await user.click(screen.getByLabelText('Delete Camp Form'));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
     expect(await screen.findByText(/Are you sure you want to delete 'Camp Form'/i)).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: 'confirm-delete' }));
@@ -526,7 +544,7 @@ describe('FormsListPage', () => {
         status: 'draft',
         workflow_type: 'information_collection',
         is_active: true,
-                opens_at: null,
+        opens_at: null,
         closes_at: null,
         created_at: null,
         updated_at: null,
@@ -535,7 +553,7 @@ describe('FormsListPage', () => {
 
     renderPage();
 
-    await user.click(screen.getByLabelText('Delete Camp Form'));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
     await user.click(screen.getByRole('button', { name: 'confirm-delete' }));
     expect(screen.getByText('Cannot delete form')).toBeTruthy();
     expect(screen.getByText(/2 submissions and 1 registration type binding/)).toBeTruthy();

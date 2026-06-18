@@ -7,6 +7,7 @@ export interface UnitRow {
   contingent: string | null;
   parent_unit_id: string | null;
   event_id: string;
+  capacity?: number | null;
   created_at: string | null;
   updated_at: string | null;
 }

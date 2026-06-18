@@ -20,8 +20,8 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
   },
   {
     path: '/',
-    label: 'Root Entry Redirect',
-    pageName: 'RootEntryRedirectPage',
+    label: 'Events',
+    pageName: 'ShellLandingPage',
     sliceId: 'app-shell-and-access',
     includeInShell: true,
     includeInNavigation: false,
@@ -89,6 +89,14 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     sliceId: 'applications-admin-and-review',
     includeInShell: true,
     includeInNavigation: true,
+  },
+  {
+    path: '/applications/:applicationId',
+    label: 'Application Detail',
+    pageName: 'ApplicationsPage',
+    sliceId: 'applications-admin-and-review',
+    includeInShell: true,
+    includeInNavigation: false,
   },
   {
     path: '/communications',

@@ -44,9 +44,18 @@ export interface DashboardCounts {
   forms: number | null;
   applications: number | null;
   registrationTypes: number | null;
+  units: number | null;
+  activities: number | null;
 }
 
 export interface DashboardCountState extends DashboardCounts {
+  isLoading: boolean;
+}
+
+export interface EventDashboardMetrics {
+  awaitingApplications: number | null;
+  approvedApplications: number | null;
+  publishedForms: number | null;
   isLoading: boolean;
 }
 

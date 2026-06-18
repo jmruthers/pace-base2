@@ -106,7 +106,7 @@ export function useScanningSetupController() {
 
   const { lastFlushAt } = useScanSyncSnapshot();
   const scanPointIds = useMemo(() => scanPoints.map((row) => row.id), [scanPoints]);
-  const { queueSummaryQuery, queueCounts, queueFailedEntries } = useScanningSetupQueueSummary(
+  const { queueSummaryQuery, queueCounts, queueFailedEntries, queueByScanPoint } = useScanningSetupQueueSummary(
     scanPointIds,
     lastFlushAt
   );
@@ -281,6 +281,7 @@ export function useScanningSetupController() {
 
   const scanPointColumns = useScanningSetupScanPointColumns({
     resourceLabelById,
+    queueByScanPoint,
     canUpdate,
     updateLoading,
     navigate,

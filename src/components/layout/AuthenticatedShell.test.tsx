@@ -6,6 +6,7 @@ import { AuthenticatedShell } from './AuthenticatedShell';
 
 const shellState = vi.hoisted(() => ({
   isLoading: false,
+  selectedEventId: null as string | null,
   user: {
     email: 'user@example.com',
     user_metadata: { full_name: 'Test User' },
@@ -22,6 +23,13 @@ const paceLayoutState = vi.hoisted(() => ({
 vi.mock('react-router-dom', () => ({
   Outlet: () => <main>Shell outlet</main>,
   useNavigate: () => navigateMock,
+  useLocation: () => ({
+    pathname: '/',
+    search: '',
+    hash: '',
+    state: null,
+    key: 'default',
+  }),
 }));
 
 vi.mock('@solvera/pace-core/rbac', () => ({
@@ -93,6 +101,7 @@ vi.mock('@solvera/pace-core/components', () => ({
 describe('AuthenticatedShell', () => {
   beforeEach(() => {
     shellState.isLoading = false;
+    shellState.selectedEventId = null;
     shellState.user = {
       email: 'user@example.com',
       user_metadata: { full_name: 'Test User' },
@@ -164,6 +173,29 @@ describe('AuthenticatedShell', () => {
       expect(shellState.updatePassword).toHaveBeenCalledWith('valid-password');
     });
     expect(screen.getByRole('button', { name: 'Submit password' })).toBeTruthy();
+  });
+
+  it('uses landing nav when no event is selected', () => {
+    shellState.selectedEventId = null;
+    render(<AuthenticatedShell />);
+
+    expect(paceLayoutState.lastProps).toMatchObject({
+      navItems: [{ id: 'nav-events', label: 'Events', href: '/', pageId: 'EventDashboardPage' }],
+    });
+  });
+
+  it('uses in-event nav when an event is selected', () => {
+    shellState.selectedEventId = 'event-1';
+    render(<AuthenticatedShell />);
+
+    expect(paceLayoutState.lastProps).toMatchObject({
+      navItems: [
+        { id: 'nav-overview', label: 'Overview', href: '/event-dashboard', pageId: 'EventDashboardPage' },
+        { id: 'nav-applications', label: 'Applications', href: '/applications', pageId: 'ApplicationsPage' },
+        { id: 'nav-comms', label: 'Communications', href: '/communications', pageId: 'CommunicationsPage' },
+        { id: 'nav-reports', label: 'Reports', href: '/reports', pageId: 'ReportsPage' },
+      ],
+    });
   });
 
   it('enables context selector with organisations and events', () => {

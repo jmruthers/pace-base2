@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
   LoadingSpinner,
+  Progress,
 } from '@solvera/pace-core/components';
 import { PagePermissionGuard } from '@solvera/pace-core/rbac';
 import { NormalizeSupabaseError } from '@solvera/pace-core/utils';
@@ -25,12 +26,20 @@ function statusLabel(isActive: boolean) {
   return isActive ? 'Enabled' : 'Disabled';
 }
 
+function capacityPercent(applications: number, capacity: number | null): number | null {
+  if (capacity == null || capacity <= 0) {
+    return null;
+  }
+  return Math.min(100, Math.round((applications / capacity) * 100));
+}
+
 interface RegistrationTypesContentProps {
   selectedEventId: string | null;
   scope: { organisationId: string | null; eventId: string | null; appId?: string };
   listQuery: { isLoading: boolean; error: unknown };
   rows: RegistrationTypeRow[];
   eligibilityCounts: Record<string, number>;
+  applicationCounts: Record<string, number>;
   onEdit: (row: RegistrationTypeRow) => void;
   deleteCheckingTypeId: string | null;
   onRequestDelete: (row: RegistrationTypeRow) => void;
@@ -78,6 +87,8 @@ export function RegistrationTypesContent(props: RegistrationTypesContentProps) {
     <article className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
       {props.rows.map((row) => {
         const isActive = row.is_active;
+        const applications = props.applicationCounts[row.id] ?? 0;
+        const fillPercent = capacityPercent(applications, row.capacity);
         return (
           <Card key={row.id} className="grid h-full grid-rows-[1fr_auto]">
             <CardHeader className="grid content-start gap-2">
@@ -89,6 +100,11 @@ export function RegistrationTypesContent(props: RegistrationTypesContentProps) {
                 <p className="line-clamp-2">{row.description}</p>
               ) : null}
               <p>{`${props.eligibilityCounts[row.id] ?? 0} eligibility rules`}</p>
+              <p>
+                <strong>{applications}</strong>
+                {row.capacity != null ? ` of ${row.capacity} applications` : ' applications'}
+              </p>
+              {fillPercent != null ? <Progress value={fillPercent} max={100} aria-label="Capacity used" /> : null}
               {row.capacity != null || row.cost != null ? (
                 <section className="grid grid-flow-col auto-cols-max gap-x-6 gap-y-1">
                   {row.capacity != null ? <p>{`Capacity ${row.capacity}`}</p> : null}

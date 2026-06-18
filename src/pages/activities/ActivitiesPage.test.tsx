@@ -104,34 +104,15 @@ vi.mock('@solvera/pace-core/components', async () => {
   AlertTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
   Button: MockButton,
-  Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  Card: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <section onClick={onClick}>{children}</section>
+  ),
+  CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
-  CardTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  DataTable: ({
-    data,
-    columns,
-    title,
-    description,
-  }: {
-    data: Array<Record<string, unknown>>;
-    columns: Array<{ id?: string; header: string; cell?: (ctx: { row: Record<string, unknown> }) => React.ReactNode }>;
-    title?: string;
-    description?: string;
-  }) => (
-    <section>
-      {title != null ? <h2>{title}</h2> : null}
-      {description != null ? <p>{description}</p> : null}
-      {data.map((row, index) => (
-        <article key={String(row.id ?? index)}>
-          {columns.map((column) => (
-            <section key={column.id ?? column.header}>
-              {column.cell != null ? column.cell({ row }) : null}
-            </section>
-          ))}
-        </article>
-      ))}
-    </section>
+  CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+  CardFooter: ({ children, onClick }: { children: React.ReactNode; onClick?: (event: React.MouseEvent) => void }) => (
+    <footer onClick={onClick}>{children}</footer>
   ),
   DateTimeField: () => <section>DateTimeField</section>,
   Dialog: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
@@ -160,6 +141,7 @@ vi.mock('@solvera/pace-core/components', async () => {
   Input: MockTextField,
   Label: MockFieldLabel,
   LoadingSpinner: () => <p>Loading</p>,
+  Progress: ({ value }: { value: number }) => <meter value={value} />,
   SaveActions: ({ onCancel, onSaveClick }: { onCancel?: () => void; onSaveClick?: () => void }) => (
     <section>
       <MockButton onClick={onCancel}>Cancel</MockButton>
@@ -251,20 +233,7 @@ describe('ActivitiesPage', () => {
     expect(deleteButton.getAttribute('aria-disabled')).toBe('true');
   });
 
-  it('renders table metadata and scopes TRAC lookup by selected event id', () => {
-    const queryClient = new QueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <ActivitiesPage />
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
-    expect(screen.getByText('Activity Offerings')).toBeTruthy();
-    expect(queryState.tracActivitiesEventId).toBe('event-1');
-  });
-
-  it('renders offering name as navigation action', () => {
+  it('renders offering cards and scopes TRAC lookup by selected event id', () => {
     queryState.offerings = [
       {
         id: 'offering-1',
@@ -278,7 +247,7 @@ describe('ActivitiesPage', () => {
         event_id: 'event-1',
         organisation_id: 'org-1',
         trac_activity: null,
-        sessions: [{ count: 0 }],
+        sessions: [{ capacity: 10, bookings: [{ count: 2 }] }],
       },
     ];
     const queryClient = new QueryClient();
@@ -289,6 +258,38 @@ describe('ActivitiesPage', () => {
         </MemoryRouter>
       </QueryClientProvider>
     );
-    expect(screen.getByRole('button', { name: 'Canoe' })).toBeTruthy();
+    expect(screen.getByText('Activity Offerings')).toBeTruthy();
+    expect(screen.getByText('Canoe')).toBeTruthy();
+    expect(screen.getByText('1 sessions')).toBeTruthy();
+    expect(queryState.tracActivitiesEventId).toBe('event-1');
+  });
+
+  it('navigates when offering card is clicked', () => {
+    queryState.offerings = [
+      {
+        id: 'offering-1',
+        name: 'Canoe',
+        trac_activity_id: null,
+        booking_open_at: null,
+        booking_close_at: null,
+        cost: null,
+        payment_due_at: null,
+        allow_waitlist: false,
+        event_id: 'event-1',
+        organisation_id: 'org-1',
+        trac_activity: null,
+        sessions: [{ capacity: 10, bookings: [{ count: 0 }] }],
+      },
+    ];
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/activities']}>
+          <ActivitiesPage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    fireEvent.click(screen.getByText('Canoe'));
+    expect(screen.getByRole('button', { name: 'View' })).toBeTruthy();
   });
 });

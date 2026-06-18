@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => {
     { data: 0 as number | undefined, isLoading: false, isError: false },
     { data: 0 as number | undefined, isLoading: false, isError: false },
     { data: 0 as number | undefined, isLoading: false, isError: false },
+    { data: 0 as number | undefined, isLoading: false, isError: false },
+    { data: 0 as number | undefined, isLoading: false, isError: false },
   ];
 
   const latestQueries: QueryLike[] = [];
@@ -47,13 +49,15 @@ describe('eventConfiguration dashboard counts hook', () => {
     mocks.queryResults[0] = { data: 0, isLoading: false, isError: false };
     mocks.queryResults[1] = { data: 0, isLoading: false, isError: false };
     mocks.queryResults[2] = { data: 0, isLoading: false, isError: false };
+    mocks.queryResults[3] = { data: 0, isLoading: false, isError: false };
+    mocks.queryResults[4] = { data: 0, isLoading: false, isError: false };
     mocks.latestQueries.splice(0, mocks.latestQueries.length);
     mocks.secureSupabaseState.client = null;
   });
 
   it('disables all count queries when event id is null', () => {
     useDashboardCounts(null);
-    expect(mocks.latestQueries).toHaveLength(3);
+    expect(mocks.latestQueries).toHaveLength(5);
     expect(mocks.latestQueries.every((query) => query.enabled === false)).toBe(true);
   });
 
@@ -69,6 +73,8 @@ describe('eventConfiguration dashboard counts hook', () => {
       core_forms: 4,
       base_application: 6,
       base_registration_type: 2,
+      base_units: 1,
+      base_activity_offering: 3,
     };
     mocks.secureSupabaseState.client = {
       from: (tableName: string) => ({

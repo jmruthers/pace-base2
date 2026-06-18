@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UnitsPage } from './UnitsPage';
 import type { UnitRoleTypeRow, UnitRow } from '@/features/unitsCoordination/types';
-import type { UnitsTableRow } from '@/pages/units/unitsPageTypes';
 
 const authState = vi.hoisted(() => ({
   selectedEventId: null as string | null,
@@ -38,10 +37,12 @@ const unitsDataState = vi.hoisted(() => ({
       person: { preferred_name: string | null; first_name: string | null; last_name: string | null; email: string | null } | null;
     } | null;
   }>,
+  memberCounts: {} as Record<string, number>,
   unitsLoading: false,
   roleTypesLoading: false,
   approvedLoading: false,
   assignmentsLoading: false,
+  memberCountsLoading: false,
 }));
 
 const mutationSpies = vi.hoisted(() => ({
@@ -52,32 +53,92 @@ const toastSpies = vi.hoisted(() => ({
   toast: vi.fn(),
 }));
 
-const tableCapture = vi.hoisted(() => ({
-  instances: [] as Array<Record<string, unknown>>,
-}));
+vi.mock('@solvera/pace-core/components', async () => {
+  const { MockButton, MockFieldLabel, MockNumberField, MockTextField } = await import('@/test/paceCoreElementMocks');
 
-vi.mock('@solvera/pace-core/components', () => ({
+  return {
   Alert: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   AlertTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Button: ({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) => (
-    <section role="button" tabIndex={0} onClick={onClick} aria-disabled={disabled}>
-      {children}
-    </section>
-  ),
+  Button: MockButton,
   Card: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  CardFooter: ({ children }: { children: React.ReactNode }) => <footer>{children}</footer>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
-  CardTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+  CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
   ConfirmationDialog: () => null,
   DataTable: (props: Record<string, unknown>) => {
-    tableCapture.instances.push(props);
-    return null;
+    return <section data-testid="data-table">{JSON.stringify(Object.keys(props))}</section>;
   },
-  Label: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (open ? <section>{children}</section> : null),
+  DialogBody: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  DialogContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  DialogFooter: ({ children }: { children: React.ReactNode }) => <footer>{children}</footer>,
+  DialogHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
+  DialogTitle: ({ children }: { children: React.ReactNode }) => <h4>{children}</h4>,
+  Form: ({
+    children,
+    defaultValues,
+  }: {
+    children: React.ReactNode | ((methods: { getValues: () => Record<string, unknown> }) => React.ReactNode);
+    defaultValues?: Record<string, unknown>;
+    onSubmit: (values: Record<string, unknown>) => void;
+  }) => (
+    <section>
+      {typeof children === 'function' ? children({ getValues: () => defaultValues ?? {} }) : children}
+    </section>
+  ),
+  FormField: ({
+    render,
+  }: {
+    render: (props: { field: { value?: unknown; onChange: (nextValue: unknown) => void } }) => React.ReactNode;
+  }) => <>{render({ field: { value: '', onChange: () => undefined } })}</>,
+  Input: ({
+    type,
+    onChange,
+    'aria-label': ariaLabel,
+    id,
+    value,
+    placeholder,
+    disabled,
+    readOnly,
+  }: {
+    type?: string;
+    onChange?: (value: string) => void;
+    'aria-label'?: string;
+    id?: string;
+    value?: string;
+    placeholder?: string;
+    disabled?: boolean;
+    readOnly?: boolean;
+  }) =>
+    type === 'number' ? (
+      <MockNumberField
+        id={id}
+        value={value}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onChange={onChange}
+      />
+    ) : (
+      <MockTextField
+        id={id}
+        value={value}
+        disabled={disabled}
+        placeholder={placeholder}
+        readOnly={readOnly}
+        aria-label={ariaLabel}
+        onChange={onChange}
+      />
+    ),
+  Label: MockFieldLabel,
   LoadingSpinner: () => <p>Loading</p>,
+  Progress: ({ value }: { value: number }) => <meter value={value} />,
+  SaveActions: ({ onSaveClick }: { onSaveClick?: () => void }) => (
+    <MockButton onClick={onSaveClick}>Save</MockButton>
+  ),
   Select: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   SelectItem: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
@@ -86,8 +147,9 @@ vi.mock('@solvera/pace-core/components', () => ({
   Tabs: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   TabsContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   TabsList: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
-  TabsTrigger: ({ children }: { children: React.ReactNode }) => <section role="button" tabIndex={0}>{children}</section>,
-}));
+  TabsTrigger: ({ children }: { children: React.ReactNode }) => <MockButton>{children}</MockButton>,
+  };
+});
 
 vi.mock('@solvera/pace-core/hooks', () => ({
   useToast: () => ({ toast: toastSpies.toast }),
@@ -101,10 +163,11 @@ vi.mock('@solvera/pace-core/hooks', () => ({
 }));
 
 vi.mock('@solvera/pace-core/utils', () => ({
-  ShowSuccessMessage: (message: string, toast: (payload: { title: string }) => void) => {
-    toast({ title: message });
+  ShowSuccessMessage: (message: string, toast: (payload: { title: string; variant?: string }) => void) => {
+    toast({ title: message, variant: 'success' });
   },
   HandleMutationError: vi.fn(),
+  NormalizeSupabaseError: (error: unknown) => ({ message: String(error) }),
 }));
 
 vi.mock('@solvera/pace-core/rbac', () => ({
@@ -138,6 +201,12 @@ vi.mock('@/features/unitsCoordination/configuration', () => ({
     error: null,
     refetch: vi.fn(),
   }),
+  useEventUnitMemberCounts: () => ({
+    data: unitsDataState.memberCounts,
+    isLoading: unitsDataState.memberCountsLoading,
+    error: null,
+    refetch: vi.fn(),
+  }),
   useUnitRoleAssignments: () => ({
     data: unitsDataState.assignments,
     isLoading: unitsDataState.assignmentsLoading,
@@ -167,8 +236,9 @@ describe('UnitsPage', () => {
     unitsDataState.roleTypes = [];
     unitsDataState.approvedApplications = [];
     unitsDataState.assignments = [];
+    unitsDataState.memberCounts = {};
     unitsDataState.unitsLoading = false;
-    tableCapture.instances = [];
+    unitsDataState.memberCountsLoading = false;
     mutationSpies.createUnit.mockReset();
     toastSpies.toast.mockReset();
   });
@@ -204,9 +274,22 @@ describe('UnitsPage', () => {
   it('shows success toast when unit create succeeds', async () => {
     authState.selectedEventId = 'event-1';
     authState.selectedEvent = { name: 'Event One' };
+    unitsDataState.units = [
+      {
+        id: 'unit-1',
+        unit_number: 1,
+        unit_name: 'Alpha',
+        subcamp: null,
+        contingent: null,
+        parent_unit_id: null,
+        event_id: 'event-1',
+        created_at: null,
+        updated_at: null,
+      },
+    ];
     mutationSpies.createUnit.mockResolvedValue({
-      id: 'unit-1',
-      unit_number: 1,
+      id: 'unit-2',
+      unit_number: 2,
       parent_unit_id: null,
     });
 
@@ -217,25 +300,41 @@ describe('UnitsPage', () => {
       </QueryClientProvider>
     );
 
-    const unitsTableProps = tableCapture.instances[0] as {
-      onCreateRow: (rowData: Partial<UnitsTableRow>) => Promise<void>;
-    };
-
-    await unitsTableProps.onCreateRow({
-      unit_number: 1,
-      unit_name: 'Alpha',
-      subcamp: '',
-      contingent: '',
-      parent_unit_id: null,
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create unit' }));
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     });
 
-    expect(toastSpies.toast).toHaveBeenCalledWith({ title: 'Unit created' });
+    await waitFor(() => {
+      expect(mutationSpies.createUnit).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(toastSpies.toast).toHaveBeenCalledWith({ title: 'Unit created', variant: 'success' });
+    });
   });
 
   it('surfaces mutation errors when unit create is denied', async () => {
     const { HandleMutationError } = await import('@solvera/pace-core/utils');
     authState.selectedEventId = 'event-1';
     authState.selectedEvent = { name: 'Event One' };
+    unitsDataState.units = [
+      {
+        id: 'unit-1',
+        unit_number: 1,
+        unit_name: 'Alpha',
+        subcamp: null,
+        contingent: null,
+        parent_unit_id: null,
+        event_id: 'event-1',
+        created_at: null,
+        updated_at: null,
+      },
+    ];
     mutationSpies.createUnit.mockRejectedValue(new Error('Permission denied'));
 
     const queryClient = new QueryClient();
@@ -245,36 +344,43 @@ describe('UnitsPage', () => {
       </QueryClientProvider>
     );
 
-    const unitsTableProps = tableCapture.instances[0] as {
-      onCreateRow: (rowData: Partial<UnitsTableRow>) => Promise<void>;
-    };
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create unit' }));
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    });
 
-    await expect(
-      unitsTableProps.onCreateRow({
-        unit_number: 2,
-        unit_name: 'Beta',
-        subcamp: '',
-        contingent: '',
-        parent_unit_id: null,
-      })
-    ).rejects.toThrow('Permission denied');
-
-    expect(HandleMutationError).toHaveBeenCalledWith(
-      expect.any(Error),
-      'units-create',
-      toastSpies.toast
-    );
+    await waitFor(() => {
+      expect(mutationSpies.createUnit).toHaveBeenCalled();
+      expect(HandleMutationError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Permission denied' }),
+        'units-create',
+        toastSpies.toast
+      );
+    });
   });
 
-  it('resolves parent references created earlier in the same import payload', async () => {
+  it('renders unit cards with member counts', () => {
     authState.selectedEventId = 'event-1';
     authState.selectedEvent = { name: 'Event One' };
-    unitsDataState.units = [];
-    mutationSpies.createUnit.mockImplementation(async ({ unitNumber, parentUnitId }) => ({
-      id: `unit-${unitNumber}`,
-      unit_number: unitNumber,
-      parent_unit_id: parentUnitId ?? null,
-    }));
+    unitsDataState.units = [
+      {
+        id: 'unit-1',
+        unit_number: 1,
+        unit_name: 'Alpha',
+        subcamp: 'North',
+        contingent: null,
+        parent_unit_id: null,
+        event_id: 'event-1',
+        created_at: null,
+        updated_at: null,
+      },
+    ];
+    unitsDataState.memberCounts = { 'unit-1': 3 };
 
     const queryClient = new QueryClient();
     render(
@@ -283,25 +389,7 @@ describe('UnitsPage', () => {
       </QueryClientProvider>
     );
 
-    const unitsTableProps = tableCapture.instances[0] as {
-      onImport: (rows: Array<Record<string, unknown>>) => Promise<{
-        successCount: number;
-        totalCount: number;
-        failedCount: number;
-        failedRows: Array<{ row: number; reason: string }>;
-      }>;
-    };
-
-    const summary = await unitsTableProps.onImport([
-      { unit_number: '2', unit_name: 'Parent' },
-      { unit_number: '3', unit_name: 'Child', parent_unit_number: '2' },
-    ]);
-
-    expect(summary.successCount).toBe(2);
-    expect(mutationSpies.createUnit).toHaveBeenCalledTimes(2);
-    expect(mutationSpies.createUnit).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ parentUnitId: 'unit-2' })
-    );
+    expect(screen.getByRole('heading', { name: '1 - Alpha' })).toBeTruthy();
+    expect(screen.getByText('3 members')).toBeTruthy();
   });
 });

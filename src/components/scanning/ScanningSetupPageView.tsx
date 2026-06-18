@@ -39,7 +39,7 @@ function ScanningSetupPageHeader({ ctl }: { ctl: ScanningSetupController }) {
       </section>
       {ctl.canReadPage ? (
         <section className="grid justify-items-stretch sm:justify-items-end">
-          <Button type="button" variant="default" onClick={() => ctl.navigate('/scanning/tracking')}>
+          <Button type="button" variant="outline" onClick={() => ctl.navigate('/scanning/tracking')}>
             View Tracking Dashboard
           </Button>
         </section>

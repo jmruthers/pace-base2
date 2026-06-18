@@ -8,8 +8,8 @@ import {
   type CommSendResult,
 } from '@solvera/pace-core/comms';
 import {
-  Card,
   Button,
+  Card,
   CardContent,
   CardDescription,
   CardHeader,
@@ -207,6 +207,51 @@ function CommunicationsPageContent({
       <header>
         <h1>Communications</h1>
       </header>
+
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recipient pool</CardTitle>
+            <CardDescription>For the current filter selection</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>
+              {isEventParticipantsMode
+                ? hasActiveCommunicationFilters(filters)
+                  ? 'Filtered pool'
+                  : 'Full event pool'
+                : manualMemberIds.length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Pool mode</CardTitle>
+            <CardDescription>Current audience scope</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>{isEventParticipantsMode ? 'Event participants' : 'Specific participants'}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Registration types</CardTitle>
+            <CardDescription>Available filter options</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>{registrationTypeOptions.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Active filters</CardTitle>
+            <CardDescription>Applied audience constraints</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>{hasActiveCommunicationFilters(filters) ? 'Yes' : 'None'}</p>
+          </CardContent>
+        </Card>
+      </section>
 
       <section className="grid gap-2 sm:grid-cols-2">
         <Button

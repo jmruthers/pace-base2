@@ -18,6 +18,7 @@ export function useRegistrationTypesListController() {
   const listQuery = useRegistrationTypesList(selectedEventId);
   const listRows = listQuery.data?.types ?? [];
   const eligibilityCounts = listQuery.data?.eligibilityCountsByTypeId ?? {};
+  const applicationCounts = listQuery.data?.applicationCountsByTypeId ?? {};
 
   const openCreate = () => {
     navigate('/registration-type-builder');
@@ -33,6 +34,7 @@ export function useRegistrationTypesListController() {
     listQuery,
     listRows,
     eligibilityCounts,
+    applicationCounts,
     openCreate,
     openEdit,
   };
