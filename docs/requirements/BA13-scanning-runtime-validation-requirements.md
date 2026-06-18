@@ -135,6 +135,26 @@ Prefix legend: **`RT`** runtime page-level, **`SC`** scan input and result, **`O
 
 ## 5. Visual specification
 
+- Prototype reference: `pace-prototype/apps/pace-base/pages/UnitsActivitiesScanPage.jsx` (`ScanRuntimePage`).
+
+### Prototype layout summary
+
+**Minimal chrome** — outside standard sidebar (matches BA13 contract):
+
+1. **PageHeader** — breadcrumb through Scanning; scan point name as title; Simulate scan + Back to scan points.
+2. **Two-column scan stage** — main **scanner view** (QR target animation, last scan status panel) + aside **Last 8 scans** list (time, name, unit).
+3. Empty recent list shows hint to simulate scan.
+
+### Route map
+
+| Prototype | BASE |
+|---|---|
+| `#/events/:code/scanning/:point` | `/scanning/:scanPointId` |
+
+### Implementation delta (pass 2)
+
+- Production registers runtime outside `AuthenticatedShell` nav — matches prototype minimal chrome.
+
 ### Layout — `/scanning/:scanPointId`
 
 - The route renders **without** the standard `PaceAppLayout` sidebar. The viewport is divided into two rows: (1) a **top bar** (always visible, fixed height), and (2) a **main content area** that scrolls if content overflows.

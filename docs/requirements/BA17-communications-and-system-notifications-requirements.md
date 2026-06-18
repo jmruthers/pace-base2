@@ -230,6 +230,30 @@ If a future wave adds notifications for any of these types, a new `base.*` syste
 
 ## 5. Visual specification
 
+- Prototype reference: `pace-prototype/apps/pace-base/pages/CommsReportsPage.jsx` (`CommunicationsPage`).
+
+### Prototype layout summary
+
+1. **PageHeader** — breadcrumb; title "Communications"; subtitle; header-right: `CommChannelToggle` (email/SMS), secondary "Manage templates".
+2. **KPI row** — Sent this event, Scheduled, Recipient pool (warm when > 0), Templates count.
+3. **CommComposer** — shared compose surface with merge fields, template picker, live preview, recipient pool slot:
+   - **CommRecipientPool** — event-scoped only; filter chips for Status, Registration type, Unit (multi-select; empty = any).
+   - Privacy note below pool (valid email/mobile contacts; bounces in send log).
+   - Primary **Send**, schedule, test, cancel actions per composer contract.
+4. **Send log card** — `Card` with title "Send log"; list rows: subject, channel, sentAt, recipient count, status badge; empty "Nothing sent yet".
+
+### Route map (prototype → BASE)
+
+| Prototype | BASE |
+|---|---|
+| `#/events/:code/communications` | `/communications` |
+
+### Implementation delta (pass 2)
+
+- Detailed §5.1 below specifies pool mode switcher ("Event participants" / "Specific participants") and `MultiSelect` filters — prototype uses **chip filters only** in event-scoped `CommRecipientPool`. Reconcile in pass 2 toward prototype chip model unless product explicitly requires specific-participant mode.
+- Prototype KPI row may be absent in production — add for parity.
+- "Manage templates" is prototype stub.
+
 ### 5.1 Layout
 
 The `/communications` page uses the BA00 app shell (header, nav sidebar, authenticated wrapper). The page content area is a single-column layout with the following top-to-bottom order:

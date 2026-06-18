@@ -186,6 +186,25 @@ Prefix legend: **`AL`** /activities list page-level, **`AO`** /activities/:offer
 
 ## 5. Visual specification
 
+- Prototype reference: `pace-prototype/apps/pace-base/pages/UnitsActivitiesScanPage.jsx` (`ActivitiesPage`).
+
+### Prototype layout summary
+
+1. **PageHeader** — title "Activities"; actions: secondary "All bookings" → bookings route, primary "New offering".
+2. **KPI row** — Offerings, Total sessions, Combined capacity, Bookings (% filled).
+3. **Offering card grid** — name, provider, fee, session count, capacity bar, "Manage sessions" action.
+4. **Empty state** — "No activities yet" with Add offering.
+
+### Route map
+
+| Prototype | BASE |
+|---|---|
+| `#/events/:code/activities` | `/activities` |
+
+### Implementation delta (pass 2)
+
+- Production may use list/table vs prototype card grid — align to offering cards with utilization bars.
+
 ### Layout — `/activities`
 
 - **`main`** uses Standard 07 page padding (`px-6 py-8` baseline unless the consuming app shell standard overrides).

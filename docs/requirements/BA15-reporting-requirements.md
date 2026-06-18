@@ -182,6 +182,28 @@ Items are numbered `FI-01` through `FI-47`. Each is independently testable witho
 
 ## 5. Visual specification
 
+- Prototype reference: `pace-prototype/apps/pace-base/pages/CommsReportsPage.jsx` (`ReportsPage`).
+
+### Prototype layout summary
+
+1. **PageHeader** — breadcrumb; title "Reports"; subtitle describing participant/unit/activity/scan explores.
+2. **ReportsWorkstation** — shared reporting surface (`_shared/reports.jsx` / pace-core `ReportBuilder`):
+   - Explores: `base.participant`, `base.unit`, `base.activity`, `base.scan`.
+   - Event-scoped `scope` from selected event.
+   - Seeded saved templates (Approved roll, Medical brief, Unit fill, Activity sign-ups).
+   - Builder + live results + export in workstation grid.
+
+### Route map (prototype → BASE)
+
+| Prototype | BASE |
+|---|---|
+| `#/events/:code/reports` | `/reports` |
+
+### Implementation delta (pass 2)
+
+- §5.1–5.2 below describe `ReportBuilder` internal grid — align naming with pace-core `ReportsWorkstation` / `ReportBuilder` export used in production.
+- Prototype seeds four template definitions; production may start empty until templates saved.
+
 ### 5.1 Layout
 
 **All viewports:** `ReportBuilder` fills the full BA00 shell content area. No BA15-level page layout is required; `ReportBuilder` manages its own internal two-column grid (`minmax(20rem,24rem)_1fr` — config Card left, results right). The template section is embedded inside the config Card. Page title "Reports" rendered as the BA00 shell page heading (h1).

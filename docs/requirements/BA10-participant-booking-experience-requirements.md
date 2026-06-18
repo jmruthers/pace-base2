@@ -112,9 +112,32 @@ Waitlisted bookings are **not** cancellable via this flag in v1 — that semanti
 
 ---
 
-## 5. Visual specification
+## 5. Visual specification (portal)
 
-n/a — no BASE-owned UI; pace-portal owns the participant booking surface. BASE delivers projection and dependency contracts only.
+BASE delivers projection and booking RPC contracts only; **pace-portal** owns UI (**PR19**).
+
+- **Prototype reference:** `ActivityBookingPage` in `pace-prototype/apps/pace-portal/pages/EventParticipantPages.jsx`; route `event-activities` in `app.jsx` (`#/events/:code/activities`).
+
+### Prototype layout summary
+
+1. **PageHeader** — breadcrumb Dashboard → event → "Activity booking"; **Back to event** secondary.
+2. **Action error banner** — warn banner when booking action fails (optional).
+3. **Your bookings card** — list rows: offering name, session + time range, status badge (+ waitlist hint), **Cancel** ghost when cancellable; empty state when none.
+4. **Available activities card** — offering **article** cards with name, booking-closed badge, description, session rows: when/capacity (count/capacity, Full / Waitlist open badges), **Book session** / **Join waitlist** primary; expanded row shows optional consent **Checkbox** + Cancel / **Confirm booking** (or waitlist confirm).
+5. **Cancel confirmation** — `ConfirmationDialog` destructive confirm for cancellation.
+
+Session actions honour **`bookingWindowOpen`**, **`capacityFull`**, **`waitlistOpen`** from BA10 projection rules (§6).
+
+### Route map (prototype → portal)
+
+| Prototype hash | Portal (pace-portal) | BASE role |
+|---|---|---|
+| `#/events/:code/activities` | `/:eventSlug/activities` or equivalent (PR19) | Offering/session browse + book/cancel RPCs |
+
+### Implementation delta (pass 2)
+
+- No BASE-owned UI in `src/` — pace-portal2 implements browse/book/cancel flows against BA10 contracts.
+- Prototype uses inline session expand for confirm; portal may use dialog — same fields and gating.
 
 ---
 

@@ -100,11 +100,29 @@ Prefix **TA-** (token approval contract). Items are verifiable without reading R
 
 ---
 
-## 5. Portal consumer obligations
+## 5. Portal consumer obligations and visual reference
 
-- This section captures portal consumer obligations only; BASE route visuals are out of scope.
-- Keep obligations limited to token-resolution and action states required by RPC contracts.
-- Approval/reject/reissue semantics remain contract-owned by §4/§7.
+BASE ships no token-approval UI. Portal route **`/approvals/:token`** consumes BA07 RPCs.
+
+- Prototype reference (layout authority for portal pass 2): `pace-prototype/apps/_pace-core/prototype-only/auth-pages.jsx` (`TokenApprovalPage`); also mounted from `pace-prototype/apps/pace-base/app.jsx` at `#/approvals/:token` for kit preview.
+
+### Visual specification (portal consumer)
+
+**Public surface** — `AuthShell` (centred logo + footer), no app nav:
+
+1. **Missing token** — auth card: h1 "Missing link", dim explanation.
+2. **Ready state** — wide auth card: h1 = check label; intro copy; `dl.kv` rows for Event, Applicant, Registration type (from resolve payload only).
+3. **Comments field** — textarea labelled for rejection comments; required when declining.
+4. **Footer actions** — secondary "Decline", primary "Approve" (with loading "Saving…" state).
+5. **Submitted states** — thank-you / response-recorded confirmation card; safe to close page.
+6. **Error banner** — inline warn when reject attempted without comments.
+
+RPC resolve/submit semantics remain in §4/§7; portal must not add supplementary privileged reads.
+
+### Implementation delta (pass 2)
+
+- BASE has no `/approvals/:token` route — portal-owned ([BA07 portal slice / PR20 equivalent]).
+- Prototype uses mock context; production binds to **`app_base_application_check_resolve_token`** payload keys only.
 
 ## 6. Business rules
 

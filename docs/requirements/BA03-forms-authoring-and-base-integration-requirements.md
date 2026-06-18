@@ -227,9 +227,35 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 
 ## 5. Visual specification
 
-- Visual scope is `/forms` and `/form-builder` authoring surfaces only.
-- Keep this section to layout/state rendering; persistence contracts remain in §4/§7.
-- Registration binding visuals reflect persisted contract state only.
+- Prototype reference: `pace-prototype/apps/pace-base/pages/FormsRegTypesPage.jsx` (`FormsListPage`, `FormBuilderPage`).
+
+### Forms list (`/forms`)
+
+1. **PageHeader** — breadcrumb (pace-base → event → Forms); title "Forms"; subtitle; actions: ghost "Import template", primary "New form".
+2. **DataTable** — columns: Name (strong + `/slug` subline), Status (`Badge`), Fields count, Responses, Last edited, row actions (Publish/Close/Reopen + Edit). Search enabled. Row activate navigates to builder.
+3. **Empty state** — "No forms match" with New form action; zero forms uses same create path (no separate dialog — create routes straight to builder).
+
+**New form flow:** primary action creates draft and navigates to `/form-builder` immediately (no intermediate modal).
+
+### Form builder (`/form-builder` or `/forms/:slug`)
+
+1. **PageHeader** — breadcrumb through Forms; title = form name; subtitle line: `/slug`, workflow short label, field count, status badge.
+2. **FormsWorkstation** — split authoring surface: form details accordion, schema-bound field stack, portal preview pane; footer actions Save, Publish, preview controls per workstation contract.
+
+**Form-not-found:** `EmptyState` with slug message and "Back to forms" primary.
+
+### Route map (prototype → BASE)
+
+| Prototype | BASE |
+|---|---|
+| `#/events/:code/forms` | `/forms` |
+| `#/events/:code/forms/:slug` | `/form-builder` (slug param) |
+
+### Implementation delta (pass 2)
+
+- Production list may use card grid vs prototype `DataTable` — align columns and row actions in pass 2.
+- Import template action is prototype stub.
+- Slug-in-URL vs query/path param naming in [`baseRouteRegistry.ts`](../../src/config/baseRouteRegistry.ts).
 
 ## 6. Business rules
 

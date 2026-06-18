@@ -11,9 +11,11 @@
 
 ## §2 Overview
 
-BA00 establishes the application bootstrap, login surface, and authenticated shell for the BASE app. It owns the Supabase client initialisation and RBAC setup, the provider stack composition, the top-level shell (navigation, header, user menu, footer), the redirect-only root entry route at `/`, the inactivity warning modal, session restoration, and the catch-all 404 surface.
+BA00 establishes the application bootstrap, login surface, and authenticated shell for the BASE app. It owns the Supabase client initialisation and RBAC setup, the provider stack composition, the top-level shell (navigation, header, user menu, footer), the shell landing route at `/` (event picker), the inactivity warning modal, session restoration, and the catch-all 404 surface.
 
-Every authenticated route in BASE renders inside the shell this slice defines. The `/` route is a root entrypoint that performs auth-aware redirection and does not render feature content. No other slice may touch the bootstrap, the shell composition, or the routes listed in §1 metadata.
+Every authenticated route in BASE renders inside the shell this slice defines. The `/` route is the organiser event-picker landing — the global entry for choosing which event to operate. No other slice may touch the bootstrap, the shell composition, or the routes listed in §1 metadata.
+
+- Prototype reference: routing, auth gate, and authenticated shell in `pace-prototype/apps/pace-base/app.jsx`; shell landing in `pace-prototype/apps/pace-base/pages/LandingPage.jsx` (`ShellLandingPage`).
 
 ---
 
@@ -21,14 +23,14 @@ Every authenticated route in BASE renders inside the shell this slice defines. T
 
 ### Purpose
 
-BA00 gives every BASE user a secure, consistent, and persistent operating environment. Unauthenticated users are directed to the login page. The root route `/` is redirect-only: authenticated users are sent to `/event-dashboard`, unauthenticated users are sent to `/login`. While working, users are protected against accidental session expiry by an inactivity warning modal. The navigation shell persists across all pages, providing access to all BASE module routes with RBAC-gated visibility.
+BA00 gives every BASE user a secure, consistent, and persistent operating environment. Unauthenticated users are directed to the login page. Authenticated users land on `/` — a shell-level event picker listing events they operate for the selected organisation. While working, users are protected against accidental session expiry by an inactivity warning modal. The navigation shell persists across all pages; primary nav is context-aware (landing vs in-event) with RBAC-gated visibility where applicable.
 
 ### Surfaces
 
 | Surface | Route / trigger | Type |
 |---------|----------------|------|
 | Login page | `/login` | Route (outside authenticated shell) |
-| Root entry redirect | `/` | Route (redirect-only, no page content) |
+| Shell landing (event picker) | `/` | Route (inside authenticated shell) |
 | 404 not-found | `*` | Route (inside authenticated shell) |
 | Change password modal | User menu → "Change password" | Modal (global, shell-level) |
 | Inactivity warning modal | Automatic, after idle threshold | Modal (global, shell-level) |
@@ -37,9 +39,9 @@ BA00 gives every BASE user a secure, consistent, and persistent operating enviro
 
 BA00 does not own `/event-dashboard` or any other named route beyond those listed above. Content rendered inside the shell `Outlet` is owned by BA01–BA18.
 
-BA00 does not implement `ContextSelector` on the `/` route. Because `/` is redirect-only, it owns no feature UI state. Other slices that require event context and receive a user with no event selected are responsible for their own fallback/redirect logic.
+BA00 owns the shell landing at `/` and the global event picker UX. Event dashboard content at `/event-dashboard` (or prototype `/events/:code`) is owned by BA01; BA00 navigates into an event via tile click or context selector.
 
-The navigation items array is defined in BA00 but rendered by `PaceAppLayout`. BA00 does not place explicit `PagePermissionGuard` or `NavigationGuard` wrappers around nav items; `PaceAppLayout`'s internal `NavigationMenu` handles RBAC gating using each item's `pageId`.
+The navigation items array is derived at runtime by route context (see BR-08) and rendered by `PaceAppLayout` (prototype: `PaceHeader`). BA00 does not place explicit `PagePermissionGuard` or `NavigationGuard` wrappers around nav items; `PaceAppLayout`'s internal `NavigationMenu` handles RBAC gating using each item's `pageId` where items are permission-scoped.
 
 ### Architectural posture
 
@@ -55,16 +57,16 @@ The navigation items array is defined in BA00 but rendered by `PaceAppLayout`. B
 ### Page-level guards and evaluation ordering
 
 **`/login`**
-No guard. Accessible to all users. `PaceLoginPage` redirects to `/event-dashboard` on successful authentication.
+No guard. Accessible to all users. `PaceLoginPage` redirects to `/` on successful authentication (prototype parity).
 
-**`/` (root entry route)**
-Redirect-only route. No page content is rendered. Evaluation order on mount:
+**`/` (shell landing route)**
+Authenticated shell landing. Evaluation order on mount:
 
 1. If session restoration is in progress → `SessionRestorationLoader` continues to hold route output.
 2. If unauthenticated after restoration → redirect to `/login` (via `ProtectedRoute` contract).
-3. If authenticated after restoration → redirect to `/event-dashboard` (`<Navigate replace to="/event-dashboard" />`).
+3. If authenticated after restoration → render shell landing (event picker) inside `PaceAppLayout`.
 
-`/` has no `PagePermissionGuard` because it is an entry redirect route with no protected page content.
+`/` has no `PagePermissionGuard` because it is a shell-level surface, not a permission-scoped feature page.
 
 **`*` (404)**
 No guard. Authenticated users landing on an unmatched route see the 404 page inside the shell. Unauthenticated users landing on `*` are redirected to `/login` by `ProtectedRoute` before the 404 page renders.
@@ -81,7 +83,7 @@ No guard. Authenticated users landing on an unmatched route see the 404 page ins
 
 **FI-03.** When the app first loads, `SessionRestorationLoader` renders a full-screen spinner labelled "Restoring session…" while session state is being rehydrated from storage. The spinner disappears once restoration completes (either success or timeout). No route content is visible during this period.
 
-**FI-04.** The `/` route is a redirect-only root entry. It does not fetch or render feature content.
+**FI-04.** The `/` route renders the shell landing (event picker) inside the authenticated shell. It lists events the operator can access for the selected organisation.
 
 **FI-05.** The `*` route renders a 404 page for any path not matched by the defined route configuration.
 
@@ -91,11 +93,11 @@ No guard. Authenticated users landing on an unmatched route see the 404 page ins
 
 **FI-07.** While session restoration is in progress, route rendering remains behind `SessionRestorationLoader`; `/` does not render intermediate feature content.
 
-### Root entry redirect behaviour
+### Root entry behaviour (`/`)
 
 **FI-08.** For unauthenticated users, navigating to `/` resolves to `/login` after restoration completes.
 
-**FI-09.** For authenticated users, navigating to `/` resolves to `/event-dashboard` after restoration completes.
+**FI-09.** For authenticated users, navigating to `/` renders the shell landing with the event tile grid and attention queue (see §5).
 
 ### Primary content — Login
 
@@ -107,9 +109,15 @@ No guard. Authenticated users landing on an unmatched route see the 404 page ins
 
 **FI-13.** There is no forgot-password link or flow on the login page. This is a pace-core2 capability gap documented in §10.
 
-### Primary content — Root entry
+### Primary content — Shell landing (`/`)
 
-**FI-14.** The `/` route renders no shell body content of its own. It exists only to redirect.
+**FI-14.** The `/` route renders inside the authenticated shell:
+
+1. **PageHeader** — breadcrumb trail (`pace-base` → `Events`); title "Choose an event"; subtitle with organisation event count; header actions: secondary "Find by code", primary "New event" (navigates to event creation — BA01).
+2. **Event tile grid** — responsive grid of `EventTile` cards (default first 4 upcoming-then-past ordered events; "Show all" toggle when more than 4). Each tile shows event logo/initials, date chip, name, venue/date meta, and foot counts (applications, forms, expected participants). Tile click navigates into that event's overview (prototype: `/events/:code`; production: sets event context and navigates to `/event-dashboard`).
+3. **AttentionQueue** — cross-event items for events with applications awaiting approval; each item links to that event's applications queue.
+
+**FI-15.** When the operator has zero events, the landing shows an `EmptyState` with guidance and a primary action to create an event (BA01).
 
 ### Primary actions — User menu
 
@@ -145,19 +153,19 @@ No guard. Authenticated users landing on an unmatched route see the 404 page ins
 
 ### Navigation
 
-**FI-31.** The shell header contains a navigation menu trigger. Clicking it opens a navigation panel showing the 10 defined architecture routes. Items the user lacks `read` permission for are hidden; RBAC gating is handled by `PaceAppLayout` internals using each item's `pageId`.
+**FI-31.** The shell header contains primary navigation. Nav items are **context-aware** (see BR-08): on shell landing (`/`) a single "Events" item; when operating inside an event, Overview, Applications, Communications, and Reports. Items the user lacks `read` permission for are hidden; RBAC gating is handled by `PaceAppLayout` internals using each item's `pageId`.
 
-**FI-32.** The navigation items are (in order): Event Dashboard, Configuration, Forms, Registration Types, Applications, Communications, Units, Activities, Scanning, Reports.
+**FI-32.** On shell landing, the sole nav item is **Events** (path `/`). Inside an event context, nav items are (in order): **Overview**, **Applications**, **Communications**, **Reports**. Deeper module routes (Forms, Units, Scanning, etc.) are reached from the event dashboard launcher (BA01), not the primary header nav.
 
-**FI-33.** The active navigation item (matching the current URL path) is visually distinguished.
+**FI-33.** The active navigation item (longest matching path prefix) is visually distinguished.
 
 ### 404 surface
 
-**FI-34.** The `*` route renders a card with the heading "404 — Page Not Found" and a "Return to Event Dashboard" button that navigates to `/event-dashboard` via React Router `<Link>` (client-side, no page reload).
+**FI-34.** The `*` route renders a not-found surface: prominent "404" glyph, heading "Page not found", the unmatched path in `<code>`, and a primary action "Back to events" navigating to `/` via client-side routing (no full page reload).
 
 ### Edge cases and constraints
 
-**FI-35.** `ContextSelector` is not rendered on `/` because `/` is redirect-only and renders no feature surface.
+**FI-35.** On shell landing (`/`), `ContextSelector` shows organisation mode (no event selected). After entering an event, the header shows event context via `ContextSelector` / `useEvents()`.
 
 **FI-36.** `PasswordChangeForm`'s `onSubmit` callback receives `{ newPassword, confirmPassword }`. The consumer invokes the Supabase password update (`supabase.auth.updateUser({ password: newPassword })`) and returns `Promise<{ error?: unknown }>`. `PasswordChangeForm` displays the error if the returned object contains a non-null `error` field.
 
@@ -169,9 +177,69 @@ No guard. Authenticated users landing on an unmatched route see the 404 page ins
 
 ## §5 Visual specification
 
-- Layout authority is limited to `/login`, `/`, and `*`; behavioural rules stay in §4.
-- Keep visuals to login card, in-shell 404, inactivity modal, and password modal. `/` has no dedicated visual surface.
-- Nav visibility and role badges are outputs of RBAC/event-role contracts (not redefined here).
+Layout authority: `/login`, `/`, `*`, and authenticated shell chrome. Behavioural and permission rules stay in §4/§6.
+
+### Shell variants
+
+**Public auth surfaces** (`/login`; cross-ref `/register`, `/approvals/:token` owned by other slices):
+
+- Full-viewport page content only; no `PaceAppLayout` / `PaceHeader` chrome.
+- No `AppSwitcher`, no primary nav, no org/event context selector.
+- Footer optional — defer to pace-core login page components.
+
+**Authenticated main shell** (all protected routes including `/`):
+
+- Vertical region stack (prototype: `.shell`; production: `PaceAppLayout`):
+  1. **Header** — `AppSwitcher` (app=`base`), context-aware primary nav (BR-08), `ContextSelector` (org + event), `UserMenu`.
+  2. **Main** — page `<Outlet />` (shell landing, feature pages, 404).
+  3. **Footer** — `PaceFooter`.
+
+**Scan runtime** (`/scanning/:scanPointId` in production): may render outside full shell chrome per BA13; not part of BA00 header contract.
+
+### Shell landing (`/`)
+
+- **PageHeader** — breadcrumb, h1 "Choose an event", subtitle with event count, actions (Find by code, New event).
+- **Event tile grid** — `<section className="grid …">` of `EventTile` / `CardGridItem` navigational cards; default 4 visible with expand toggle.
+- **AttentionQueue** — below grid when cross-event approval items exist.
+- **Empty state** — zero events: `EmptyState` + create-event CTA.
+
+### Global overlays and fallbacks
+
+- **Root providers** (`src/main.tsx`): `QueryClientProvider` → `BrowserRouter` → `ToastProvider` → `UnifiedAuthProvider` → `AuthBridge` → `OrganisationServiceProvider` → `EventServiceProvider` → `App`.
+- **Auth restore:** `SessionRestorationLoader` with "Restoring session…" during session restoration.
+- **Idle timeout:** `InactivityWarningModal` via `renderInactivityWarning`.
+- **Change password:** `Dialog` + `PasswordChangeForm` at shell level (`AuthenticatedShell`).
+- **Not found (`*`):** not-found glyph, heading, path display, primary "Back to events" → `/`.
+
+### Navigation behaviour
+
+- Primary nav items switch by route context (BR-08); active item = longest path match.
+- Scroll viewport to top on in-app route change (prototype parity).
+
+### Route map (prototype → BASE)
+
+Prototype uses hash routing (`#/…`); production uses `BrowserRouter` with flat paths and `ContextSelector` for event scope.
+
+| Prototype hash path | BASE path | Shell notes |
+|---|---|---|
+| `#/login` | `/login` | Public |
+| `#/` | `/` | Shell landing (event picker) |
+| `#/events/:code` | `/event-dashboard` | In-event; event set via context |
+| `#/events/:code/applications` | `/applications` | In-event nav item |
+| `#/events/:code/communications` | `/communications` | In-event nav item |
+| `#/events/:code/reports` | `/reports` | In-event nav item |
+| `#/register` | — | Out of BA00 scope |
+| `#/approvals/:token` | — | BA07 public route |
+| unmatched | `*` | In-shell 404 |
+
+### Implementation delta (pass 2)
+
+- **`/` redirect-only:** production [`src/App.tsx`](../../src/App.tsx) currently `<Navigate to="/event-dashboard" />` instead of shell landing — align in pass 2.
+- **Static 10-item nav:** production [`AuthenticatedShell.tsx`](../../src/components/layout/AuthenticatedShell.tsx) passes all registry nav items vs prototype context-aware four-item in-event nav — align in pass 2 (see BR-08).
+- **404 presentation:** production [`BaseNotFoundPage.tsx`](../../src/pages/shell/BaseNotFoundPage.tsx) uses `Card` + link to `/event-dashboard` vs prototype not-found pattern with "Back to events" → `/`.
+- **User menu:** prototype adds custom items ("All events", "Operator profile"); production uses pace-core change-password + sign-out only.
+- **Event-scoped URLs:** prototype embeds `:code` in path; production uses flat routes + `useEvents()` selection.
+- **Login redirect:** production `onSuccessRedirectPath="/"` then redirect chain to `/event-dashboard`; target post-login landing is `/` per prototype.
 
 ## §6 Business rules
 
@@ -193,10 +261,10 @@ No guard. Authenticated users landing on an unmatched route see the 404 page ins
 |------|-----------|--------|
 | 1 | Session restoration not complete | Hold route behind `SessionRestorationLoader` |
 | 2 | Restoration complete AND `isAuthenticated === false` | Redirect to `/login` |
-| 3 | Restoration complete AND `isAuthenticated === true` | Redirect to `/event-dashboard` |
+| 3 | Restoration complete AND `isAuthenticated === true` | Render shell landing (event picker) at `/` |
 
-- `/` is redirect-only and does not evaluate event/organisation loading branches.
-- No `PagePermissionGuard` is required on `/` because it has no protected page content.
+- `/` is a shell-level surface; it does not require a selected event.
+- No `PagePermissionGuard` is required on `/` because it is not a permission-scoped feature page.
 
 ### BR-03 — Inactivity timeout
 
@@ -216,10 +284,10 @@ No guard. Authenticated users landing on an unmatched route see the 404 page ins
 
 ### BR-04 — Navigation permission gating
 
-- Each `NavigationItem` in the nav array carries a `pageId` matching a `page_name` value in `rbac_app_pages`
-- `PaceAppLayout`'s internal `NavigationMenu` evaluates `read` permission for each item's `pageId` against the authenticated user's RBAC state
-- Items without a matching permitted page are hidden (not rendered, not disabled)
-- All 10 architecture route items are always present in the `navItems` prop; RBAC dynamically hides inaccessible or unimplemented items
+- Each `NavigationItem` in the nav array carries a `pageId` matching a `page_name` value in `rbac_app_pages` where the item is permission-scoped.
+- `PaceAppLayout`'s internal `NavigationMenu` evaluates `read` permission for each item's `pageId` against the authenticated user's RBAC state.
+- Items without a matching permitted page are hidden (not rendered, not disabled).
+- Nav items are supplied by BR-08 context rules; RBAC dynamically hides inaccessible items.
 
 ### BR-05 — Session restoration
 
@@ -228,13 +296,11 @@ No guard. Authenticated users landing on an unmatched route see the 404 page ins
 - `isRestoring === true` AND `hasTimedOut === true` → children rendered (graceful degradation)
 - `isRestoring === false` → children rendered immediately
 
-### BR-06 — Root redirect target contract
+### BR-06 — Root landing contract
 
-- Input: user lands on `/` after restoration.
-- Sequence:
-  1. Unauthenticated user → `/login`
-  2. Authenticated user → `/event-dashboard`
-- No intermediate landing UI is rendered by BA00 at `/`.
+- Input: authenticated user lands on `/` after restoration.
+- Output: render shell landing (event picker) — do not auto-redirect to `/event-dashboard`.
+- Unauthenticated user on `/` → `/login` (via `ProtectedRoute`).
 
 ### BR-07 — Provider wiring bridge (`AuthBridge`)
 
@@ -266,26 +332,30 @@ createRoot(document.getElementById('root')).render(
 
 `AuthBridge` is a local implementation detail of `main.tsx`. It is not exported.
 
-### BR-08 — Navigation items (static definition)
+### BR-08 — Navigation items (context-aware)
 
-The nav items array is static and defined at module scope (not derived at runtime):
+Primary nav is derived from route context (prototype: `navItemsForRoute()` in `app.jsx`):
+
+**Shell landing** (no event in route/context — path `/`):
 
 ```
-const NAV_ITEMS: NavigationItem[] = [
-  { id: 'event-dashboard',    label: 'Event Dashboard',    href: '/event-dashboard',    pageId: 'event-dashboard' },
-  { id: 'configuration',      label: 'Configuration',      href: '/configuration',      pageId: 'configuration' },
-  { id: 'forms',              label: 'Forms',              href: '/forms',              pageId: 'forms' },
-  { id: 'registration-types', label: 'Registration Types', href: '/registration-types', pageId: 'registration-types' },
-  { id: 'applications',       label: 'Applications',       href: '/applications',       pageId: 'applications' },
-  { id: 'communications',     label: 'Communications',     href: '/communications',     pageId: 'communications' },
-  { id: 'units',              label: 'Units',              href: '/units',              pageId: 'units' },
-  { id: 'activities',         label: 'Activities',         href: '/activities',         pageId: 'activities' },
-  { id: 'scanning',           label: 'Scanning',           href: '/scanning',           pageId: 'scanning' },
-  { id: 'reports',            label: 'Reports',            href: '/reports',            pageId: 'reports' },
-];
+[{ id: 'nav-events', label: 'Events', href: '/', pageId: 'event-dashboard' }]
 ```
 
-`pageId` values must match `rbac_app_pages.page_name` exactly in the database. Verify via Supabase MCP before shipping.
+**In-event context** (event selected — prototype path prefix `/events/:code`):
+
+```
+[
+  { id: 'nav-overview',     label: 'Overview',       href: '/event-dashboard', pageId: 'EventDashboardPage' },
+  { id: 'nav-applications', label: 'Applications',   href: '/applications',    pageId: 'ApplicationsPage' },
+  { id: 'nav-comms',        label: 'Communications', href: '/communications',  pageId: 'CommunicationsPage' },
+  { id: 'nav-reports',      label: 'Reports',        href: '/reports',         pageId: 'ReportsPage' },
+]
+```
+
+Production maps prototype `href` values through [`baseRouteRegistry.ts`](../../src/config/baseRouteRegistry.ts). `pageId` values must match `rbac_app_pages.page_name` for permission-scoped items. Verify via Supabase MCP before shipping.
+
+**Pass 2 note:** current production passes a static 10-item list from the full route registry; pass 2 should adopt this context-aware model.
 
 ### BR-09 — User display props derivation
 
@@ -298,10 +368,10 @@ userEmail    = user?.email ?? ''
 
 These must be non-null strings passed to `PaceAppLayout` at all times while the shell is rendered.
 
-### BR-10 — Root route no-content rule
+### BR-10 — Shell landing ownership
 
-- `/` must not render domain content, data lists, or selection UI.
-- Any prior landing-grid behavior is out of scope for BA00 and must not be reintroduced.
+- `/` must render the global event picker (shell landing) — not redirect-only to `/event-dashboard`.
+- Event dashboard launcher content is owned by BA01 at `/event-dashboard`; BA00 owns the cross-event picker at `/`.
 
 ---
 
@@ -320,8 +390,8 @@ These must be non-null strings passed to `PaceAppLayout` at all times while the 
 
 **Cross-slice handoffs:**
 
-- BA00 redirects authenticated users from `/` to `/event-dashboard` (owned by BA01 route ownership contract). BA00 does not import or render any BA01 component.
-- All other slices render within BA00's `PaceAppLayout` `Outlet`. BA00 provides the shell; they provide the content.
+- BA00 owns shell landing at `/`; selecting an event navigates to `/event-dashboard` (BA01). BA00 does not import BA01 dashboard components.
+- All feature slices render within BA00's `PaceAppLayout` `Outlet`. BA00 provides the shell; they provide the content.
 
 **No write contracts and no RLS changes are owned by this slice.**
 BA00 may consume existing RBAC read RPC contracts as part of bootstrap app-id resolution.
@@ -359,7 +429,7 @@ BA00 may consume existing RBAC read RPC contracts as part of bootstrap app-id re
 - `setupRBAC(supabaseClient, { appName: 'BASE', getAppId })` runs immediately after client creation and before render.
 - `OrganisationServiceProvider` receives `user/session` from `useUnifiedAuth()` through `AuthBridge`.
 - Keep `PaceAppLayout` permission enforcement enabled.
-- `/` is a redirect-only root entrypoint; it does not render feature content and is not page-guarded.
+- `/` is the shell landing (event picker); it is not page-guarded.
 - Import style in this slice follows root-first policy; scoped imports are exception-only.
 
 ## §10 Permission and access rules
@@ -367,7 +437,7 @@ BA00 may consume existing RBAC read RPC contracts as part of bootstrap app-id re
 | Route / Surface | Access rule |
 |----------------|-------------|
 | `/login` | Open to all. No auth required. |
-| `/` (root entry) | Redirect-only entry route. Unauthenticated users resolve to `/login`; authenticated users resolve to `/event-dashboard`. No `PagePermissionGuard` because no page content is rendered. |
+| `/` (shell landing) | Authenticated users only (via `ProtectedRoute`). Renders event picker. No `PagePermissionGuard`. |
 | `*` (404) | Authenticated users only (via `ProtectedRoute`). No `PagePermissionGuard`. |
 | Navigation items | Each item's visibility gated by `read` permission on `rbac_app_pages.page_name` matching `pageId`. Enforced by `PaceAppLayout` internals. |
 | Change password modal | All authenticated users. No additional permission check. |
@@ -386,13 +456,21 @@ Given an unauthenticated user, when they navigate to `/some-other-route`, then t
 
 Given an unauthenticated user, when they enter invalid credentials on `/login` and click "Sign in", then an inline error alert appears and they remain on `/login`.
 
-Given an unauthenticated user, when they enter valid credentials and click "Sign in", then they are redirected to `/event-dashboard`.
+Given an unauthenticated user, when they enter valid credentials and click "Sign in", then they are redirected to `/` (shell landing).
 
-Given an authenticated user, when they navigate to `/`, then they are redirected to `/event-dashboard`.
+Given an authenticated user, when they navigate to `/`, then the shell landing (event picker) is shown inside the authenticated shell.
 
 Given an authenticated user, when they navigate to an unrecognised URL (e.g. `/does-not-exist`), then the 404 page is shown inside the shell.
 
-Given an authenticated user on the 404 page, when they click "Return to Event Dashboard", then they are navigated to `/event-dashboard` via client-side routing (no full page reload).
+Given an authenticated user on the 404 page, when they click "Back to events", then they are navigated to `/` via client-side routing (no full page reload).
+
+Given an authenticated user on shell landing with more than four events, when they view the page, then the first four event tiles are shown with a "Show all" control.
+
+Given an authenticated user on shell landing, when events have pending applications, then an AttentionQueue section lists cross-event approval items.
+
+Given an authenticated user on shell landing, when primary nav is visible, then only the "Events" nav item is shown.
+
+Given an authenticated user operating inside an event, when primary nav is visible, then Overview, Applications, Communications, and Reports items are shown (RBAC permitting).
 
 Given an authenticated user, when they click "Sign out" in the user menu, then they are signed out and redirected to `/login`.
 
@@ -443,7 +521,8 @@ Given an authenticated user whose nav item lacks a matching `read` permission in
 ## §16 Do not
 
 - Do not disable `PaceAppLayout` permission enforcement.
-- Do not add `PagePermissionGuard`/`ContextSelector` or feature content to `/`; it remains redirect-only.
+- Do not add `PagePermissionGuard` or feature content owned by other slices to `/`; it remains shell landing only.
+- Do not auto-redirect authenticated users from `/` to `/event-dashboard` (prototype shows event picker at `/`).
 - Do not bypass `AuthBridge` for `OrganisationServiceProvider` `user/session`.
 - Do not use unsupported/retired APIs documented as unavailable in this slice.
 

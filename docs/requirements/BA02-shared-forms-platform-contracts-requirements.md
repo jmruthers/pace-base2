@@ -168,6 +168,8 @@ BA02 does **not** own:
 
 Not applicable. BA02 is a contracts slice with no UI surface.
 
+- Prototype reference: none (contracts-only).
+
 ## 6. Business rules
 
 ### 6.1 Workflow type taxonomy rule

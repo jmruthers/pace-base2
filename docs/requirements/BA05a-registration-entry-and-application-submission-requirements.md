@@ -96,6 +96,31 @@ Items use prefix **FS-** (functional submission contract). Each item is independ
 
 ## 5. Visual specification (portal)
 
+BASE ships **no UI** for this slice. Layout authority is **pace-portal**; prototype and portal requirement slices **PR15–PR17 / PR16** define the participant form journey.
+
+- **Prototype reference:** `FormPage` in `pace-prototype/apps/pace-portal/pages/EventParticipantPages.jsx` (`kind="event-application"`); wired from `pace-prototype/apps/pace-portal/app.jsx` route `event-application` (`#/events/:code/application`).
+
+### Prototype layout summary (`FormPage` — event application)
+
+1. **PageHeader** — breadcrumb Dashboard → event name → form title; title + description; optional draft-saved timestamp in header right.
+2. **Form context strip** — calendar icon + "Applying for {event name}".
+3. **Card + Form** — `grid-1` field stack: `Field`/`Label` wrappers for text/select/radio/textarea; standalone checkbox rows; `useZodForm` validation.
+4. **Page actions** (bottom) — Cancel (back to event), Save draft (secondary), **Save** (primary submit — prototype label; portal PR16 maps to submit orchestration).
+5. **Submitted state** — success banner + Back to dashboard / Back to event actions.
+
+### Route map (prototype → portal)
+
+| Prototype hash | Portal (pace-portal) | BASE role |
+|---|---|---|
+| `#/events/:code/application` | `/:eventSlug/application` (form fill + submit — PR15/PR16) | RPC contracts only (`app_base_application_create`, draft ensure, checks) |
+
+### Implementation delta (pass 2)
+
+- BASE **`src/`** does not register participant form routes — all layout work is **pace-portal2** pass 2 against PR15–PR17/PR16.
+- Production portal may use `WorkflowFormRenderer` (PR30) vs prototype generic field renderer — behaviour unchanged at contract level.
+
+### Portal consumer obligations (BASE contract)
+
 Not applicable in BASE UI. BA05a defines backend registration/submission contracts consumed by portal/runtime slices.
 
 ## 6. Business rules

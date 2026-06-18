@@ -125,6 +125,15 @@ Prefix legend: **`SY`** sync worker, **`CF`** conflict flow, **`QD`** queue disp
 
 ---
 
+---
+
+## Visual specification
+
+- Prototype reference: sync UX not shown separately in `UnitsActivitiesScanPage.jsx` — extend **ScanningPage** / **ScanRuntimePage** list patterns (BA12/BA13) for offline queue indicators and reconciliation status in pass 2.
+- **Implementation delta (pass 2):** add sync badge/toast surfaces on scan point list and runtime header; no dedicated route in prototype.
+
+---
+
 ## 5. Error states
 
 | State | Trigger | Display | Recovery |

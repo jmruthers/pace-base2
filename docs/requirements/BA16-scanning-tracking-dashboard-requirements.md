@@ -163,6 +163,17 @@ The following surfaces are out of scope for BA16:
 
 ---
 
+---
+
+## Visual specification
+
+- Prototype reference: align tracking dashboard with **ScanRuntimePage** "Last 8 scans" aside (`UnitsActivitiesScanPage.jsx`) — expanded to full `/scanning/tracking` dashboard with event-wide scan history and filters in pass 2.
+- Prototype route: none (queue notes align with scan list patterns).
+- **Route map:** production `/scanning/tracking` — tracking dashboard beyond runtime's last-8 panel.
+- **Implementation delta (pass 2):** build tracking page from runtime recent-scan list pattern at larger scale.
+
+---
+
 ## 5. Error states
 
 1. **TR-ER-01 —** Step-1 scan-point query failure: `Alert variant="destructive"` with the normalised error message from `normalizeSupabaseError` and a `Button variant="outline" size="small"` labelled "Retry" below the `AlertDescription`, which refetches the scan-point query. The four tabs do not render while the scan-point step-1 data is unavailable.

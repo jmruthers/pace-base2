@@ -170,6 +170,23 @@ Prefix legend: **`SC`** /scanning page-level, **`SP`** scan-point management, **
 
 ## 5. Visual specification
 
+- Prototype reference: `pace-prototype/apps/pace-base/pages/UnitsActivitiesScanPage.jsx` (`ScanningPage`).
+
+### Prototype layout summary
+
+1. **PageHeader** — title "Scanning"; primary "New scan point".
+2. **Scan points card** — list rows: icon (activated vs pending), name, location + scans today, Configure ghost + Open primary; row click opens runtime.
+
+### Route map
+
+| Prototype | BASE |
+|---|---|
+| `#/events/:code/scanning` | `/scanning` |
+
+### Implementation delta (pass 2)
+
+- Sync/reconciliation UX (BA14) extends setup/runtime — no separate prototype screen.
+
 ### Layout — `/scanning`
 
 - **`main`** uses Standard 07 page padding (`px-6 py-8` on `sm` and above; `px-4 py-6` on `xs`/mobile — follow the BA00 shell standard if it defines a tighter mobile padding).

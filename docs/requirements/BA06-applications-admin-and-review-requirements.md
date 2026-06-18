@@ -154,9 +154,38 @@ Prefix legend: **`PQ`** page and queue, **`PD`** detail dialog, **`PR`** review-
 
 ## 5. Visual specification
 
-- Visual scope is `/applications` queue, detail dialog, and review-step actions.
-- Keep this section to rendered structure/states; approval-chain semantics remain in §4/§7.
-- Evidence rendering is UI-only and must not broaden backend data contracts.
+- Prototype reference: `pace-prototype/apps/pace-base/pages/ApplicationsPage.jsx` (`ApplicationsPage`, `ApplicationDetailPage`).
+
+### Applications queue (`/applications`)
+
+1. **PageHeader** — breadcrumb; title "Applications"; subtitle; optional primary "New application" (stub in prototype).
+2. **KPI row** — four KPIs: Total, Submitted (warm when > 0), Under review, Approved (with conversion %).
+3. **DataTable** — columns: Applicant (name + email subline), Registration type (filterable), Unit (or "Unassigned"), Submitted (right-aligned), Checks mini (count + status dots), Status badge (filterable), Review action. Search enabled. Row activate opens detail.
+
+### Application review (`/applications/:applicationId` — full page)
+
+Prototype uses a **full-page review** route, not an in-table dialog:
+
+1. **PageHeader** — breadcrumb through Applications; title = applicant name; subtitle = email; secondary "Back to applications"; inline status badge, application id, submitted timestamp.
+2. **Tabs** — Checks | Form evidence | History (segmented control pattern).
+3. **Summary section** — definition list: registration type, unit assignment (editable), submitted, email, fee.
+4. **Checks tab** — list of check rows with status icons, labels, mark satisfied/failed/waived actions.
+5. **Evidence tab** — form completion summary lines + "Open full application transcript" secondary.
+6. **History tab** — activity timeline list.
+7. **Footer action bar** — outstanding checks note; **Reject** (secondary/destructive intent); **Approve** (primary, gated on checks unless already approved).
+
+### Route map (prototype → BASE)
+
+| Prototype | BASE |
+|---|---|
+| `#/events/:code/applications` | `/applications` |
+| `#/events/:code/applications/:appId` | `/applications/:applicationId` (full-page detail — pass 2) |
+
+### Implementation delta (pass 2)
+
+- Requirement doc previously described "detail dialog"; prototype and pass-2 target use **full-page** `ApplicationDetailPage`.
+- Production may open detail in dialog/sheet — migrate to full-page route for prototype parity.
+- KPI row and checks mini indicators may be missing in production list view.
 
 ## 6. Business rules
 

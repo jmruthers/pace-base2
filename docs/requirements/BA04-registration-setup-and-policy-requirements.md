@@ -166,10 +166,34 @@ Cover every category template requires; numbering runs contiguous.
 
 ## 5. Visual specification
 
-- Visual scope is `/registration-types` list and **`/registration-type-builder`** authoring surfaces.
-- List cards: **RL-PC-04** / **RL-PC-05** — three-column grid at **`lg`**, capacity and cost on one compact horizontal row when present; each **`Card`** uses **`grid h-full grid-rows-[1fr_auto]`** with **`CardHeader`** **`content-start`** so **`CardFooter`** (Edit, Delete) aligns to the **bottom** of the card and **lines up across** cards in the same row (**RL-PA-03**).
-- Keep this section to layout/state rendering; policy and persistence contracts stay in §4/§7.
-- Requirement/eligibility visuals mirror persisted arrays and do not redefine backend semantics.
+- Prototype reference: `pace-prototype/apps/pace-base/pages/FormsRegTypesPage.jsx` (`RegistrationTypesPage`, `RegistrationTypeBuilderPage`).
+
+### Registration types list (`/registration-types`)
+
+1. **PageHeader** — breadcrumb (pace-base → event → Registration types); title; subtitle explaining pathways; primary "New registration type".
+2. **Empty state** — "No registration types yet" with Add action when zero types.
+3. **List rows** (prototype: stacked cards; production may use three-column `Card` grid per RL-PC-04): each row shows initial avatar, name, capacity progress bar (`applications` of `capacity`, percentage), formatted cost, "Configure" action. Row click opens builder.
+4. **New type flow:** create draft with defaults and navigate directly to builder (no create dialog).
+
+### Registration type builder (`/registration-type-builder`)
+
+1. **PageHeader** — breadcrumb through Registration types; title = type name.
+2. **Details card** — name, description, eligibility message, cost, capacity, active toggle (`Form` + `SaveActions`).
+3. **Eligibility rules editor** — repeatable rows: rule type `Select`, value `Input`, remove control; "Add rule" ghost; helper copy for DOB/membership combination semantics.
+4. **Requirements section** — approval/payment requirement rows with descriptors (automated vs manual, age gates, token email).
+5. **Linked forms** — forms bound to this registration type.
+
+### Route map (prototype → BASE)
+
+| Prototype | BASE |
+|---|---|
+| `#/events/:code/registration-types` | `/registration-types` |
+| `#/events/:code/registration-types/:id` | `/registration-type-builder` |
+
+### Implementation delta (pass 2)
+
+- Prototype uses horizontal list cards with inline progress bars; production spec (RL-PC-04) targets three-column `Card` grid with footer-aligned actions — reconcile layout in pass 2 while preserving data density (capacity, cost, applications).
+- KPI summary row in prototype (total apps/cap) optional for production.
 
 ## 6. Business rules
 

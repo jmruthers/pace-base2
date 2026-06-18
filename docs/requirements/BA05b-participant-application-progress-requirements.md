@@ -96,9 +96,36 @@ Prefix **PP-** (participant progress contract). Each item is verifiable without 
 
 ---
 
-## 5. Portal consumer obligations
+## 5. Visual specification (portal)
 
-Not applicable in BASE UI. This slice defines RPC payload contract and portal consumer obligations.
+BASE ships **no route or page** for this slice. Layout authority is **pace-portal** (**PR18**); prototype is the pass-1 visual source.
+
+- **Prototype reference:** `ApplicationProgressPage` in `pace-prototype/apps/pace-portal/pages/EventParticipantPages.jsx`; route `event-application-progress` in `app.jsx` (`#/events/:code/applications/:applicationId`).
+
+### Prototype layout summary
+
+1. **PageHeader** — breadcrumb Dashboard → event → "Application progress"; title + event subtitle; **Back to event** secondary action.
+2. **Application status card** — `dl.kv`: status badge, submitted timestamp (when present), referee name (when present).
+3. **Registration type card** — type name + description.
+4. **Requirements card** — numbered list rows: step index, **`participant_check_label`** (strong), status **Badge** per check; empty copy when no checks.
+5. **Not-found state** — PageHeader "Application not found" + Card with Return to dashboard primary.
+
+Check status tones map: satisfied → main/info, pending → sec, waiting → muted, rejected → alert (prototype); portal must use RPC **`checks[].status`** literals per §6.1 without relabelling.
+
+### Route map (prototype → portal)
+
+| Prototype hash | Portal (pace-portal) | BASE role |
+|---|---|---|
+| `#/events/:code/applications/:applicationId` | `/:eventSlug/applications/:applicationId` (PR18) | Progress RPC payload contract only |
+
+### Implementation delta (pass 2)
+
+- BASE does not implement UI — pace-portal2 **`ApplicationProgressPage`** aligns to prototype card stack and requirements list.
+- Deep link from post-submit journey (PR17) when not in proxy mode — portal routing concern.
+
+### Portal consumer obligations
+
+This slice defines RPC payload contract and portal consumer obligations (see §4, §7).
 
 ## 6. Business rules
 

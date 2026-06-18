@@ -199,6 +199,26 @@ Prefix legend: **`UP`** /units page-level, **`UT`** Units tab, **`RTT`** Role Ty
 
 ## 5. Visual specification
 
+- Prototype reference: `pace-prototype/apps/pace-base/pages/UnitsActivitiesScanPage.jsx` (`UnitsPage`).
+
+### Prototype layout summary
+
+1. **PageHeader** — title "Unit assignments"; primary "New unit" (hidden while add form open).
+2. **KPI row** — Units (with leaders count), Combined capacity, Assigned (% filled), Unassigned applicants (warm).
+3. **Unit grid** — cards with name, leader line, capacity progress bar (tone at 80%/100%), unit id, "Open unit" action.
+4. **Inline AddUnitForm** — swaps grid for `Card` + `Form` (name, leader optional, capacity) + `SaveActions` (prefer inline over dialog per prototype house style).
+5. **Empty state** — "No units yet" with Add unit action.
+
+### Route map
+
+| Prototype | BASE |
+|---|---|
+| `#/events/:code/units` | `/units` |
+
+### Implementation delta (pass 2)
+
+- §Layout below may specify DataTable — prototype uses **card grid** with capacity bars; align pass 2 to prototype.
+
 ### Layout — `/units`
 
 - **`main`** uses Standard 07 page padding (baseline `px-6 py-8` unless the consuming app standard overrides).

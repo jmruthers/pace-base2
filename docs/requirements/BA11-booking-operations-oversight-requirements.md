@@ -150,6 +150,23 @@ Prefix legend: **`BK`** /activities/bookings page-level, **`BL`** booking list, 
 
 ## 5. Visual specification
 
+- Prototype reference: `pace-prototype/apps/pace-base/pages/UnitsActivitiesScanPage.jsx` (`BookingsPage`).
+
+### Prototype layout summary
+
+1. **PageHeader** — breadcrumb through Activities; title "All bookings".
+2. **DataTable** — Activity, Session, Participant, Status badge, Reassign/Cancel row actions.
+
+### Route map
+
+| Prototype | BASE |
+|---|---|
+| `#/events/:code/activities/bookings` | `/activities/bookings` |
+
+### Implementation delta (pass 2)
+
+- Linked from Activities header "All bookings" button in prototype.
+
 ### Layout — `/activities/bookings`
 
 - **`main`** uses Standard 07 page padding (`px-6 py-8` on `sm` and above; `px-4 py-6` on `xs`/mobile — follow the BA00 shell standard if it defines a tighter mobile padding).

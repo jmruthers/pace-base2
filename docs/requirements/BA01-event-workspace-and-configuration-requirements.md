@@ -21,10 +21,10 @@ This slice owns the authenticated organiser's entry surface for working inside a
 - The `/event-dashboard` route, rendered inside the BA00 authenticated shell.
 - A page header (h1 + subtitle).
 - An event identity card (event name, dates, venue, logo) shown only when an event is selected.
-- A responsive grid of five nav cards (Forms, Applications, Registration Types, Reports, Communications), each linking to a sibling slice's owned route.
+- A responsive grid of **eight** launcher cards (Event details, Registration types, Forms, Unit assignments, Activities, Scanning, plus Applications/Communications/Reports reachable via header nav or hero actions), each linking to a sibling slice's owned route with live counts where applicable.
 
 **Boundaries.**
-- This slice does not own the global event picker — that lives in the BA00 shell and is consumed via `useEvents()`.
+- This slice does not own the global event picker at `/` — that lives in BA00 shell landing.
 - This slice does not own any of the routes the nav cards link to (Forms, Applications, Registration Types, Reports, Communications). It only renders cards with live counts and link affordances; clicking navigates out of the slice.
 - This slice does not own role granting or revocation. It consumes permission state via `PagePermissionGuard` only.
 
@@ -185,9 +185,67 @@ The card's content body contains the following fields, in the order listed, grou
 
 ## 5. Visual specification
 
-- Visual scope is `/event-dashboard` and `/configuration` only.
-- Keep this section to layout/state rendering; persistence and permission contracts remain in §4/§7.
-- Nav-count and guard outcomes are visual results of existing contracts.
+- Prototype reference: `pace-prototype/apps/pace-base/pages/LandingPage.jsx` (`EventDashboardPage`), `NewEventPage.jsx` (`NewEventWizardPage`), `QuickEventPage.jsx`; shell landing (`ShellLandingPage`) is BA00.
+- Visual scope: `/event-dashboard`, `/configuration`, event creation surfaces (`/events/new`, `/events/:code/edit` in prototype).
+
+### Event dashboard (`/event-dashboard`)
+
+Prototype uses `EventOverview` composite; production may decompose into pace-core primitives with the same region order:
+
+1. **PageHeader / breadcrumb** — `pace-base` → event name.
+2. **Entity hero** — `HeroLogo` + event name, date/venue/participant meta, description, primary actions ("Review applications", "Edit forms").
+3. **KPI row** — four KPI tiles: Applications (submitted/approved/awaiting), Awaiting approval, Places left, Forms published.
+4. **AttentionQueue** — per-event items (e.g. applications awaiting approval) when count > 0.
+5. **Launcher grid** — section label "Event setup"; cards for Event details (`/configuration`), Registration types, Forms, Unit assignments, Activities, Scanning — each with icon, title, description, optional count badge.
+
+**Event-not-found state** (invalid event code / no matching event in context):
+
+- Breadcrumb ends with "Not found"; h1 "Event not found".
+- `EmptyState`: title "That event code doesn't match anything", sub "Head back to the picker and choose an event.", primary "Back to events" → `/`.
+
+**No-event-selected state** (production context selector — no event chosen):
+
+- Distinct from event-not-found: prompt to pick an event from shell landing or context selector (existing D-ES-01 contract).
+
+### Event configuration (`/configuration`)
+
+- Mirrors prototype `/events/:code/edit` wizard **edit mode** fields grouped in cards: identity, schedule, capacity/access (see New Event Wizard below).
+- Two-card production layout (main configuration + styling) remains valid if field grouping matches prototype steps.
+
+### Quick event creation (prototype `#/events/new`)
+
+- Single scrollable page with three sections:
+  1. **About** — event name, date, duration, venue.
+  2. **Who's coming** — role rows (Youth/Adult presets) with cost, pre-submission profile checks, approval toggles; shared anchor registration form.
+  3. **Access** — registration scope select with contextual hint copy.
+- Primary submit creates event and routes to event dashboard.
+- Full wizard linked as alternate path for advanced setup.
+
+### New event wizard (prototype `#/events/:code/edit` create/edit)
+
+- Three-step wizard shell on shared `Form` / `useZodForm`:
+  1. **Identity** — name, code, email, description, logo upload.
+  2. **Schedule & venue** — date, days, venue.
+  3. **Capacity & access** — expected participants, typical unit size, registration scope, visibility, colours; optional seed reg types on create.
+- Step indicator; per-step validation gate on primary "Next"; final step **Save** in footer.
+- Edit mode pre-fills from selected event; create mode defaults from schema.
+
+### Route map (prototype → BASE)
+
+| Prototype hash path | BASE path | Notes |
+|---|---|---|
+| `#/events/:code` | `/event-dashboard` | Event overview |
+| `#/events/:code/edit` | `/configuration` | Full configuration / wizard edit |
+| `#/events/new` | TBD — quick event route | QuickEventPage; may map to dedicated route in pass 2 |
+| `#/` | `/` | Shell landing — BA00 |
+
+### Implementation delta (pass 2)
+
+- Production dashboard uses five-card grid (Forms, Applications, Registration Types, Reports, Communications) vs prototype eight launchers including Event details, Units, Activities, Scanning.
+- Production lacks `EventOverview` / KPI row / AttentionQueue on dashboard — add in pass 2.
+- Quick event route (`/events/new`) not registered in [`baseRouteRegistry.ts`](../../src/config/baseRouteRegistry.ts).
+- Flat `/configuration` vs prototype path-segment `/events/:code/edit`.
+- Event context via `ContextSelector` rather than URL `:code`.
 
 ## 6. Business rules
 

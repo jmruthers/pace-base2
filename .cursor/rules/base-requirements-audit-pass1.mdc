@@ -1,0 +1,47 @@
+---
+description: Pass 1 — audit BASE requirement slices against pace-prototype layout; update docs only
+globs: docs/requirements/BA*.md, docs/delivery/requirements-audit-queue.md
+alwaysApply: false
+---
+
+# BASE requirements audit — pass 1 (docs only)
+
+When the user asks to continue BASE pass 1, audit a BA slice, or references `requirements-audit-queue.md` in pace-base2, follow this protocol.
+
+## Scope
+
+- **In scope:** Update requirement slices under `docs/requirements/BA*.md` and status rows in `docs/delivery/requirements-audit-queue.md`.
+- **Out of scope:** Any edit under `src/`, tests, migrations, CSS, or pass-2 implementation. Do not update [base-build-queue.md](../docs/delivery/base-build-queue.md) build status.
+
+## Authority
+
+| Source | Role |
+|--------|------|
+| `pace-prototype/apps/pace-base/` | **Layout authority** for organiser-facing BASE screens |
+| `pace-prototype/apps/pace-portal/` | **Layout authority** for participant-facing slices (BA05a, BA05b, BA10) marked in the queue |
+| `pace-base2/src/` | **Read-only** — note drift; requirements target prototype layout |
+| `pace-core2/packages/core/docs/standards/` | **Component and markup rules** |
+
+Prototype is **layout only**. Do not copy hash router, mock store, Tweaks panel, or prototype-only CSS into requirements as mandates.
+
+## Procedure (each slice)
+
+1. Read [requirements-audit-queue.md](../docs/delivery/requirements-audit-queue.md); select the lowest `audit_order` with `audit_status = Pending` (or resume `In progress`).
+2. Set row to `In progress`.
+3. Read the requirement doc, `prototype_refs`, and skim `impl_hints` paths (read-only).
+4. Audit layout gaps: regions, section order, tables/cards, dialogs, empty states, nav entry points, primary actions.
+5. Update **only** the requirement slice:
+   - **Visual specification** (or equivalent)
+   - Layout-driven acceptance criteria
+   - **Prototype reference:** line with correct paths
+   - **Implementation delta (pass 2)** when prod differs (e.g. separate routes, missing prototype screens)
+6. Set `Done`, or `N/A` for BA02 (contracts-only).
+7. Continue to next Pending slice unless the user capped the run.
+
+## Dry run
+
+Report gaps in chat only; do not modify files.
+
+## Chaining
+
+After marking Done, proceed to the next Pending slice without asking the user to repeat the audit prompt.
