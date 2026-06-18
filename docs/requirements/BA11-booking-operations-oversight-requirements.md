@@ -165,12 +165,14 @@ Prefix legend: **`BK`** /activities/bookings page-level, **`BL`** booking list, 
 
 ### Implementation delta (pass 2)
 
-- Linked from Activities header "All bookings" button in prototype.
+- Linked from Activities header **"All bookings"** button in prototype.
+- Prototype **`BookingsPage`** is a **read-only-style table** only (Activity, Session, Participant, Status, **Reassign** / **Cancel**). Production adds **"Book on behalf"** above the table, **Promote** instead of Reassign for waitlisted rows, and columns **Offering**, **Source**, **Booked** with status filtering.
+- Page title: prototype **"All bookings"**; production heading block uses **"Bookings"** (breadcrumb still trails through Activities).
 
 ### Layout — `/activities/bookings`
 
 - **`main`** uses Standard 07 page padding (`px-6 py-8` on `sm` and above; `px-4 py-6` on `xs`/mobile — follow the BA00 shell standard if it defines a tighter mobile padding).
-- **Heading block:** `h1` "Bookings", `p` subtitle with event name and surface description. Block is full-width at all breakpoints.
+- **Heading block:** `h1` **"All bookings"** (prototype title) — or **"Bookings"** if product prefers shorter shell title; pick one and use consistently in AC/tests. `p` subtitle with event name and surface description. Block is full-width at all breakpoints.
 - **"Book on behalf" button:** `Button variant="default"` placed immediately below the heading block, left-aligned on all breakpoints. Label "Book on behalf". Only rendered when user has `create:page.bookings`. On mobile (`xs`), the button remains full-width only if the BA00 shell imposes full-width buttons; otherwise left-aligned inline.
 - **`DataTable`:** full-width below the button at all breakpoints. `initialPageSize={50}`. On narrow viewports, the DataTable's built-in horizontal scroll handles column overflow — no column hiding rules are defined for this surface.
 - **Dialogs:** rendered in a portal over full viewport at all breakpoints. `DialogContent` max-width `sm` (≈480 px) on desktop; on mobile viewports narrower than `sm`, `DialogContent` spans full viewport width with standard side padding.

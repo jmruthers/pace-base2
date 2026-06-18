@@ -2,6 +2,7 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Badge,
   Button,
   Card,
   CardContent,
@@ -17,7 +18,18 @@ import type { ApplicationsPageController } from '@/hooks/applications/useApplica
 import { ApplicationQueueClipboardIcon } from '@/components/applications/ApplicationQueueClipboardIcon';
 import { ApplicationReviewStepsDialog } from '@/components/applications/ApplicationDetailDialog';
 
+function computeApplicationsKpis(rows: ApplicationTableRow[]) {
+  const total = rows.length;
+  const submitted = rows.filter((row) => row.status === 'submitted').length;
+  const underReview = rows.filter((row) => row.status === 'under_review').length;
+  const approved = rows.filter((row) => row.status === 'approved').length;
+  const conversionPercent = total > 0 ? Math.round((approved / total) * 100) : 0;
+  return { total, submitted, underReview, approved, conversionPercent };
+}
+
 export function ApplicationsPageView({ ctl }: { ctl: ApplicationsPageController }) {
+  const kpis = computeApplicationsKpis(ctl.tableRows);
+
   return (
     <main className="grid gap-4">
       <header className="grid gap-1">
@@ -58,7 +70,46 @@ export function ApplicationsPageView({ ctl }: { ctl: ApplicationsPageController 
           <LoadingSpinner />
         </section>
       ) : (
-        <section className="grid gap-3">
+        <>
+          <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Total</CardTitle>
+                <CardDescription>Applications for this event</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Badge variant="soft-main-normal">{kpis.total}</Badge>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Submitted</CardTitle>
+                <CardDescription>Awaiting first review</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Badge variant={kpis.submitted > 0 ? 'soft-acc-normal' : 'soft-main-normal'}>{kpis.submitted}</Badge>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Under review</CardTitle>
+                <CardDescription>In progress</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Badge variant="soft-main-normal">{kpis.underReview}</Badge>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Approved</CardTitle>
+                <CardDescription>{`${kpis.conversionPercent}% conversion`}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Badge variant="solid-main-normal">{kpis.approved}</Badge>
+              </CardContent>
+            </Card>
+          </section>
+
           <Card>
             <CardHeader>
               <CardTitle className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
@@ -96,7 +147,7 @@ export function ApplicationsPageView({ ctl }: { ctl: ApplicationsPageController 
               hierarchical: false,
             }}
           />
-        </section>
+        </>
       )}
 
       <ApplicationReviewStepsDialog

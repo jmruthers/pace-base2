@@ -23,7 +23,8 @@ Event organisers need to structure participants into named units (groups), defin
 
 ### Surfaces
 
-- **`/units`** — gated page with three tabs: **Units** (hierarchical unit CRUD with DataTable, inline editing and creation, import, and export), **Role Types** (event-scoped role type CRUD), and **Role Assignment** (assign/remove approved applicants to roles within a selected unit).
+- **`/units` (prototype authority):** KPI row, unit assignment card grid, inline **New unit** form — see §5 Prototype layout summary.
+- **`/units` (production extension, pass 2+):** three-tab DataTable surface (Units | Role Types | Role Assignment) — see §5 Production extension — `/units` below; not shown in prototype.
 - **`/unit-preferences`** — gated page where a coordinator selects a unit, builds a ranked preference list against available activity sessions (from BA09's `base_activity_session` records), validates the ranking, and submits it as a locked set.
 
 ### Boundaries
@@ -219,7 +220,7 @@ Prefix legend: **`UP`** /units page-level, **`UT`** Units tab, **`RTT`** Role Ty
 
 - §Layout below may specify DataTable — prototype uses **card grid** with capacity bars; align pass 2 to prototype.
 
-### Layout — `/units`
+### Production extension — `/units` (not in prototype)
 
 - **`main`** uses Standard 07 page padding (baseline `px-6 py-8` unless the consuming app standard overrides).
 - **Heading block:** `h1` "Units", `p` subtitle with event name.

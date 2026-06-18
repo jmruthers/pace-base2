@@ -6,9 +6,6 @@ import {
   Button,
   Card,
   CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
   LoadingSpinner,
   Progress,
 } from '@solvera/pace-core/components';
@@ -31,6 +28,14 @@ function capacityPercent(applications: number, capacity: number | null): number 
     return null;
   }
   return Math.min(100, Math.round((applications / capacity) * 100));
+}
+
+function typeInitial(name: string): string {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) {
+    return '?';
+  }
+  return trimmed.slice(0, 1).toUpperCase();
 }
 
 interface RegistrationTypesContentProps {
@@ -84,58 +89,63 @@ export function RegistrationTypesContent(props: RegistrationTypesContentProps) {
   }
 
   return (
-    <article className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+    <section className="grid gap-3">
       {props.rows.map((row) => {
         const isActive = row.is_active;
         const applications = props.applicationCounts[row.id] ?? 0;
         const fillPercent = capacityPercent(applications, row.capacity);
         return (
-          <Card key={row.id} className="grid h-full grid-rows-[1fr_auto]">
-            <CardHeader className="grid content-start gap-2">
-              <article className="grid gap-1 md:grid-cols-[1fr_auto] md:items-start">
-                <CardTitle>{row.name}</CardTitle>
-                <Badge variant={statusVariant(isActive)}>{statusLabel(isActive)}</Badge>
-              </article>
-              {row.description != null && row.description.trim().length > 0 ? (
-                <p className="line-clamp-2">{row.description}</p>
-              ) : null}
-              <p>{`${props.eligibilityCounts[row.id] ?? 0} eligibility rules`}</p>
-              <p>
-                <strong>{applications}</strong>
-                {row.capacity != null ? ` of ${row.capacity} applications` : ' applications'}
+          <Card key={row.id}>
+            <CardContent className="grid gap-3 md:grid-cols-[auto_1fr_auto] md:items-center">
+              <p className="grid size-10 place-items-center rounded-md border border-sec-200 bg-main-50" aria-hidden>
+                {typeInitial(row.name)}
               </p>
-              {fillPercent != null ? <Progress value={fillPercent} max={100} aria-label="Capacity used" /> : null}
-              {row.capacity != null || row.cost != null ? (
-                <section className="grid grid-flow-col auto-cols-max gap-x-6 gap-y-1">
-                  {row.capacity != null ? <p>{`Capacity ${row.capacity}`}</p> : null}
-                  {row.cost != null ? <p>{`Cost ${formatCurrencyFromCents(row.cost)}`}</p> : null}
-                </section>
-              ) : null}
-            </CardHeader>
-            <CardFooter className="grid grid-flow-col auto-cols-max gap-2">
-              <PagePermissionGuard pageName="RegistrationTypesPage" operation="update" scope={props.scope} fallback={null}>
-                <Button type="button" onClick={() => props.onEdit(row)}>
-                  Edit
-                </Button>
-              </PagePermissionGuard>
-              <PagePermissionGuard pageName="RegistrationTypesPage" operation="update" scope={props.scope} fallback={null}>
-                <Button
-                  type="button"
-                  aria-label={`Delete ${row.name}`}
-                  disabled={props.deleteCheckingTypeId === row.id}
-                  onClick={() => props.onRequestDelete(row)}
-                >
-                  {props.deleteCheckingTypeId === row.id ? (
-                    <LoadingSpinner decorative className="size-4" />
-                  ) : (
-                    <Trash2 aria-hidden className="size-4" />
-                  )}
-                </Button>
-              </PagePermissionGuard>
-            </CardFooter>
+              <section className="grid gap-2">
+                <header className="grid gap-1 md:grid-cols-[1fr_auto] md:items-start">
+                  <h3>{row.name}</h3>
+                  <Badge variant={statusVariant(isActive)}>{statusLabel(isActive)}</Badge>
+                </header>
+                {row.description != null && row.description.trim().length > 0 ? (
+                  <p className="line-clamp-2">{row.description}</p>
+                ) : null}
+                <p>{`${props.eligibilityCounts[row.id] ?? 0} eligibility rules`}</p>
+                <p>
+                  <strong>{applications}</strong>
+                  {row.capacity != null ? ` of ${row.capacity} applications` : ' applications'}
+                </p>
+                {fillPercent != null ? <Progress value={fillPercent} max={100} aria-label="Capacity used" /> : null}
+                {row.capacity != null || row.cost != null ? (
+                  <p className="grid grid-flow-col auto-cols-max gap-x-6 gap-y-1">
+                    {row.capacity != null ? <span>{`Capacity ${row.capacity}`}</span> : null}
+                    {row.cost != null ? <span>{`Cost ${formatCurrencyFromCents(row.cost)}`}</span> : null}
+                  </p>
+                ) : null}
+              </section>
+              <fieldset className="grid grid-flow-col auto-cols-max justify-items-start gap-2 md:justify-items-end">
+                <PagePermissionGuard pageName="RegistrationTypesPage" operation="update" scope={props.scope} fallback={null}>
+                  <Button type="button" onClick={() => props.onEdit(row)}>
+                    Configure
+                  </Button>
+                </PagePermissionGuard>
+                <PagePermissionGuard pageName="RegistrationTypesPage" operation="update" scope={props.scope} fallback={null}>
+                  <Button
+                    type="button"
+                    aria-label={`Delete ${row.name}`}
+                    disabled={props.deleteCheckingTypeId === row.id}
+                    onClick={() => props.onRequestDelete(row)}
+                  >
+                    {props.deleteCheckingTypeId === row.id ? (
+                      <LoadingSpinner decorative className="size-4" />
+                    ) : (
+                      <Trash2 aria-hidden className="size-4" />
+                    )}
+                  </Button>
+                </PagePermissionGuard>
+              </fieldset>
+            </CardContent>
           </Card>
         );
       })}
-    </article>
+    </section>
   );
 }

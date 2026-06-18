@@ -56,6 +56,19 @@ export function getResultBadge(result: ScanValidationResult): BadgeDescriptor {
   return { label: 'Upload conflict', variant: 'outline-acc-muted' };
 }
 
+export function getHistorySyncBadge(params: {
+  synced_at: string | null;
+  validation_result: ScanValidationResult;
+}): BadgeDescriptor {
+  if (params.validation_result === 'upload_conflict') {
+    return { label: 'Upload conflict', variant: 'outline-acc-muted' };
+  }
+  if (params.synced_at != null) {
+    return getQueueSyncBadge('synced');
+  }
+  return getQueueSyncBadge('pending');
+}
+
 export function getQueueSyncBadge(status: 'pending' | 'syncing' | 'synced' | 'failed'): BadgeDescriptor {
   if (status === 'pending') {
     return { label: 'Pending upload', variant: 'solid-acc-normal' };

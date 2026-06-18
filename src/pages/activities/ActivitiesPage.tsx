@@ -5,8 +5,10 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Badge,
   Button,
   Card,
+  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -44,10 +46,14 @@ import {
 } from '@/features/activityOfferingSetup/activityOfferingMutations';
 import { ActivitiesOfferingCardGrid } from '@/components/activities/ActivitiesOfferingCardGrid';
 import {
+  getOfferingSessionCount,
   parseOptionalCost,
   validateOfferingForm,
   type ValidationErrors,
 } from '@/features/activityOfferingSetup/shared';
+import {
+  getOfferingUtilization,
+} from '@/features/activityOfferingSetup/offeringCardGridHelpers';
 import type { ActivityOfferingRow, OfferingFormValues } from '@/features/activityOfferingSetup/types';
 
 const NONE_TRAC_ACTIVITY = '__none__';
@@ -327,6 +333,22 @@ export function ActivitiesPage() {
 
   const offerings = offeringsQuery.data ?? [];
 
+  const activityKpis = useMemo(() => {
+    const rows = offeringsQuery.data ?? [];
+    const offeringCount = rows.length;
+    const totalSessions = rows.reduce((sum, offering) => sum + getOfferingSessionCount(offering), 0);
+    let combinedCapacity = 0;
+    let totalBooked = 0;
+    for (const offering of rows) {
+      const utilization = getOfferingUtilization(offering);
+      combinedCapacity += utilization.totalCapacity;
+      totalBooked += utilization.totalBooked;
+    }
+    const bookingsPercent =
+      combinedCapacity > 0 ? Math.min(100, Math.round((totalBooked / combinedCapacity) * 100)) : 0;
+    return { offeringCount, totalSessions, combinedCapacity, totalBooked, bookingsPercent };
+  }, [offeringsQuery.data]);
+
   async function refreshOfferings() {
     await queryClient.invalidateQueries({ queryKey: ['ba09', 'offerings', selectedEventId] });
   }
@@ -402,6 +424,47 @@ export function ActivitiesPage() {
           All bookings
         </Button>
       </header>
+
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Offerings</CardTitle>
+            <CardDescription>Activity offerings for this event</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Badge variant="soft-main-normal">{activityKpis.offeringCount}</Badge>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Total sessions</CardTitle>
+            <CardDescription>Across all offerings</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Badge variant="soft-main-normal">{activityKpis.totalSessions}</Badge>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Combined capacity</CardTitle>
+            <CardDescription>Total session seats</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Badge variant="soft-main-normal">{activityKpis.combinedCapacity}</Badge>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Bookings</CardTitle>
+            <CardDescription>{`${activityKpis.bookingsPercent}% filled`}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Badge variant={activityKpis.totalBooked > 0 ? 'soft-acc-normal' : 'soft-main-normal'}>
+              {activityKpis.totalBooked}
+            </Badge>
+          </CardContent>
+        </Card>
+      </section>
 
       <PagePermissionGuard pageName="ActivitiesPage" operation="create" scope={scope} fallback={null}>
         <section>

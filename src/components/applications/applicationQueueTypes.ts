@@ -5,5 +5,6 @@ export type ApplicationTableRow = ApplicationQueueRow &
     applicantLabel: string;
     applicantEmail: string;
     registrationTypeLabel: string;
+    unitLabel: string;
     submittedLabel: string;
   };

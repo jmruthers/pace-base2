@@ -22,8 +22,8 @@ This slice owns the two surfaces through which BASE operators author and manage 
 **Surfaces.**
 - The `/forms` route rendered inside the BA00 authenticated shell.
 - A page header (h1 + subtitle).
-- A responsive card grid of one card per form.
-- A "Create Form" button (permission-gated).
+- A `DataTable` queue of one row per form (prototype authority per §5 Visual specification).
+- A "New form" button in PageHeader (permission-gated).
 - A `ConfirmationDialog` for delete confirmation.
 - A blocking information dialog shown when deletion is prevented by existing submissions or registration bindings.
 
@@ -226,6 +226,8 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 ---
 
 ## 5. Visual specification
+
+**Layout authority:** §5 matches prototype `FormsListPage` / `FormBuilderPage`. §4 FL-* card-grid inventory is the pass-2 production target unless amended in the same pass.
 
 - Prototype reference: `pace-prototype/apps/pace-base/pages/FormsRegTypesPage.jsx` (`FormsListPage`, `FormBuilderPage`).
 

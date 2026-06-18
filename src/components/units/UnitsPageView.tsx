@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Badge,
   Button,
   Card,
   CardContent,
@@ -34,6 +36,23 @@ export function UnitsPageView({ ctl }: { ctl: UnitsPageController }) {
   const roleTypesColumns = useUnitsRoleTypesColumns(ctl.scope, ctl.queueDeleteRoleType);
   const assignmentsColumns = useAssignmentsTableColumns(ctl.scope, ctl.queueRemoveAssignment);
 
+  const unitsKpis = useMemo(() => {
+    const unitCount = ctl.unitsRows.length;
+    const leadersCount = ctl.assignmentRows.length;
+    const combinedCapacity = ctl.unitsRows.reduce((sum, unit) => sum + (unit.capacity ?? 0), 0);
+    const assignedApplicants = Object.values(ctl.memberCountsByUnitId).reduce((sum, count) => sum + count, 0);
+    const approvedCount = ctl.approvedApplicationsQuery.data?.length ?? 0;
+    const unassignedApplicants = Math.max(0, approvedCount - assignedApplicants);
+    const assignedPercent =
+      combinedCapacity > 0 ? Math.min(100, Math.round((assignedApplicants / combinedCapacity) * 100)) : 0;
+    return { unitCount, leadersCount, combinedCapacity, assignedApplicants, unassignedApplicants, assignedPercent };
+  }, [
+    ctl.approvedApplicationsQuery.data,
+    ctl.assignmentRows.length,
+    ctl.memberCountsByUnitId,
+    ctl.unitsRows,
+  ]);
+
   return (
     <main className="grid gap-4">
       <header className="grid gap-1">
@@ -61,6 +80,47 @@ export function UnitsPageView({ ctl }: { ctl: UnitsPageController }) {
           </TabsList>
 
           <TabsContent value="units">
+            <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Units</CardTitle>
+                    <CardDescription>{`${unitsKpis.leadersCount} leaders assigned`}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Badge variant="soft-main-normal">{unitsKpis.unitCount}</Badge>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Combined capacity</CardTitle>
+                    <CardDescription>Total unit capacity</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Badge variant="soft-main-normal">{unitsKpis.combinedCapacity}</Badge>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Assigned</CardTitle>
+                    <CardDescription>{`${unitsKpis.assignedPercent}% filled`}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Badge variant="soft-main-normal">{unitsKpis.assignedApplicants}</Badge>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Unassigned applicants</CardTitle>
+                    <CardDescription>Approved without unit placement</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Badge variant={unitsKpis.unassignedApplicants > 0 ? 'soft-acc-normal' : 'soft-main-normal'}>
+                      {unitsKpis.unassignedApplicants}
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </section>
+
             <Card>
               <CardHeader>
                 <CardTitle>Units</CardTitle>

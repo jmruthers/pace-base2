@@ -130,6 +130,16 @@ Prefix legend: **`SY`** sync worker, **`CF`** conflict flow, **`QD`** queue disp
 ## Visual specification
 
 - Prototype reference: sync UX not shown separately in `UnitsActivitiesScanPage.jsx` — extend **ScanningPage** / **ScanRuntimePage** list patterns (BA12/BA13) for offline queue indicators and reconciliation status in pass 2.
+
+### Layout placement (consumers — no standalone route)
+
+| Surface | Region | Affordance |
+|--------|--------|------------|
+| **BA12 `/scanning` — Scan History DataTable** | Result / sync column | QD-BD-01–04 badges per row from local queue or `base_scan_event.synced_at` |
+| **BA12 `/scanning` — Sync Conflicts DataTable** | Result column | QD-BD-05 **Upload conflict** |
+| **BA13 `/scanning/:scanPointId` — top bar** | Right area | Compact indicator when any `failed` queue entries exist for active scan point; **toast** on flush recovery (BA14 §13) |
+| **BA12 scan-point list** | Optional row chip | Pending/failed upload count for scan point (pass-2 — not in prototype list) |
+
 - **Implementation delta (pass 2):** add sync badge/toast surfaces on scan point list and runtime header; no dedicated route in prototype.
 
 ---

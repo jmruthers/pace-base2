@@ -315,7 +315,7 @@ describe('RegistrationTypesPage', () => {
       eligibilityByTypeId: { 'type-1': [] },
     };
     renderPage();
-    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    await user.click(screen.getByRole('button', { name: 'Configure' }));
     expect(navigateMock).toHaveBeenCalledWith('/registration-type-builder?registrationTypeId=type-1');
   });
 
@@ -344,7 +344,7 @@ describe('RegistrationTypesPage', () => {
 
     renderPage();
     expect(screen.getByText('Youth')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Configure' })).toBeNull();
     expect(screen.queryByLabelText('Registration type active')).toBeNull();
     expect(screen.queryByLabelText('Delete Youth')).toBeNull();
   });

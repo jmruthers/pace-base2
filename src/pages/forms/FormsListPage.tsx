@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@solvera/pace-core/components';
-import { useEvents, useToast, useUnifiedAuth } from '@solvera/pace-core/hooks';
+import { useToast, useEvents, useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { buildWorkflowPreviewTarget } from '@solvera/pace-core/forms';
 import { AccessDenied, PagePermissionGuard, useResolvedScope, useSecureSupabase } from '@solvera/pace-core/rbac';
 import { HandleMutationError, NormalizeSupabaseError, ShowSuccessMessage } from '@solvera/pace-core/utils';
@@ -176,6 +176,12 @@ export function FormsListPage() {
     }
   };
 
+  const handleImportTemplate = () => {
+    toast({
+      description: 'Import template is not available yet.',
+    });
+  };
+
   const tableRows = useMemo(
     () => mapFormsListTableRows(formsQuery.data ?? []),
     [formsQuery.data]
@@ -206,9 +212,14 @@ export function FormsListPage() {
 
           {selectedEventId != null ? (
             <PagePermissionGuard pageName="FormsPage" operation="create" scope={scope} fallback={null}>
-              <Button type="button" onClick={() => navigate('/form-builder')}>
-                New form
-              </Button>
+              <section className="grid grid-flow-col auto-cols-max gap-2">
+                <Button type="button" variant="outline" onClick={handleImportTemplate}>
+                  Import template
+                </Button>
+                <Button type="button" onClick={() => navigate('/form-builder')}>
+                  New form
+                </Button>
+              </section>
             </PagePermissionGuard>
           ) : null}
         </section>

@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { Badge, Button } from '@solvera/pace-core/components';
+import { ApplicationChecksMini } from '@/components/applications/ApplicationChecksMini';
 import {
   applicationStatusLabel,
   applicationStatusVariant,
-  getChecksSummary,
 } from '@/features/applicationsAdmin/stateHelpers';
 import type { ApplicationTableRow } from '@/components/applications/applicationQueueTypes';
 
@@ -11,9 +11,8 @@ export function useApplicationsTableColumns(args: {
   registrationTypeFilterOptions: Array<{ value: string; label: string }>;
   statusFilterOptions: Array<{ value: string; label: string }>;
   onViewDetail: (applicationId: string) => void;
-  onViewReviewSteps: (applicationId: string) => void;
 }) {
-  const { registrationTypeFilterOptions, statusFilterOptions, onViewDetail, onViewReviewSteps } = args;
+  const { registrationTypeFilterOptions, statusFilterOptions, onViewDetail } = args;
 
   return useMemo(
     () => [
@@ -22,12 +21,12 @@ export function useApplicationsTableColumns(args: {
         accessorKey: 'applicantLabel',
         header: 'Applicant',
         sortable: true,
-      },
-      {
-        id: 'applicantEmail',
-        accessorKey: 'applicantEmail',
-        header: 'Email',
-        sortable: true,
+        cell: ({ row }: { row: ApplicationTableRow }) => (
+          <>
+            <p>{row.applicantLabel}</p>
+            <small>{row.applicantEmail}</small>
+          </>
+        ),
       },
       {
         id: 'registrationTypeLabel',
@@ -37,6 +36,24 @@ export function useApplicationsTableColumns(args: {
         enableColumnFilter: true,
         filterType: 'select' as const,
         filterSelectOptions: registrationTypeFilterOptions,
+      },
+      {
+        id: 'unitLabel',
+        accessorKey: 'unitLabel',
+        header: 'Unit',
+        sortable: true,
+      },
+      {
+        id: 'submittedLabel',
+        accessorKey: 'submittedLabel',
+        header: 'Submitted',
+        sortable: true,
+      },
+      {
+        id: 'checksMini',
+        accessorKey: 'checks',
+        header: 'Checks',
+        cell: ({ row }: { row: ApplicationTableRow }) => <ApplicationChecksMini checks={row.checks} />,
       },
       {
         id: 'status',
@@ -51,40 +68,15 @@ export function useApplicationsTableColumns(args: {
         ),
       },
       {
-        id: 'submittedLabel',
-        accessorKey: 'submittedLabel',
-        header: 'Submitted',
-        sortable: true,
-      },
-      {
-        id: 'checks',
-        accessorKey: 'checks',
-        header: 'Checks',
-        cell: ({ row }: { row: ApplicationTableRow }) => {
-          const summary = getChecksSummary(row.checks);
-          if (summary == null) {
-            return null;
-          }
-          return <Badge variant={summary.variant}>{summary.label}</Badge>;
-        },
-      },
-      {
-        id: 'queueActions',
-        header: 'Actions',
+        id: 'reviewAction',
+        header: 'Review',
         cell: ({ row }: { row: ApplicationTableRow }) => (
-          <section className="grid grid-cols-1 gap-1 md:grid-cols-2">
-            <Button type="button" variant="outline" onClick={() => onViewDetail(row.id)}>
-              View
-            </Button>
-            {row.checks.length > 0 ? (
-              <Button type="button" variant="outline" onClick={() => onViewReviewSteps(row.id)}>
-                View review steps
-              </Button>
-            ) : null}
-          </section>
+          <Button type="button" variant="outline" onClick={() => onViewDetail(row.id)}>
+            Review
+          </Button>
         ),
       },
     ],
-    [onViewDetail, onViewReviewSteps, registrationTypeFilterOptions, statusFilterOptions]
+    [onViewDetail, registrationTypeFilterOptions, statusFilterOptions]
   );
 }

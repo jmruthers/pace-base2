@@ -170,7 +170,20 @@ The following surfaces are out of scope for BA16:
 - Prototype reference: align tracking dashboard with **ScanRuntimePage** "Last 8 scans" aside (`UnitsActivitiesScanPage.jsx`) — expanded to full `/scanning/tracking` dashboard with event-wide scan history and filters in pass 2.
 - Prototype route: none (queue notes align with scan list patterns).
 - **Route map:** production `/scanning/tracking` — tracking dashboard beyond runtime's last-8 panel.
-- **Implementation delta (pass 2):** build tracking page from runtime recent-scan list pattern at larger scale.
+
+### Layout — `/scanning/tracking`
+
+- **Shell:** BA00 authenticated shell (sidebar remains); entry from BA12 **"View Tracking Dashboard"** only.
+- **Heading block:** `h1` **"Tracking Dashboard"**, event subtitle, **last updated** timestamp, **Refresh** outline button (TR-PE-02–05).
+- **Tabs (default Site Presence):** **Site Presence** | **Activity** | **Transport** | **Participant History** (TR-TB-01–03).
+- **Site Presence:** three headline **Card** tiles (On-site / Off-site / Never Scanned), then expandable **on-site** and **off-site** location groups (SP-OD-*, SP-FD-*).
+- **Activity / Transport tabs:** expandable scan-point rows with accepted-scan counts (AT-*, TP-*).
+- **Participant History:** search **Input** + chronological **DataTable** (PH-*).
+- **Prototype anchor:** runtime **"Last 8 scans"** aside (`ScanRuntimePage`) informs row density (time, name, unit) — expanded here to event-wide, tabbed dashboard.
+
+### Implementation delta (pass 2)
+
+- Build tracking page from runtime recent-scan **list row pattern** at dashboard scale; **no prototype route**.
 
 ---
 

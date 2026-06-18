@@ -78,6 +78,18 @@ export function AuthenticatedShell() {
         userEmail={userEmail}
         onUserMenuSignOut={handleUserMenuSignOut}
         onUserMenuChangePassword={() => setPasswordDialogOpen(true)}
+        extraMenuActions={[
+          {
+            id: 'all-events',
+            label: 'All events',
+            onSelect: () => navigate('/'),
+          },
+          {
+            id: 'operator-profile',
+            label: 'Operator profile',
+            onSelect: () => navigate('/configuration'),
+          },
+        ]}
         enforcePermissions
         permissionFallback={<AccessDenied />}
       >

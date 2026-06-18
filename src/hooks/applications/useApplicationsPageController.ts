@@ -43,6 +43,7 @@ export function useApplicationsPageController() {
         applicantLabel: resolveApplicantName(row),
         applicantEmail: row.person?.email ?? 'No email provided',
         registrationTypeLabel: row.registration_type?.name ?? 'Unknown registration type',
+        unitLabel: 'Unassigned',
         submittedLabel: resolveSubmittedLabel(row),
       })),
     [queueQuery.data]
@@ -84,13 +85,10 @@ export function useApplicationsPageController() {
     },
     [navigate]
   );
-  const onViewReviewSteps = useCallback((applicationId: string) => setReviewStepsApplicationId(applicationId), []);
-
   const tableColumns = useApplicationsTableColumns({
     registrationTypeFilterOptions,
     statusFilterOptions,
     onViewDetail,
-    onViewReviewSteps,
   });
 
   return {

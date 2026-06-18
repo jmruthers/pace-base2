@@ -41,7 +41,7 @@ BA00 does not own `/event-dashboard` or any other named route beyond those liste
 
 BA00 owns the shell landing at `/` and the global event picker UX. Event dashboard content at `/event-dashboard` (or prototype `/events/:code`) is owned by BA01; BA00 navigates into an event via tile click or context selector.
 
-The navigation items array is derived at runtime by route context (see BR-08) and rendered by `PaceAppLayout` (prototype: `PaceHeader`). BA00 does not place explicit `PagePermissionGuard` or `NavigationGuard` wrappers around nav items; `PaceAppLayout`'s internal `NavigationMenu` handles RBAC gating using each item's `pageId` where items are permission-scoped.
+The navigation items array is derived at runtime by route context (see BR-08), capped at **five** primary items per CR05c, and rendered by `PaceAppLayout`'s `NavigationMenu` (inline pills at `lg+`, compact Select below `lg`). BA00 does not place explicit `PagePermissionGuard` or `NavigationGuard` wrappers around nav items; `NavigationMenu` handles RBAC gating using each item's `pageId` or `permissions` where items are permission-scoped.
 
 ### Architectural posture
 
@@ -493,7 +493,7 @@ Given an authenticated user whose nav item lacks a matching `read` permission in
 ## §12 Verification
 
 - Verify `/login` unauthenticated entry and authenticated redirect behaviour.
-- Verify `/` decision tree: restoration hold, unauthenticated redirect to `/login`, authenticated redirect to `/event-dashboard`.
+- Verify `/` decision tree: restoration hold, unauthenticated redirect to `/login`, authenticated render of shell landing (event picker) at `/`.
 - Verify in-shell 404 route and return navigation.
 - Verify inactivity warning and password-change flows.
 

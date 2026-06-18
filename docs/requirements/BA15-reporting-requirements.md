@@ -170,7 +170,7 @@ Items are numbered `FI-01` through `FI-47`. Each is independently testable witho
 
 ### Navigation
 
-**FI-45** — `/reports` is linked from the Event Dashboard nav card (BA01). No navigation exits the page other than shell-level navigation (sidebar links, event picker).
+**FI-45** — `/reports` is linked from BA00 in-event header nav (**Reports**) and from the event dashboard only indirectly (not a launcher card per BA01). No navigation exits the page other than shell-level navigation.
 
 ### Edge cases
 

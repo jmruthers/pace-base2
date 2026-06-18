@@ -163,11 +163,11 @@ describe('ApplicationsPage', () => {
       },
     ];
     render(<ApplicationsPage />);
-    expect(screen.getByRole('button', { name: 'View' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Review' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'View review steps' })).toBeNull();
   });
 
-  it('navigates to application detail when View is clicked', () => {
+  it('navigates to application detail when Review is clicked', () => {
     queueState.data = [
       {
         id: 'application-1',
@@ -183,7 +183,7 @@ describe('ApplicationsPage', () => {
       },
     ];
     render(<ApplicationsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
     expect(navigateSpy).toHaveBeenCalledWith('/applications/application-1');
   });
 

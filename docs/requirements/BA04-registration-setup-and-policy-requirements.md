@@ -177,11 +177,13 @@ Cover every category template requires; numbering runs contiguous.
 
 ### Registration type builder (`/registration-type-builder`)
 
-1. **PageHeader** — breadcrumb through Registration types; title = type name.
-2. **Details card** — name, description, eligibility message, cost, capacity, active toggle (`Form` + `SaveActions`).
-3. **Eligibility rules editor** — repeatable rows: rule type `Select`, value `Input`, remove control; "Add rule" ghost; helper copy for DOB/membership combination semantics.
-4. **Requirements section** — approval/payment requirement rows with descriptors (automated vs manual, age gates, token email).
-5. **Linked forms** — forms bound to this registration type.
+1. **PageHeader** — breadcrumb; title = type name; secondary **Preview portal flow** (stub).
+2. **Details card** — display name, status (`open` | `waitlist` | `closed`), capacity, fee, description (grid layout).
+3. **Eligibility card** — rules editor + eligibility message textarea.
+4. **Linked forms card** — **Anchor form** (single `base_registration` form; link/create picker) + **Supplementary forms** (required checkbox per link; link/create picker).
+5. **Pre-submission checks card** — toggle list (`member_profile`, `medical_profile`, `additional_contacts`, …).
+6. **Approval workflow card** — checkbox per authoritative `check_type` with automated/manual descriptor.
+7. **PageSaveBar** — Cancel → list; **Save** (whole-page commit in prototype).
 
 ### Route map (prototype → BASE)
 
@@ -192,6 +194,7 @@ Cover every category template requires; numbering runs contiguous.
 
 ### Implementation delta (pass 2)
 
+- §4 RL-PC-* three-column card grid is a production layout variant; prototype list uses stacked horizontal progress-bar rows (§5 item 3).
 - Prototype uses horizontal list cards with inline progress bars; production spec (RL-PC-04) targets three-column `Card` grid with footer-aligned actions — reconcile layout in pass 2 while preserving data density (capacity, cost, applications).
 - KPI summary row in prototype (total apps/cap) optional for production.
 

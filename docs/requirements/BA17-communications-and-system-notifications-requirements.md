@@ -230,6 +230,8 @@ If a future wave adds notifications for any of these types, a new `base.*` syste
 
 ## 5. Visual specification
 
+**Layout authority:** Prototype layout summary below. §5.1–5.2 and §4 SA-04/SA-05 describe a production extension (pool-mode switcher + MultiSelect) not present in prototype; defer to pass 2 unless product explicitly requires ManualPool.
+
 - Prototype reference: `pace-prototype/apps/pace-base/pages/CommsReportsPage.jsx` (`CommunicationsPage`).
 
 ### Prototype layout summary
@@ -254,7 +256,7 @@ If a future wave adds notifications for any of these types, a new `base.*` syste
 - Prototype KPI row may be absent in production — add for parity.
 - "Manage templates" is prototype stub.
 
-### 5.1 Layout
+### Production extension (not in prototype)
 
 The `/communications` page uses the BA00 app shell (header, nav sidebar, authenticated wrapper). The page content area is a single-column layout with the following top-to-bottom order:
 

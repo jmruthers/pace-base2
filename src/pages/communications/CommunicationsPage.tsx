@@ -211,6 +211,24 @@ function CommunicationsPageContent({
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
+            <CardTitle>Sent this event</CardTitle>
+            <CardDescription>Communications sent for this event</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>—</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Scheduled</CardTitle>
+            <CardDescription>Queued for future delivery</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>—</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
             <CardTitle>Recipient pool</CardTitle>
             <CardDescription>For the current filter selection</CardDescription>
           </CardHeader>
@@ -226,29 +244,11 @@ function CommunicationsPageContent({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Pool mode</CardTitle>
-            <CardDescription>Current audience scope</CardDescription>
+            <CardTitle>Templates count</CardTitle>
+            <CardDescription>Available communication templates</CardDescription>
           </CardHeader>
           <CardContent>
-            <p>{isEventParticipantsMode ? 'Event participants' : 'Specific participants'}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Registration types</CardTitle>
-            <CardDescription>Available filter options</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>{registrationTypeOptions.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Active filters</CardTitle>
-            <CardDescription>Applied audience constraints</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>{hasActiveCommunicationFilters(filters) ? 'Yes' : 'None'}</p>
+            <p>—</p>
           </CardContent>
         </Card>
       </section>

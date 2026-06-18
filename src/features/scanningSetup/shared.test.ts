@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getDirectionBadge,
+  getHistorySyncBadge,
   getOfflineBadge,
   getQueueSyncBadge,
   getResultBadge,
@@ -51,6 +52,18 @@ describe('BA12 shared mapping helpers', () => {
     expect(getQueueSyncBadge('synced')).toEqual({
       label: 'Uploaded',
       variant: 'solid-main-normal',
+    });
+    expect(getHistorySyncBadge({ synced_at: '2026-05-01T10:05:00.000Z', validation_result: 'accepted' })).toEqual({
+      label: 'Uploaded',
+      variant: 'solid-main-normal',
+    });
+    expect(getHistorySyncBadge({ synced_at: null, validation_result: 'accepted' })).toEqual({
+      label: 'Pending upload',
+      variant: 'solid-acc-normal',
+    });
+    expect(getHistorySyncBadge({ synced_at: '2026-05-01T10:05:00.000Z', validation_result: 'upload_conflict' })).toEqual({
+      label: 'Upload conflict',
+      variant: 'outline-acc-muted',
     });
     expect(getQueueSyncBadge('failed')).toEqual({
       label: 'Upload failed',

@@ -139,11 +139,10 @@ Prefix legend: **`RT`** runtime page-level, **`SC`** scan input and result, **`O
 
 ### Prototype layout summary
 
-**Minimal chrome** — outside standard sidebar (matches BA13 contract):
-
-1. **PageHeader** — breadcrumb through Scanning; scan point name as title; Simulate scan + Back to scan points.
-2. **Two-column scan stage** — main **scanner view** (QR target animation, last scan status panel) + aside **Last 8 scans** list (time, name, unit).
-3. Empty recent list shows hint to simulate scan.
+1. **Standard app shell** — `ScanRuntimePage` renders inside **`PaceHeader` / event nav** (not outside the sidebar).
+2. **PageHeader** — breadcrumb through Scanning; scan point name as title; **Simulate scan** + **Back to scan points**.
+3. **Two-column scan stage** — main **scanner view** (QR target animation, last scan status panel) + aside **Last 8 scans** (time, name, unit).
+4. Empty recent list shows hint to simulate scan.
 
 ### Route map
 
@@ -153,7 +152,10 @@ Prefix legend: **`RT`** runtime page-level, **`SC`** scan input and result, **`O
 
 ### Implementation delta (pass 2)
 
-- Production registers runtime outside `AuthenticatedShell` nav — matches prototype minimal chrome.
+- Production registers runtime **outside `AuthenticatedShell` sidebar** with a **minimal top bar** (not prototype PageHeader).
+- Production replaces prototype **QR target animation** with **HID scan `Input`** + result panel; **"Simulate scan"** is prototype-only.
+- Prototype **"Last 8 scans" aside** is **not** carried into production runtime; event-wide history lives on **BA16 `/scanning/tracking`**.
+- **BA14 sync health:** optional **queue-status indicator / toast** in the **top bar** (BA14 Visual specification) — not in prototype.
 
 ### Layout — `/scanning/:scanPointId`
 
@@ -169,7 +171,7 @@ A header bar with `bg-card border-b border-border` styling, `h-12` (48px) fixed 
 
 - **Left:** `Button variant="ghost" size="sm"` or `<a>` "Back to scanning setup" → `/scanning`. A `ChevronLeft` icon from `@solvera/pace-core/icons` precedes the text (BASE icons barrel does not export `ArrowLeft`; `ChevronLeft` is the approved substitute). This is always rendered.
 - **Centre:** Scan-point identity block (see below) — horizontally centred via `flex-1 flex justify-center`.
-- **Right:** right placeholder `<div aria-hidden='true'>` with `w-24` fixed width matching the approximate rendered width of the back-navigation button.
+- **Right:** when local queue has `failed` entries for this scan point, show BA14 **"Upload failed"** badge or compact sync status (see BA14 QD-BD-*); otherwise right placeholder `<div aria-hidden='true'>` with `w-24` fixed width matching the approximate rendered width of the back-navigation button.
 
 **Scan-point identity block:** Three elements stacked vertically and centred:
 1. **Scan point name:** plain text `text-sm font-semibold text-foreground`. Displays `scan_point.name` as stored in the database (the `name` column on `base_scan_point`).

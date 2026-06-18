@@ -66,6 +66,7 @@ export function useApplicationDetailPageController() {
       applicantLabel: resolveApplicantName(row),
       applicantEmail: row.person?.email ?? 'No email provided',
       registrationTypeLabel: row.registration_type?.name ?? 'Unknown registration type',
+      unitLabel: 'Unassigned',
       submittedLabel: resolveSubmittedLabel(row),
     };
   }, [applicationId, queueQuery.data]);

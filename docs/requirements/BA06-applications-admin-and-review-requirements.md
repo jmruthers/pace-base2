@@ -21,7 +21,7 @@ Operators with access need to triage applications fairly: see who applied, in wh
 
 ### Surfaces
 
-- `/applications` — gated page containing an applications queue (`DataTable`), error and empty handling, **application detail** in a centred **`Dialog`**, **review steps** in a second centred **`Dialog`**, row actions, **`ConfirmationDialog`** flows for mutations, and toolbars consistent with explicit **DataTable `features`**.
+- `/applications` — gated page containing an applications queue (`DataTable`), error and empty handling, **application review** at `/applications/:applicationId` full-page route (§5 Visual specification), row actions, **`ConfirmationDialog`** flows for mutations where §4 mutation rules require, and toolbars consistent with explicit **DataTable `features`**.
 
 ### Boundaries
 
@@ -92,7 +92,7 @@ Prefix legend: **`PQ`** page and queue, **`PD`** detail dialog, **`PR`** review-
 ### Primary content — queue (`DataTable`)
 
 9. **PQ-PC-01 —** Queue header is rendered in a **`Card`** with a list icon (pace-core `ClipboardList` or equivalent), title "Application queue", and a description line showing **application count** and the **selected event name** when loaded. The queue **`DataTable`** is rendered in the same queue section directly beneath this header card.
-10. **PQ-PC-02 —** **`DataTable`** lists one row per application. Columns (in order): **Applicant** (full name per **BR-NAME**), **Email** (from person), **Registration type** (type name), **Status** (**`Badge`** per **BR-APP-STATUS**), **Submitted** (per **BR-SUBMITTED**), **Checks** (priority badge per **BR-CHECK-SUMMARY**).
+10. **PQ-PC-02 —** **`DataTable`** lists one row per application. Columns (in order): **Applicant** (full name + email subline per **BR-NAME**), **Registration type** (type name), **Unit** (or "Unassigned"), **Submitted** (per **BR-SUBMITTED**), **Checks mini** (count + status dots per **BR-CHECK-MINI**), **Status** (**`Badge`** per **BR-APP-STATUS**), **Review** action.
 11. **PQ-PC-03 —** Row actions (via **`DataTable`** **`actions`**): **View** opens **`PD`**. **View review steps** opens **`PR`** — this action is only rendered when the application's **`checks`** array has at least one entry; it is hidden entirely for applications with zero checks.
 
 ### Primary content — detail dialog (`PD`)
@@ -153,6 +153,8 @@ Prefix legend: **`PQ`** page and queue, **`PD`** detail dialog, **`PR`** review-
 ---
 
 ## 5. Visual specification
+
+**Layout authority:** §5 (`ApplicationsPage`, `ApplicationDetailPage`). §4 PD-* / PR-* dialog inventory is superseded for layout; retain only where explicitly marked as confirmation overlays.
 
 - Prototype reference: `pace-prototype/apps/pace-base/pages/ApplicationsPage.jsx` (`ApplicationsPage`, `ApplicationDetailPage`).
 
@@ -250,6 +252,10 @@ Evaluate the application's checks array and render a single **`Badge`**:
 
 `waived` checks count as satisfied for summary purposes. Applications with zero checks: show no badge (empty cell).  
 The summary must remain consistent after detail refresh.
+
+### BR-CHECK-MINI — Queue checks mini column (prototype authority)
+
+Render **`satisfied/total`** count plus per-check status dots in the queue **Checks mini** column (prototype `ApplicationsPage`). **BR-CHECK-SUMMARY** single-badge summary is an optional production compact variant; prototype authority is the mini indicator.
 
 ### BR-EVENT-ACTIONS — When organiser check actions show
 

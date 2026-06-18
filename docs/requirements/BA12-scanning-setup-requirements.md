@@ -185,6 +185,10 @@ Prefix legend: **`SC`** /scanning page-level, **`SP`** scan-point management, **
 
 ### Implementation delta (pass 2)
 
+- Prototype **`ScanningPage`** is a **single "Scan points" card** with **check-list rows** (activated/pending icon, name, location · scans today, Configure + Open; row click → runtime). Production expands to operator hub: **`DataTable`** scan-point admin plus **Manifests**, **Sync Conflicts**, and **Scan History** sections; **"View Tracking Dashboard"** entry (BA16).
+- **Title:** prototype PageHeader **"Scanning"**; production heading **`h1` "Scanning Setup"**.
+- **Create action:** prototype **"New scan point"** in PageHeader right; production **"Create scan point"** above the scan-point DataTable (right-aligned).
+- **BA14 queue badges (QD-BD-01–05):** render on **Scan History** rows (and conflict rows where applicable) per BA14 — not shown in prototype.
 - Sync/reconciliation UX (BA14) extends setup/runtime — no separate prototype screen.
 
 ### Layout — `/scanning`
@@ -317,6 +321,7 @@ The history DataTable carries its own pace-core Card wrapper. Do not double-wrap
   - `accepted` → `Badge variant="solid-main-normal"` "Accepted"
   - `rejected` → `Badge variant="solid-sec-muted"` "Rejected"
   - `upload_conflict` → `Badge variant="outline-acc-muted"` "Conflict"
+- **Sync queue badges (BA14 QD-BD-01–05):** when a row corresponds to a local queue entry or `synced_at` state, show **Pending upload**, **Uploading…**, **Uploaded**, **Upload failed**, or **Upload conflict** per BA14 badge vocabulary.
 - **Reason cell:** `validation_reason` text or "—" if null.
 - **Participant cell:** `name` = `preferred_name` if `preferred_name` is non-null and non-empty string; otherwise `first_name || ' ' || last_name`. Source columns on `core_person`: `preferred_name`, `first_name`, `last_name`. Displays "—" if the join returns no row.
 - **Scanned at / Synced at cells:** formatted timestamptz per `formatDateTime` utility.

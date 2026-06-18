@@ -203,13 +203,16 @@ Prefix legend: **`AL`** /activities list page-level, **`AO`** /activities/:offer
 
 ### Implementation delta (pass 2)
 
-- Production may use list/table vs prototype card grid — align to offering cards with utilization bars.
+- **`/activities` list:** Prototype uses a **KPI row** then an **offering card grid** (provider, fee, sessions, capacity bar, "Manage sessions"). Production uses a **`DataTable`** with create/edit/delete **Dialogs** — retain KPI semantics above the table (four summary tiles matching prototype KPI labels).
+- **Primary action:** Prototype places **"New offering"** in `PageHeader` right; production may use **"Create offering"** immediately below the heading block (left-aligned) per Layout below.
+- **`/activities/:offeringId`:** No prototype screen — "Manage sessions" is a stub. Session management layout in this doc is production-only.
 
 ### Layout — `/activities`
 
 - **`main`** uses Standard 07 page padding (`px-6 py-8` baseline unless the consuming app shell standard overrides).
 - **Heading block:** `h1` "Activities", `p` subtitle with event name and surface description.
-- **"Create offering" button:** `Button` `variant="default"` placed immediately below the heading block, left-aligned. Label "Create offering".
+- **KPI row** (four tiles): Offerings, Total sessions, Combined capacity, Bookings (% filled) — matching prototype `ActivitiesPage` before the offerings surface.
+- **"Create offering" button:** `Button` `variant="default"` placed immediately below the KPI row, left-aligned. Label "Create offering".
 - **`DataTable`:** full-width below the Create button. `initialPageSize={25}`.
 - **Modal dialogs:** centred `Dialog` for confirmations and forms. No drawers.
 

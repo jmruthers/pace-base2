@@ -9,7 +9,7 @@
 
 ## 2. Overview
 
-This slice owns the authenticated organiser's entry surface for working inside a single event. It delivers two routes: an event dashboard that surfaces the selected event's identity and a fixed set of operational nav cards into other BASE bounded contexts, and an event configuration form that edits a defined subset of `core_events` fields. It is the first slice that depends on the shared shell from BA00 and the first surface that consumes event-scoped context.
+This slice owns the authenticated organiser's entry surface for working inside a single event. It delivers two routes: an event dashboard that surfaces the selected event's identity, KPI summary, attention queue, and a fixed set of operational launcher cards into other BASE bounded contexts, and an event configuration form that edits a defined subset of `core_events` fields. It is the first slice that depends on the shared shell from BA00 and the first surface that consumes event-scoped context.
 
 ## 3. What this slice delivers
 
@@ -21,11 +21,11 @@ This slice owns the authenticated organiser's entry surface for working inside a
 - The `/event-dashboard` route, rendered inside the BA00 authenticated shell.
 - A page header (h1 + subtitle).
 - An event identity card (event name, dates, venue, logo) shown only when an event is selected.
-- A responsive grid of **eight** launcher cards (Event details, Registration types, Forms, Unit assignments, Activities, Scanning, plus Applications/Communications/Reports reachable via header nav or hero actions), each linking to a sibling slice's owned route with live counts where applicable.
+- An `EventOverview`-style dashboard: entity hero, four KPI tiles, optional `AttentionQueue`, and a responsive grid of **six** launcher cards (Event details, Registration types, Forms, Unit assignments, Activities, Scanning). Applications, Communications, and Reports are reachable via header nav (BA00) and hero actions — not duplicated as launcher cards.
 
 **Boundaries.**
 - This slice does not own the global event picker at `/` — that lives in BA00 shell landing.
-- This slice does not own any of the routes the nav cards link to (Forms, Applications, Registration Types, Reports, Communications). It only renders cards with live counts and link affordances; clicking navigates out of the slice.
+- This slice does not own any of the routes the launcher cards link to (configuration, registration types, forms, units, activities, scanning). It only renders cards with live counts and link affordances; clicking navigates out of the slice.
 - This slice does not own role granting or revocation. It consumes permission state via `PagePermissionGuard` only.
 
 **Architectural posture.**
@@ -79,7 +79,7 @@ Items numbered with prefix `D-` belong to the Event Dashboard surface; items pre
 3. D-LS-01 — While nav-card live counts (Forms, Applications, Registration Types) are still loading, each loading count renders as `…` (ellipsis) in the count slot. Other nav-card content (icon, title, description) renders immediately.
 
 **Empty states**
-4. D-ES-01 — When no event is selected (no `selectedEvent` from `useEvents()`), the event identity card is hidden, the nav cards grid is hidden, and a single message renders centred in the content area: "Select an event from the header to begin."
+4. D-ES-01 — When no event is selected (no `selectedEvent` from `useEvents()`), the hero, KPI row, attention queue, and launcher grid are hidden, and a single message renders centred in the content area: "Select an event from the header to begin."
 
 **Error states**
 5. D-ER-01 — If a count query fails, the affected card renders `—` (em-dash) in the count slot rather than `…`, and the rest of the dashboard remains usable.
@@ -92,31 +92,38 @@ Items numbered with prefix `D-` belong to the Event Dashboard surface; items pre
 10. D-PC-05 — Event logo on the right-hand side of the card. A `logoRef: FileReference | null` state is loaded on dashboard entry via the pointer model in §6.13 (`core_events.logo_id` -> `core_file_references.id`, constrained to `is_public = true`). When `logoRef` is not null, render `FileDisplay` with `bucket="public-files"`. In the current pace-core contract, `variant="inline"` renders an inline download/view link container (not an `<img>` element). When `logoRef` is null, render the fallback placeholder per D-PC-06.
 11. D-PC-06 — When no logo `FileReference` exists, render a centred placeholder container (same dimensions as the logo area) containing the 3-letter abbreviation generated per the rule in §6.5. The abbreviation is displayed in a styled pill or avatar element — not via `FileDisplay`.
 
-**Primary content — Nav cards grid**
-12. D-PC-07 — Five nav cards rendered in a responsive grid (rule in §6.10):
-    1. Forms — links to `/forms`. Live count from `core_forms` filtered by selected event id.
-    2. Applications — links to `/applications`. Live count from `base_application` filtered by selected event id.
-    3. Registration Types — links to `/registration-types`. Live count from `base_registration_type` filtered by selected event id.
-    4. Reports — links to `/reports`. No live count.
-    5. Communications — links to `/communications`. No live count.
-13. D-PC-08 — Each nav card displays: an icon in the card header (icons: Forms = `Check`, Applications = `FileText`, Registration Types = `Calendar`, Reports = `BarChart`, Communications = `Mail`), a card title, the card's live count (if applicable) in accent colour, and a descriptive sentence (one line) about the destination's purpose.
+**Primary content — Event overview regions** (prototype: `EventOverview` in `LandingPage.jsx`; production may decompose into pace-core primitives with the same region order — see §5)
+
+12. D-PC-07 — Dashboard renders in region order:
+    1. **PageHeader** — breadcrumb (`pace-base` → event name); title = event name; subtitle describing event-level operations; hero actions include primary "Review applications" → `/applications` and secondary "Edit forms" → `/forms`.
+    2. **Entity hero** — `HeroLogo` (or equivalent), event name, date/venue/expected-participants meta, description when present.
+    3. **KPI row** — four KPI tiles: Applications (total with approved/awaiting detail), Awaiting approval (warm highlight when > 0), Places left (capacity minus approved), Forms published (published count with total forms detail).
+    4. **AttentionQueue** — per-event actionable items when applicable (e.g. applications awaiting approval linking to `/applications`); hidden when empty.
+    5. **Launcher grid** — section label "Event setup"; **six** launcher cards in a responsive grid (rule in §6.11):
+       - Event details → `/configuration` (no count)
+       - Registration types → `/registration-types` (count from `base_registration_type`)
+       - Forms → `/forms` (count from `core_forms`)
+       - Unit assignments → `/units` (count from units table)
+       - Activities → `/activities` (count from activities table)
+       - Scanning → `/scanning` (no count)
+13. D-PC-08 — Each launcher card displays: an icon (Event details = settings, Registration types = calendar, Forms = edit, Units = users, Activities = sparkle, Scanning = search), a card title, the card's live count (if applicable) in accent colour, and a one-line descriptive sentence about the destination's purpose.
 
 **Primary actions**
-14. D-PA-01 — Each nav card is fully clickable (entire card is the link target) and navigates to the destination route on click. Hover state highlights the card border.
+14. D-PA-01 — Each launcher card is fully clickable (entire card is the link target) and navigates to the destination route on click. Hover state highlights the card border. Hero "Review applications" and header nav (BA00) provide alternate entry to Applications, Communications, and Reports.
 
 **Secondary actions**
 15. N/A — There are no secondary actions on this surface.
 
 **Permission-conditional rendering**
 16. D-PR-01 — The page is wrapped in `PagePermissionGuard` with `pageName="event-dashboard"`, `operation="read"`, and `scope={{ organisationId, eventId, appId }}` (per §6.10). If denied, the page renders pace-core2's `<AccessDenied />` and no other content.
-17. D-PR-02 — Individual nav cards are not permission-gated at the card level in this slice. Permission gating for the destinations is owned by the destination slice's page guard.
+17. D-PR-02 — Individual launcher cards are not permission-gated at the card level in this slice. Permission gating for the destinations is owned by the destination slice's page guard.
 
 **Navigation**
-18. D-NV-01 — Clicking any nav card navigates to that card's destination route via the standard React Router link affordance. Event context is maintained by the shell across the navigation.
+18. D-NV-01 — Clicking any launcher card navigates to that card's destination route via the standard React Router link affordance. Event context is maintained by the shell across the navigation.
 
 **Edge cases and constraints**
 19. D-EC-01 — When `selectedEvent` is set but `organisation_id` cannot be resolved from it, the event identity card renders normally including the logo block. The logo pointer read (§6.13) keys on `selectedEventId` and `core_events.logo_id` — it does not require `organisation_id`. The `organisationId: null` in the `PagePermissionGuard` scope object may affect permission evaluation, but does not suppress the identity card or logo display.
-20. D-EC-02 — Counts displayed on nav cards reflect the count of all rows in the underlying table filtered by the selected event id, regardless of row status. Filtering by status (e.g. only "active" forms) is not applied at this surface — destination slices apply their own filtering on landing.
+20. D-EC-02 — Counts displayed on launcher cards reflect the count of all rows in the underlying table filtered by the selected event id, regardless of row status. Filtering by status (e.g. only "active" forms) is not applied at this surface — destination slices apply their own filtering on landing.
 
 ### 4.2 Event Configuration — `/configuration`
 
@@ -214,12 +221,13 @@ Prototype uses `EventOverview` composite; production may decompose into pace-cor
 
 ### Quick event creation (prototype `#/events/new`)
 
-- Single scrollable page with three sections:
-  1. **About** — event name, date, duration, venue.
-  2. **Who's coming** — role rows (Youth/Adult presets) with cost, pre-submission profile checks, approval toggles; shared anchor registration form.
-  3. **Access** — registration scope select with contextual hint copy.
-- Primary submit creates event and routes to event dashboard.
-- Full wizard linked as alternate path for advanced setup.
+- **PageHeader** — breadcrumb (`pace-base` → New event); title **"Start a new event"**; subtitle; secondary **Cancel** → `/`.
+- Single scrollable page, three cards + footer bar:
+  1. **About this event** — event name, start date, number of days, venue (with date/venue preview line when set).
+  2. **Who's coming** — repeatable role cards (Youth/Adult presets): role name, cost per head, pre-submission profile checks, approval toggles (guardian/home-leader primary; referee/org-review/event-approval under "More"); shared **Standard application** anchor form note; **Add another role**.
+  3. **Who can register** — inline scope summary with **Change** toggle revealing registration scope `Select` + contextual hint (org / hierarchy / open).
+- **Footer** — summary (`N roles · 1 shared form · date range`); actions: secondary **Save as draft**, primary **Create and open registration** (both create event + shared anchor form + per-role registration types, then route to event dashboard).
+- Full **New event wizard** (`NewEventWizardPage`) remains alternate path for advanced setup (`#/events/:code/edit` create mode).
 
 ### New event wizard (prototype `#/events/:code/edit` create/edit)
 
@@ -241,7 +249,7 @@ Prototype uses `EventOverview` composite; production may decompose into pace-cor
 
 ### Implementation delta (pass 2)
 
-- Production dashboard uses five-card grid (Forms, Applications, Registration Types, Reports, Communications) vs prototype eight launchers including Event details, Units, Activities, Scanning.
+- Production dashboard uses five-card grid (Forms, Applications, Registration Types, Reports, Communications) vs prototype six launchers (Event details, Registration types, Forms, Units, Activities, Scanning) plus KPI row, hero, and AttentionQueue.
 - Production lacks `EventOverview` / KPI row / AttentionQueue on dashboard — add in pass 2.
 - Quick event route (`/events/new`) not registered in [`baseRouteRegistry.ts`](../../src/config/baseRouteRegistry.ts).
 - Flat `/configuration` vs prototype path-segment `/events/:code/edit`.
@@ -369,7 +377,7 @@ Select renders these as `SelectItem` rows in the order shown. The field is requi
   - `appId` — resolved from RBAC scope APIs (`useResolvedScope().appId` or `useRBAC()` scope), not from `useUnifiedAuth()`.
 
 ### 6.11 Layout rules
-- Dashboard nav cards grid: `grid-cols-1` at `< 768px`, `md:grid-cols-2` at `>= 768px`, `lg:grid-cols-3` at `>= 1024px`.
+- Dashboard launcher cards grid: `grid-cols-1` at `< 768px`, `md:grid-cols-2` at `>= 768px`, `lg:grid-cols-3` at `>= 1024px`.
 - Configuration form paired-field rows: `grid-cols-1` at `< 768px`, `md:grid-cols-2` at `>= 768px`. Applied to: name+code, date+days, email+venue, participants+typical-unit-size.
 - Configuration logo section: `grid-cols-1` at `< 768px`, `md:grid-cols-2` at `>= 768px` (display | upload).
 
@@ -555,11 +563,12 @@ The slice does not introduce new RLS policies on `core_events` or any other tabl
 
 Each criterion traces to one or more Functional Specification items. Do not pre-tick boxes — these are verified post-build.
 
-- [ ] Given a permitted user with an event selected, when they navigate to `/event-dashboard`, then the event identity card renders with name, formatted start date, end date (if computed), venue, and logo. (D-PE-01, D-PC-01–D-PC-06, §6.1, §6.5)
-- [ ] Given a permitted user with no event selected, when they navigate to `/event-dashboard`, then the event identity card and nav grid do not render and a single message reads "Select an event from the header to begin." (D-ES-01)
-- [ ] Given a permitted user with an event selected, when the dashboard renders, then exactly five nav cards appear: Forms, Applications, Registration Types, Reports, Communications. (D-PC-07)
-- [ ] Given a permitted user with an event selected, when the dashboard's count fetches succeed, then each of Forms / Applications / Registration Types shows a numeric count; Reports and Communications show no count. (D-PC-07, D-PC-08)
-- [ ] Given a permitted user, when a count fetch fails for any nav card, then that card's count slot shows `—` and the rest of the dashboard remains usable. (D-ER-01)
+- [ ] Given a permitted user with an event selected, when they navigate to `/event-dashboard`, then the entity hero renders with name, formatted start date, end date (if computed), venue, and logo (or initials fallback). (D-PE-01, D-PC-07, §6.1, §6.5)
+- [ ] Given a permitted user with no event selected, when they navigate to `/event-dashboard`, then the hero, KPI row, attention queue, and launcher grid do not render and a single message reads "Select an event from the header to begin." (D-ES-01)
+- [ ] Given a permitted user with an event selected, when the dashboard renders, then four KPI tiles and exactly six launcher cards appear: Event details, Registration types, Forms, Unit assignments, Activities, Scanning. (D-PC-07)
+- [ ] Given a permitted user with an event selected, when applications are awaiting approval, then an AttentionQueue section lists at least one actionable item linking to `/applications`. (D-PC-07)
+- [ ] Given a permitted user with an event selected, when the dashboard's count fetches succeed, then Registration types, Forms, Units, and Activities launcher cards show numeric counts; Event details and Scanning show no count. (D-PC-07, D-PC-08)
+- [ ] Given a permitted user, when a count fetch fails for any launcher card, then that card's count slot shows `—` and the rest of the dashboard remains usable. (D-ER-01)
 - [ ] Given a non-permitted user (`read:page.event-dashboard` denied), when they navigate to `/event-dashboard`, then `<AccessDenied />` replaces the page content. (D-PR-01)
 - [ ] Given a permitted user with `read:page.configuration`, when they navigate to `/configuration`, then the form loads showing the event's current values. (C-PE-01, C-PC-02–C-PC-12)
 - [ ] Given a user with `read:page.configuration` but not `update:page.configuration`, when the form renders, then all fields are disabled, the "Save" button is hidden, and the logo upload control is hidden; the logo display remains visible. (C-PR-02, C-PR-03, §10)

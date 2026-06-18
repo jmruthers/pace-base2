@@ -45,6 +45,6 @@ export function getContextAwareShellNavigationItems(
   return IN_EVENT_NAV_ITEMS;
 }
 
-export function getLegacyShellNavigationItemLabels(): ReadonlyArray<string> {
+export function getInEventShellNavigationItemLabels(): ReadonlyArray<string> {
   return IN_EVENT_NAV_ITEMS.map((item) => item.label);
 }

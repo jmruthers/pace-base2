@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getContextAwareShellNavigationItems,
-  getLegacyShellNavigationItemLabels,
+  getInEventShellNavigationItemLabels,
 } from './shellNavigation';
 
 describe('shellNavigation', () => {
@@ -13,7 +13,7 @@ describe('shellNavigation', () => {
 
   it('returns in-event nav when an event is selected', () => {
     const items = getContextAwareShellNavigationItems('event-1');
-    expect(items.map((item) => item.label)).toEqual(getLegacyShellNavigationItemLabels());
+    expect(items.map((item) => item.label)).toEqual(getInEventShellNavigationItemLabels());
     expect(items.map((item) => item.href)).toEqual([
       '/event-dashboard',
       '/applications',
