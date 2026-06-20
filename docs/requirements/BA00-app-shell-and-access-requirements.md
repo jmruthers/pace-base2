@@ -114,7 +114,7 @@ No guard. Authenticated users landing on an unmatched route see the 404 page ins
 **FI-14.** The `/` route renders inside the authenticated shell:
 
 1. **PageHeader** — breadcrumb trail (`pace-base` → `Events`); title "Choose an event"; subtitle with organisation event count; header actions: secondary "Find by code", primary "New event" (navigates to event creation — BA01).
-2. **Event tile grid** — responsive grid of `EventTile` cards (default first 4 upcoming-then-past ordered events; "Show all" toggle when more than 4). Each tile shows event logo/initials, date chip, name, venue/date meta, and foot counts (applications, forms, expected participants). Tile click navigates into that event's overview (prototype: `/events/:code`; production: sets event context and navigates to `/event-dashboard`).
+2. **Event tile grid** — responsive grid of `EventCard` cards via `BaseShellEventCard` (default first 4 upcoming-then-past ordered events; "Show all" toggle when more than 4). Each card resolves its header logo via `useEventLogoReference` (`core_events.logo_id` → public `core_file_references`) with `event_logo` stub fallback from `data_user_events_get`; initials appear only when both paths are absent (CR29 / BA01 pointer model). Card body shows date badge, name, venue, and date meta; footer shows foot counts (applications, forms, expected participants). Tile click navigates into that event's overview (prototype: `/events/:code`; production: sets event context and navigates to `/event-dashboard`).
 3. **AttentionQueue** — cross-event items for events with applications awaiting approval; each item links to that event's applications queue.
 
 **FI-15.** When the operator has zero events, the landing shows an `EmptyState` with guidance and a primary action to create an event (BA01).
@@ -199,7 +199,7 @@ Layout authority: `/login`, `/`, `*`, and authenticated shell chrome. Behavioura
 ### Shell landing (`/`)
 
 - **PageHeader** — breadcrumb, h1 "Choose an event", subtitle with event count, actions (Find by code, New event).
-- **Event tile grid** — `<section className="grid …">` of `EventTile` / `CardGridItem` navigational cards; default 4 visible with expand toggle.
+- **Event tile grid** — `<section className="grid …">` of `BaseShellEventCard` (`EventCard` + logo resolution); default 4 visible with expand toggle.
 - **AttentionQueue** — below grid when cross-event approval items exist.
 - **Empty state** — zero events: `EmptyState` + create-event CTA.
 
@@ -463,6 +463,8 @@ Given an authenticated user, when they navigate to `/`, then the shell landing (
 Given an authenticated user, when they navigate to an unrecognised URL (e.g. `/does-not-exist`), then the 404 page is shown inside the shell.
 
 Given an authenticated user on the 404 page, when they click "Back to events", then they are navigated to `/` via client-side routing (no full page reload).
+
+Given an authenticated user operating inside an event, when they hard refresh the browser on an event-scoped route, then the last selected event is restored from pace-core `EventService` persistence and event-scoped routes remain reachable without returning to shell landing.
 
 Given an authenticated user on shell landing with more than four events, when they view the page, then the first four event tiles are shown with a "Show all" control.
 

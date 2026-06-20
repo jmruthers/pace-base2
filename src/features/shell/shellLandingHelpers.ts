@@ -1,4 +1,3 @@
-import type { EventTileDateChip } from '@solvera/pace-core/components';
 import type { EventStub } from '@solvera/pace-core/types';
 
 export const SHELL_LANDING_DEFAULT_TILE_COUNT = 4;
@@ -66,19 +65,4 @@ export function orderEventsForShellLanding(events: ReadonlyArray<EventStub>): Ev
   });
 
   return [...upcoming, ...past];
-}
-
-export function toEventDateChip(event: EventStub): EventTileDateChip | undefined {
-  const dateValue = readEventString(event, ['event_date', 'date']);
-  if (dateValue == null) {
-    return undefined;
-  }
-  const parsed = new Date(dateValue);
-  if (Number.isNaN(parsed.getTime())) {
-    return undefined;
-  }
-  return {
-    m: parsed.toLocaleString(undefined, { month: 'short', timeZone: 'UTC' }),
-    d: String(parsed.getUTCDate()),
-  };
 }

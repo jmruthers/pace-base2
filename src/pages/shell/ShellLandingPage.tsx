@@ -4,83 +4,18 @@ import {
   AttentionSection,
   Button,
   EmptyState,
-  EventTile,
   LoadingSpinner,
   PageHeader,
 } from '@solvera/pace-core/components';
 import { useEvents, useUnifiedAuth } from '@solvera/pace-core/hooks';
-import { Calendar, MapPin } from '@solvera/pace-core/icons';
 import type { EventStub } from '@solvera/pace-core/types';
-import { formatDate } from '@solvera/pace-core/utils';
-import { formatEventLogoFallback } from '@/features/eventConfiguration/shared';
+import { BaseShellEventCard } from '@/features/shell/BaseShellEventCard';
 import {
-  eventDisplayName,
   orderEventsForShellLanding,
-  readEventNumber,
-  readEventString,
   SHELL_LANDING_DEFAULT_TILE_COUNT,
-  toEventDateChip,
 } from '@/features/shell/shellLandingHelpers';
 import { useShellLandingAttentionItems } from '@/features/shell/useShellLandingAttentionItems';
 import { useShellLandingTileCounts } from '@/features/shell/useShellLandingTileCounts';
-
-function EventTileMeta({ event }: { event: EventStub }) {
-  const eventDate = readEventString(event, ['event_date', 'date']);
-  const eventDays = readEventNumber(event, ['event_days']) ?? 1;
-  const venue = readEventString(event, ['event_venue', 'venue']);
-
-  return (
-    <>
-      {eventDate != null ? (
-        <p className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
-          <Calendar className="size-4" aria-hidden />
-          {formatDate(eventDate)}
-          {eventDays > 1 ? ` · ${eventDays} days` : ''}
-        </p>
-      ) : null}
-      {venue != null ? (
-        <p className="inline-grid grid-flow-col auto-cols-max items-center gap-2">
-          <MapPin className="size-4" aria-hidden />
-          {venue}
-        </p>
-      ) : null}
-    </>
-  );
-}
-
-function EventTileFoot({
-  applications,
-  forms,
-  expectedParticipants,
-  isLoading,
-}: {
-  applications: number | null;
-  forms: number | null;
-  expectedParticipants: number | null;
-  isLoading: boolean;
-}) {
-  if (isLoading) {
-    return (
-      <section className="grid grid-flow-col auto-cols-max items-center gap-3">
-        <span>Loading counts…</span>
-      </section>
-    );
-  }
-
-  return (
-    <section className="grid grid-flow-col auto-cols-max items-center gap-3">
-      <span>
-        <strong>{applications ?? 0}</strong> apps
-      </span>
-      <span>
-        <strong>{forms ?? 0}</strong> forms
-      </span>
-      <span>
-        <strong>{expectedParticipants ?? 0}</strong> expected
-      </span>
-    </section>
-  );
-}
 
 export function ShellLandingPage() {
   const navigate = useNavigate();
@@ -163,25 +98,17 @@ export function ShellLandingPage() {
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {visibleEvents.map((event, index) => {
-              const name = eventDisplayName(event);
               const counts = tileCounts[index];
 
               return (
-                <EventTile
+                <BaseShellEventCard
                   key={event.id}
-                  title={name}
-                  dateChip={toEventDateChip(event)}
-                  imageGlyph={formatEventLogoFallback(name)}
-                  meta={<EventTileMeta event={event} />}
-                  foot={
-                    <EventTileFoot
-                      applications={counts.applications}
-                      forms={counts.forms}
-                      expectedParticipants={counts.expectedParticipants}
-                      isLoading={counts.isLoading}
-                    />
-                  }
-                  onClick={() => openEvent(event)}
+                  event={event}
+                  onSelect={openEvent}
+                  applications={counts.applications}
+                  forms={counts.forms}
+                  expectedParticipants={counts.expectedParticipants}
+                  isLoading={counts.isLoading}
                 />
               );
             })}

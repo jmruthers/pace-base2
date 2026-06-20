@@ -89,9 +89,9 @@ function App() {
           element={<ProtectedRoute loginPath="/login" requireEvent={false} />}
         >
           <Route element={<ProtectedAppLayout />}>
-            <Route path="/" element={<ShellLandingPage />} />
-
             <Route element={<AuthenticatedShell />}>
+              <Route path="/" element={<ShellLandingPage />} />
+
               {shellProtectedRoutes
                 .filter((route) => route.path !== '/' && route.path !== '*')
                 .map((route) => (

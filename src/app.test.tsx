@@ -237,6 +237,7 @@ describe('BA00 route behavior', () => {
     authState.isAuthenticated = true;
     authState.selectedEventId = null;
     renderAt('/');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
     expect(await screen.findByText('Shell Landing Page')).toBeTruthy();
   });
 
@@ -244,6 +245,7 @@ describe('BA00 route behavior', () => {
     authState.isAuthenticated = true;
     authState.selectedEventId = null;
     renderAt('/login');
+    expect(await screen.findByText('Shell Layout')).toBeTruthy();
     expect(await screen.findByText('Shell Landing Page')).toBeTruthy();
   });
 

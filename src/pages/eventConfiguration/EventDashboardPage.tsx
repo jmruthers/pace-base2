@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
   EntityHero,
-  FileDisplay,
   HeroLogo,
   PageHeader,
 } from '@solvera/pace-core/components';
@@ -244,18 +243,13 @@ export function EventDashboardPage() {
 
           <EntityHero
             media={
-              logoRef != null ? (
-                <FileDisplay
-                  fileReference={logoRef}
-                  supabase={storageSupabase}
-                  bucket={EVENT_LOGO_BUCKET}
-                  variant="inline"
-                  className="h-16 w-16 object-contain"
-                  label="Event logo"
-                />
-              ) : (
-                <HeroLogo code={logoFallback} alt={`${eventName} logo`} />
-              )
+              <HeroLogo
+                fileReference={logoRef}
+                supabase={storageSupabase}
+                bucket={EVENT_LOGO_BUCKET}
+                code={logoFallback}
+                alt={`${eventName} logo`}
+              />
             }
             title={<h2>{eventName}</h2>}
             meta={[

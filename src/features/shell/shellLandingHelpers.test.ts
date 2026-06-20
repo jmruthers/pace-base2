@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { orderEventsForShellLanding, toEventDateChip } from './shellLandingHelpers';
+import { orderEventsForShellLanding } from './shellLandingHelpers';
 
 describe('shellLandingHelpers', () => {
   it('orders upcoming events before past events', () => {
@@ -16,12 +16,5 @@ describe('shellLandingHelpers', () => {
     ]);
 
     expect(ordered.map((event) => event.id)).toEqual(['future', 'past']);
-  });
-
-  it('builds an event date chip from event_date', () => {
-    expect(toEventDateChip({ id: 'e1', event_date: '2026-08-20T00:00:00.000Z' })).toEqual({
-      m: 'Aug',
-      d: '20',
-    });
   });
 });

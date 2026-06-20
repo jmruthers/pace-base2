@@ -27,7 +27,7 @@ const dashboardState = vi.hoisted(() => ({
     isLoading: false,
   },
   logoRef: null as Record<string, unknown> | null,
-  fileDisplayProps: null as Record<string, unknown> | null,
+  heroLogoProps: null as Record<string, unknown> | null,
 }));
 
 const resolvedScopeState = vi.hoisted(() => ({
@@ -89,11 +89,10 @@ vi.mock('@solvera/pace-core/components', () => ({
       {actions}
     </section>
   ),
-  FileDisplay: (props: Record<string, unknown>) => {
-    dashboardState.fileDisplayProps = props;
-    return <p>Logo</p>;
+  HeroLogo: (props: { code?: string }) => {
+    dashboardState.heroLogoProps = props;
+    return <span>{props.code ?? 'Logo'}</span>;
   },
-  HeroLogo: ({ code }: { code?: string }) => <span>{code}</span>,
   PageHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
 }));
 
@@ -158,7 +157,7 @@ describe('EventDashboardPage', () => {
       isLoading: false,
     };
     dashboardState.logoRef = null;
-    dashboardState.fileDisplayProps = null;
+    dashboardState.heroLogoProps = null;
     guardPropsState.lastProps = null;
   });
 
@@ -212,7 +211,7 @@ describe('EventDashboardPage', () => {
     expect(screen.getByText('Applications awaiting approval')).toBeTruthy();
   });
 
-  it('passes FileDisplay bucket and label when a logo reference exists', () => {
+  it('passes HeroLogo bucket and fileReference when a logo reference exists', () => {
     dashboardState.logoRef = {
       id: 'ref-1',
       file_metadata: { bucket: 'public-files', fileName: 'logo.png' },
@@ -222,13 +221,13 @@ describe('EventDashboardPage', () => {
 
     render(<EventDashboardPage />);
 
-    expect(screen.getByText('Logo')).toBeTruthy();
-    expect(dashboardState.fileDisplayProps).toMatchObject({
+    expect(dashboardState.heroLogoProps).toMatchObject({
       bucket: 'public-files',
-      label: 'Event logo',
-      variant: 'inline',
+      alt: 'Summer Event logo',
+      code: 'SE',
     });
-    expect(dashboardState.fileDisplayProps?.supabase).toBeTruthy();
+    expect(dashboardState.heroLogoProps?.fileReference).toEqual(dashboardState.logoRef);
+    expect(dashboardState.heroLogoProps?.supabase).toBeTruthy();
   });
 
   it('passes event dashboard guard scope with resolved app id', () => {

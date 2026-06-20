@@ -200,7 +200,7 @@ The card's content body contains the following fields, in the order listed, grou
 Prototype uses `EventOverview` composite; production may decompose into pace-core primitives with the same region order:
 
 1. **PageHeader / breadcrumb** — `pace-base` → event name.
-2. **Entity hero** — `HeroLogo` + event name, date/venue/participant meta, description, primary actions ("Review applications", "Edit forms").
+2. **Entity hero** — pace-core `HeroLogo` (CR27 default 192×192 tile) + event name, date/venue/participant meta, description, primary actions ("Review applications", "Edit forms").
 3. **KPI row** — four KPI tiles: Applications (submitted/approved/awaiting), Awaiting approval, Places left, Forms published.
 4. **AttentionQueue** — per-event items (e.g. applications awaiting approval) when count > 0.
 5. **Launcher grid** — section label "Event setup"; cards for Event details (`/configuration`), Registration types, Forms, Unit assignments, Activities, Scanning — each with icon, title, description, optional count badge.
