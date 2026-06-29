@@ -36,16 +36,16 @@ This slice owns the two surfaces through which BASE operators author and manage 
 **Architectural posture.**
 - All reads use `useSecureSupabase()` from `@solvera/pace-core/rbac`. No unscoped direct Supabase client queries.
 - All mutations use the `app_base_form_upsert`, `app_base_form_fields_replace`, and `app_base_form_delete` RPCs via `useSecureSupabase().rpc(...)`.
-- Permission gating uses `PagePermissionGuard` from `@solvera/pace-core/rbac`. The retired `useCan` hook must not be used.
-- Page is wrapped by `PagePermissionGuard` for the page-level read check.
+- Permission gating uses `PagePermissionGuard` from `@solvera/pace-core/rbac` for mutation affordances. The retired `useCan` hook must not be used.
+- > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
 - Portal URL construction uses `buildWorkflowPreviewTarget` from `@solvera/pace-core/forms` combined with the `VITE_PORTAL_BASE_URL` environment variable.
 - Import policy is root-first for consuming apps: use `@solvera/pace-core` by default. Scoped entrypoints (`/forms`, `/rbac`, `/components`) are exception paths used when root does not expose the required symbol or a documented advanced/performance/migration case applies.
 
 **Page-level guards and evaluation ordering.**
-- **Evaluation order on `/forms`:** `PagePermissionGuard` fires first. If denied, `<AccessDenied />` renders and the no-event state is never reached.
+- **Evaluation order on `/forms`:** Shell `routeAccessDenied` fires first (via [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts)). If denied, `<AccessDenied />` renders in the shell main region and the no-event state is never reached.
 - **Scope object when no event is selected:** `{ organisationId, eventId: null, appId }` from resolved RBAC scope. `eventId` is `null` when no event is selected.
 - **Guard behaviour with `eventId: null`:** the guard evaluates the scope with the null event ID. If the guard passes (e.g. the user has org-level read permission), the no-event empty state renders. If the guard fails with a null event ID, `<AccessDenied />` renders. The build agent must not assume a specific pass/fail outcome — it must render whatever the guard returns.
-- **Practical guard-before-empty-state rule:** `PagePermissionGuard` always wraps the entire page. The no-event empty state only appears inside the authenticated, permitted shell.
+- **Practical guard-before-empty-state rule:** Route read is shell-owned. The no-event empty state only appears inside the authenticated, route-permitted shell.
 
 ### 3.2 Form Builder (`/form-builder`)
 
@@ -73,7 +73,7 @@ This slice owns the two surfaces through which BASE operators author and manage 
 - `onStateChange` from the shell is intercepted in the builder page for slug auto-generation (new forms) and to pass updated state to local React state.
 
 **Page-level guards and evaluation ordering.**
-- **Evaluation order on `/form-builder`:** `PagePermissionGuard` fires first. If denied, `<AccessDenied />` renders. If permitted, check for event context: if no event is selected, show the no-event blocking card. If event is present and `formId` query param is provided, show loading state while the form loads. If `formId` is absent, render the shell in create mode immediately.
+- **Evaluation order on `/form-builder`:** Shell `routeAccessDenied` fires first (via [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts)). If denied, `<AccessDenied />` renders in the shell main region. If permitted, check for event context: if no event is selected, show the no-event blocking card. If event is present and `formId` query param is provided, show loading state while the form loads. If `formId` is absent, render the shell in create mode immediately.
 - **Guard scope when no event is selected:** `{ organisationId, eventId: null, appId }` from resolved RBAC scope. Same behaviour as `/forms`: guard evaluates with null event ID; if it passes, the no-event card renders.
 - **Guard behaviour during form load (edit mode):** the `PagePermissionGuard` renders its children immediately (not loading-gated); the loading state for form data renders inside the children, not as a guard state.
 
@@ -132,7 +132,7 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 
 **Permission-conditional rendering**
 
-23. FL-PR-01 — The page is wrapped in `PagePermissionGuard` with `pageName="forms"`, `operation="read"`, `scope={{ organisationId, eventId, appId }}`. If denied, `<AccessDenied />` renders and no page content is shown.
+23. FL-PR-01 — Route read for `/forms` is enforced by shell `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). If denied, `<AccessDenied />` renders and no page content is shown.
 24. FL-PR-02 — The "Create Form" button is wrapped in `PagePermissionGuard` with `pageName="forms"`, `operation="create"`, `scope={{ organisationId, eventId, appId }}`, `fallback={null}`. Hidden if denied.
 25. FL-PR-03 — The Delete button on each card is wrapped in `PagePermissionGuard` with `pageName="forms"`, `operation="update"`, `scope={{ organisationId, eventId, appId }}`, `fallback={null}`. Hidden if denied. (The delete RPC uses the `update` permission key per §10.)
 
@@ -209,7 +209,7 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 
 **Permission-conditional rendering**
 
-49. FB-PR-01 — The page is wrapped in `PagePermissionGuard` with `pageName="form-builder"`, `operation="read"`, `scope={{ organisationId, eventId, appId }}`. If denied, `<AccessDenied />` renders.
+49. FB-PR-01 — Route read for `/form-builder` is enforced by shell `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). If denied, `<AccessDenied />` renders.
 50. FB-PR-02 — The Save button is wrapped additionally in `PagePermissionGuard` with `pageName="form-builder"`, `operation="update"`, `fallback={null}`. If denied, the Save button is hidden. The metadata and field editors remain visible (read-only effect via `disabled={true}` on the shell when the user does not have update permission).
 
 **Navigation**
@@ -257,7 +257,7 @@ Each form in the list renders as a `Card`. Every field listed below appears on e
 
 - Production list may use card grid vs prototype `DataTable` — align columns and row actions in pass 2.
 - Import template action is prototype stub.
-- Slug-in-URL vs query/path param naming in [`baseRouteRegistry.ts`](../../src/config/baseRouteRegistry.ts).
+- Slug-in-URL vs query/path param naming in [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts).
 
 ## 6. Business rules
 

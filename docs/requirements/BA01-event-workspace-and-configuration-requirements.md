@@ -32,8 +32,9 @@ This slice owns the authenticated organiser's entry surface for working inside a
 - Import policy is root-first for consuming apps: use `@solvera/pace-core` as the default import surface. Scoped entrypoints (for example `/rbac`, `/hooks`, `/components`, `/forms`) are exception-only and used only when the root export does not expose the required symbol or a documented advanced/performance/migration case requires the scoped path.
 - Event selection is shell-owned: read selected event from `useEvents()`. Do not implement page-local event selection.
 - Counts on nav cards are fetched through BA01-owned data hooks/services that use the secure Supabase boundary (`useSecureSupabase()`). Route/page components must not contain inline data-access queries.
-- Permission gating uses `PagePermissionGuard` from `@solvera/pace-core/rbac` with `pageName`, `operation`, `scope`, and `fallback` props. `useCan` is retired and must not be used.
-- Page is wrapped by `PagePermissionGuard` for the page-level read check. Evaluation order: the guard is the outermost wrapper; the no-event empty state (D-ES-01) renders inside the guard's children. When no event is selected, `selectedEventId` is null and the scope passed to the guard contains `eventId: null`. The guard still evaluates normally — `read:page.event-dashboard` is a page-level permission, not event-scoped, so a null `eventId` in scope does not block the permission check. A user who passes the check sees the no-event empty message; a user who fails it sees `<AccessDenied />` regardless of event state.
+- Permission gating uses `PagePermissionGuard` from `@solvera/pace-core/rbac` for mutation affordances (`update`, etc.) with `pageName`, `operation`, `scope`, and `fallback` props. `useCan` is retired and must not be used.
+- > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+- Evaluation order: route read is shell-owned; the no-event empty state (D-ES-01) renders inside permitted page content. When no event is selected, `selectedEventId` is null. A user with route read access sees the no-event empty message; a user denied route read sees `<AccessDenied />` in the shell main region regardless of event state.
 
 ### 3.2 Event Configuration (`/configuration`)
 
@@ -62,7 +63,8 @@ This slice owns the authenticated organiser's entry surface for working inside a
 - Address input uses `AddressField` from `@solvera/pace-core/forms`. Wire with `control={form.control}`, `name="event_venue"`, `meta={{ id: 'event_venue', fieldType: 'address', label: 'Event Venue', required: false }}`, and `provider={createGoogleMapsJsAddressProviderAdapter()}`. The form field value type is `AddressValue | undefined`. Serialize to a string in the save handler per §6.3.
 - Date input uses `DatePickerWithTimezone` from `@solvera/pace-core/components` with props `value` (Date | null) and `onChange` ((date: Date) => void). Do not pass `showTimezoneSelector` — the default date-only mode is correct for `event_date`. The caller is responsible for converting the selected `Date` to midnight UTC in the save payload per §6.2.
 - Boolean toggles use `Switch` (not `Checkbox`).
-- Page permission guard: `/configuration` is wrapped at the outermost level by `PagePermissionGuard pageName="configuration" operation="read"`. Evaluation order: the guard fires first; the no-event empty state (C-NC-01) and the loading state (C-LS-01) both render inside the guard's children. When no event is selected, `selectedEventId` is null and the scope contains `eventId: null`; the guard still evaluates normally since `read:page.configuration` is a page-level permission. A user who passes the check sees the no-event or loading state as appropriate; a user who fails it sees `<AccessDenied />` regardless of event state.
+- > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+- Evaluation order: route read is shell-owned; the no-event empty state (C-NC-01) and loading state (C-LS-01) render inside permitted page content. When no event is selected, `selectedEventId` is null. A user with route read access sees the no-event or loading state as appropriate; a user denied route read sees `<AccessDenied />` in the shell main region regardless of event state.
 - The save button is wrapped in `PagePermissionGuard pageName="configuration" operation="update" fallback={null}` (hidden when denied). The logo upload control is similarly wrapped. The editable form content is also wrapped in `PagePermissionGuard pageName="configuration" operation="update"` where the `fallback` renders all form fields with `disabled={true}` and the `children` renders fields as editable.
 
 ## 4. Functional specification
@@ -115,7 +117,7 @@ Items numbered with prefix `D-` belong to the Event Dashboard surface; items pre
 15. N/A — There are no secondary actions on this surface.
 
 **Permission-conditional rendering**
-16. D-PR-01 — The page is wrapped in `PagePermissionGuard` with `pageName="event-dashboard"`, `operation="read"`, and `scope={{ organisationId, eventId, appId }}` (per §6.10). If denied, the page renders pace-core2's `<AccessDenied />` and no other content.
+16. D-PR-01 — Route read for `/event-dashboard` is enforced by the shell `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts) (per §6.10). If denied, the shell renders `<AccessDenied />` and no page content.
 17. D-PR-02 — Individual launcher cards are not permission-gated at the card level in this slice. Permission gating for the destinations is owned by the destination slice's page guard.
 
 **Navigation**
@@ -174,7 +176,7 @@ The card's content body contains the following fields, in the order listed, grou
 44. N/A — There are no secondary actions on this surface in this slice.
 
 **Permission-conditional rendering**
-45. C-PR-01 — The page is wrapped in `PagePermissionGuard` with `pageName="configuration"`, `operation="read"`, and `scope={{ organisationId, eventId, appId }}`. If denied, renders `<AccessDenied />` and no form content.
+45. C-PR-01 — Route read for `/configuration` is enforced by the shell `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). If denied, the shell renders `<AccessDenied />` and no form content.
 46. C-PR-02 — The form fields section is wrapped in `PagePermissionGuard` with `pageName="configuration"`, `operation="update"`, and `scope={{ organisationId, eventId, appId }}`:
     - `children` renders all form fields in their editable state.
     - `fallback` renders all form fields with `disabled={true}` on each input and the "Save" button absent.
@@ -251,7 +253,7 @@ Prototype uses `EventOverview` composite; production may decompose into pace-cor
 
 - Production dashboard uses five-card grid (Forms, Applications, Registration Types, Reports, Communications) vs prototype six launchers (Event details, Registration types, Forms, Units, Activities, Scanning) plus KPI row, hero, and AttentionQueue.
 - Production lacks `EventOverview` / KPI row / AttentionQueue on dashboard — add in pass 2.
-- Quick event route (`/events/new`) not registered in [`baseRouteRegistry.ts`](../../src/config/baseRouteRegistry.ts).
+- Quick event route (`/events/new`) not registered in [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts).
 - Flat `/configuration` vs prototype path-segment `/events/:code/edit`.
 - Event context via `ContextSelector` rather than URL `:code`.
 
@@ -368,8 +370,8 @@ Select renders these as `SelectItem` rows in the order shown. The field is requi
 - `PagePermissionGuard` is always called with `pageName`, `operation`, `scope`, and optionally `fallback` props.
 - `useCan` is retired and must not be used in this slice.
 - Keys used in this slice (as `pageName` / `operation` pairs):
-  - `pageName="event-dashboard"` / `operation="read"` — wraps the `/event-dashboard` page.
-  - `pageName="configuration"` / `operation="read"` — wraps the `/configuration` page.
+  - `pageName="event-dashboard"` / `operation="read"` — registered in [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts); enforced by shell `routeAccessDenied` (no outer page read guard).
+  - `pageName="configuration"` / `operation="read"` — registered in [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts); enforced by shell `routeAccessDenied` (no outer page read guard).
   - `pageName="configuration"` / `operation="update"` — wraps the save button, the `FileUpload` control, and the editable form content on `/configuration`.
 - Scope object construction: `{ organisationId, eventId, appId }` where:
   - `organisationId` — resolved from RBAC scope APIs (`useResolvedScope().organisationId`), with auth-selected organisation as fallback where feature semantics require it.

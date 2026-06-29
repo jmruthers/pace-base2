@@ -35,7 +35,8 @@ Operators with access need to triage applications fairly: see who applied, in wh
 
 - All reads and RPCs use **`useSecureSupabase()`** from `@solvera/pace-core/rbac`; no service-role client in route code.
 - Application-level status changes use **`app_base_application_set_status`** only. Check-level organiser actions for **`event_approval`** use **`app_base_application_check_set_status`** (same family as TEAM consumers per `docs/requirements/base/BASE-architecture.md`). Token reissue uses **`app_base_application_check_reissue_token`**.
-- **`PagePermissionGuard`** gates the route per pace-core RBAC standards; mutation affordances use **`create`** / **`update`** (or equivalent catalogue entries) as specified in §10.
+- > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+- Mutation affordances use **`PagePermissionGuard`** with **`create`** / **`update`** (or equivalent catalogue entries) as specified in §10.
 - Evidence is **application-scoped**: `core_form_responses` rows whose **`workflow_subject_type`** is **`base_application`** and **`workflow_subject_id`** equals the application id (BA02 §7.2 pattern; BA05a FS-04).
 - Import policy is root-first for consuming apps: use `@solvera/pace-core` by default. Scoped entrypoints are exception-only when a required symbol is not exposed from root or a documented advanced/performance/migration case requires it. Undocumented deep imports are forbidden.
 
@@ -45,8 +46,9 @@ Operators with access need to triage applications fairly: see who applied, in wh
 
 **Evaluation order when context is incomplete**
 
-1. Outer **`PagePermissionGuard`** with **`operation="read"`**, **`pageName="applications"`**, and **`scope={{ organisationId, eventId, appId }}`** wraps main content.
-2. If the guard denies access, **`AccessDenied`** is shown; no-event messaging does not replace denial.
+1. > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+
+2. **Route read access** is enforced by the authenticated shell / `PaceAppLayout` `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). If access is denied, **`AccessDenied`** is shown; no-event messaging does not replace denial.
 3. If the guard is loading and no custom **`loading`** prop is supplied, **`PagePermissionGuard`** renders **`null`** — neither children nor denial.
 4. If the guard permits and **no event** is selected (`selectedEvent.id` falsy), the page shows the **select-event** blocking **`Card`** (copy instructs choosing an event in the shell). Queue fetches do not run.
 5. If the guard permits and **an event** is selected, the queue and related data load for that **`event_id`**.

@@ -44,13 +44,15 @@ Event organisers need a dedicated surface to oversee all activity bookings for t
 - All reads use **`useSecureSupabase()`** from `@solvera/pace-core/rbac`. No service-role client in route code.
 - The read surface queries `base_activity_booking` through RBAC-checked RLS — the same `check_rbac_permission_with_context` pattern used in `base_application`.
 - Mutation surfaces call `app_base_activity_booking_create` and `app_base_activity_booking_cancel` as Supabase RPC calls.
-- **`PagePermissionGuard`** gates the route using `pageName="bookings"` and `operation="read"`.
+- > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+- Mutation affordances use `PagePermissionGuard` per §10.
 - Event context is resolved via **`useEvents()`** — use `selectedEvent.id` as the `event_id` at all data boundaries.
 
 ### Page-level guards and evaluation ordering for `/activities/bookings`
 
-1. Outer **`PagePermissionGuard`** with `pageName="bookings"` and `operation="read"` wraps the main content.
-2. If the guard denies access, **`AccessDenied`** is shown immediately. No-event messaging does not replace or precede denial.
+1. > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+
+2. **Route read access** is enforced by the authenticated shell / `PaceAppLayout` `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). If access is denied, **`AccessDenied`** is shown immediately. No-event messaging does not replace or precede denial.
 3. If the guard is loading and no custom `loadingFallback` prop is supplied, **`PagePermissionGuard`** renders `null` — neither children nor the denial state is shown. A null Supabase client (transient auth initialisation) renders a centred **`LoadingSpinner`** in the main content region.
 4. If the guard permits and **no event is selected** (`selectedEvent` is null or `selectedEvent.id` is falsy), the page shows a blocking **`Card`** instructing the user to select an event in the shell header. Data fetches do not run.
 5. If the guard permits and **an event is selected**, data loads for that `event_id`.

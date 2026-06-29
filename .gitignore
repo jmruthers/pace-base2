@@ -20,6 +20,7 @@ audit/*.md
 
 # Test coverage
 coverage/
+**/*config*.timestamp-*.mjs
 
 # IDE / OS
 .idea/

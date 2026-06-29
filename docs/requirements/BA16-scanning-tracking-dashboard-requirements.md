@@ -32,7 +32,7 @@ The following surfaces are out of scope for BA16:
 
 ### Architectural posture
 
-1. `PagePermissionGuard pageName="scanning" operation="read"` wraps the route.
+1. > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
 2. All reads use `useSecureSupabase()` from `@solvera/pace-core/rbac`. No service_role client is used anywhere in this slice (read-only surface).
 3. The two-step query pattern is mandatory for all `base_scan_event` queries: (1) fetch `base_scan_point.id` values for the current event; (2) filter `base_scan_event` with `.in('scan_point_id', scanPointIds)`. Direct nested PostgREST filters on `scan_point.event_id` are prohibited.
 4. `useEvents()` provides `selectedEvent`, `selectedEvent.id`, `selectedEvent.name`, and `selectedOrganisation` (the active organisation context) for all query scoping. Both `selectedEvent` and `selectedOrganisation` must be non-null before any data fetch runs; data fetches are skipped if either is null.
@@ -43,7 +43,9 @@ The following surfaces are out of scope for BA16:
 
 ### Page-level guards and evaluation ordering for `/scanning/tracking`
 
-1. `PagePermissionGuard` with `pageName="scanning"` and `operation="read"` wraps the main content. If access is denied, `AccessDenied` renders immediately. No blocking event-selection message replaces or precedes denial.
+1. > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+
+2. **Route read access** is enforced by the authenticated shell / `PaceAppLayout` `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). If access is denied, `AccessDenied` renders in the shell main region. No blocking event-selection message replaces or precedes denial.
 2. If the guard is loading and no custom `loadingFallback` prop is supplied, `PagePermissionGuard` renders null. A null Supabase client (transient auth initialisation) renders a centred `LoadingSpinner` in the main content region.
 3. If the guard permits and no event is selected (`selectedEvent` is null or `selectedEvent.id` is falsy), the page shows a blocking `Card` with `CardTitle` "No event selected" and `CardDescription` "Select an event from the header to view tracking data." Data fetches do not run. No tab content renders.
 4. If the guard permits and an event is selected, all four tabs load for that `event_id`.
@@ -434,7 +436,7 @@ The React Query key for the search is `['ba16', selectedEvent.id, 'search', term
 | Read `base_application` | `read:page.applications` | Authenticated |
 | Read `core_member_card` (for participant search) | TEAM-owned RLS (read-permitted via event context) | Authenticated |
 
-`PagePermissionGuard pageName="scanning" operation="read"` gates the entire route. A user who can access BA12's `/scanning` hub automatically satisfies the same permission for `/scanning/tracking`. No separate tracking-specific permission string is defined (Q-S1 resolution).
+Route read for `/scanning/tracking` is enforced by the shell `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). A user who can access BA12's `/scanning` hub automatically satisfies the same permission for `/scanning/tracking`. No separate tracking-specific permission string is defined (Q-S1 resolution).
 
 RLS enforces scope at the database layer. Client-side `PagePermissionGuard` is defensive UI gating, not the sole security boundary.
 

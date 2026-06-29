@@ -5,7 +5,6 @@ import {
   ProtectedRoute,
   SessionRestorationLoader,
 } from '@solvera/pace-core/components';
-import { AccessDenied, PagePermissionGuard, useResolvedScope } from '@solvera/pace-core/rbac';
 import { useSecureSupabase } from '@solvera/pace-core/rbac';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { AuthenticatedShell } from './components/layout/AuthenticatedShell';
@@ -33,7 +32,7 @@ import { ScanningTrackingPage } from './pages/scanning/ScanningTrackingPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
 import {
   getShellProtectedRoutes,
-} from './config/baseRouteRegistry';
+} from './features/navigation/base-route-registry';
 import { startScanSyncWorker, stopScanSyncWorker } from '@/features/scanningRuntime/sync/scanSyncWorker';
 
 const shellProtectedRoutes = getShellProtectedRoutes();
@@ -78,8 +77,6 @@ function LoginRoute() {
 }
 
 function App() {
-  const { organisationId, eventId, appId } = useResolvedScope();
-
   return (
     <SessionRestorationLoader message="Restoring session…">
       <Routes>
@@ -99,57 +96,46 @@ function App() {
                     key={route.path}
                     path={route.relativePath}
                     element={
-                      <PagePermissionGuard
-                        pageName={route.pageName}
-                        operation="read"
-                        scope={{
-                          organisationId,
-                          eventId,
-                          appId: appId ?? undefined,
-                        }}
-                        fallback={<AccessDenied />}
-                      >
-                        {route.path === '/event-dashboard' ? (
-                          <EventDashboardPage />
-                        ) : route.path === '/configuration' ? (
-                          <ConfigurationPage />
-                        ) : route.path === '/forms' ? (
-                          <FormsListPage />
-                        ) : route.path === '/form-builder' ? (
-                          <FormBuilderPage />
-                        ) : route.path === '/registration-types' ? (
-                          <RegistrationTypesPage />
-                        ) : route.path === '/registration-type-builder' ? (
-                          <RegistrationTypeBuilderPage />
-                        ) : route.path === '/applications' ? (
-                          <ApplicationsPage />
-                        ) : route.path === '/applications/:applicationId' ? (
-                          <ApplicationDetailPage />
-                        ) : route.path === '/communications' ? (
-                          <CommunicationsPage />
-                        ) : route.path === '/units' ? (
-                          <UnitsPage />
-                        ) : route.path === '/unit-preferences' ? (
-                          <UnitPreferencesPage />
-                        ) : route.path === '/activities' ? (
-                          <ActivitiesPage />
-                        ) : route.path === '/activities/bookings' ? (
-                          <BookingsPage />
-                        ) : route.path === '/activities/:offeringId' ? (
-                          <ActivityOfferingPage />
-                        ) : route.path === '/scanning' ? (
-                          <ScanningSetupPage />
-                        ) : route.path === '/scanning/tracking' ? (
-                          <ScanningTrackingPage />
-                        ) : route.path === '/reports' ? (
-                          <ReportsPage />
-                        ) : (
-                          <FeaturePlaceholderPanel
-                            title={route.label}
-                            description={`This route is owned by ${route.sliceId} and is scaffolded under the BASE shell boundary.`}
-                          />
-                        )}
-                      </PagePermissionGuard>
+                      route.path === '/event-dashboard' ? (
+                        <EventDashboardPage />
+                      ) : route.path === '/configuration' ? (
+                        <ConfigurationPage />
+                      ) : route.path === '/forms' ? (
+                        <FormsListPage />
+                      ) : route.path === '/form-builder' ? (
+                        <FormBuilderPage />
+                      ) : route.path === '/registration-types' ? (
+                        <RegistrationTypesPage />
+                      ) : route.path === '/registration-type-builder' ? (
+                        <RegistrationTypeBuilderPage />
+                      ) : route.path === '/applications' ? (
+                        <ApplicationsPage />
+                      ) : route.path === '/applications/:applicationId' ? (
+                        <ApplicationDetailPage />
+                      ) : route.path === '/communications' ? (
+                        <CommunicationsPage />
+                      ) : route.path === '/units' ? (
+                        <UnitsPage />
+                      ) : route.path === '/unit-preferences' ? (
+                        <UnitPreferencesPage />
+                      ) : route.path === '/activities' ? (
+                        <ActivitiesPage />
+                      ) : route.path === '/activities/bookings' ? (
+                        <BookingsPage />
+                      ) : route.path === '/activities/:offeringId' ? (
+                        <ActivityOfferingPage />
+                      ) : route.path === '/scanning' ? (
+                        <ScanningSetupPage />
+                      ) : route.path === '/scanning/tracking' ? (
+                        <ScanningTrackingPage />
+                      ) : route.path === '/reports' ? (
+                        <ReportsPage />
+                      ) : (
+                        <FeaturePlaceholderPanel
+                          title={route.label}
+                          description={`This route is owned by ${route.sliceId} and is scaffolded under the BASE shell boundary.`}
+                        />
+                      )
                     }
                   />
                 ))}

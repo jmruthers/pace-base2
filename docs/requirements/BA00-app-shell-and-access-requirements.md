@@ -41,7 +41,7 @@ BA00 does not own `/event-dashboard` or any other named route beyond those liste
 
 BA00 owns the shell landing at `/` and the global event picker UX. Event dashboard content at `/event-dashboard` (or prototype `/events/:code`) is owned by BA01; BA00 navigates into an event via tile click or context selector.
 
-The navigation items array is derived at runtime by route context (see BR-08), capped at **five** primary items per CR05c, and rendered by `PaceAppLayout`'s `NavigationMenu` (inline pills at `lg+`, compact Select below `lg`). BA00 does not place explicit `PagePermissionGuard` or `NavigationGuard` wrappers around nav items; `NavigationMenu` handles RBAC gating using each item's `pageId` or `permissions` where items are permission-scoped.
+The navigation items array is derived at runtime by route context (see BR-08), capped at **five** primary items per CR05c, and rendered by `PaceAppLayout`'s `NavigationMenu` (inline pills at `lg+`, compact Select below `lg`). BA00 does not wrap nav items in **`NavigationGuard`** (removed from pace-core). Shell route **read** for registered paths uses **`src/features/navigation/base-route-registry.ts`** + **`base-route-permissions.ts`** with **`useShellRouteAccessDenied(getBaseRoutePermissionForPath)`** on `PaceAppLayout` (`enforcePermissions`, `routeAccessDenied`, `permissionFallback` → `AccessDenied`). **`NavigationMenu`** hides items via each item's **`pageId`** / permission map. **`PagePermissionGuard`** is reserved for **mutation affordances** and **scoped-read overrides** on feature pages — not duplicated for registered route read. Shell landing `/` and `*` remain unguarded at page level.
 
 ### Architectural posture
 
@@ -53,6 +53,7 @@ The navigation items array is derived at runtime by route context (see BR-08), c
 - `OrganisationServiceProvider` requires `user` and `session` props (in addition to `supabaseClient`). Because these values come from `useUnifiedAuth()`, a thin bridge component named `AuthBridge` is rendered inside `UnifiedAuthProvider`. `AuthBridge` consumes `useUnifiedAuth()` and passes `user` and `session` as props to `OrganisationServiceProvider`.
 - This slice introduces no schema mutations or RLS changes. It consumes existing RBAC read contracts during bootstrap (for app-id resolution) and does not own write-side RPC contracts.
 - `enforcePermissions` on `PaceAppLayout` must never be set to `false`.
+- `AuthenticatedShell` wires **`routeAccessDenied={useShellRouteAccessDenied(getBaseRoutePermissionForPath)}`** and **`permissionFallback={<AccessDenied />}`**.
 
 ### Page-level guards and evaluation ordering
 
@@ -114,7 +115,7 @@ No guard. Authenticated users landing on an unmatched route see the 404 page ins
 **FI-14.** The `/` route renders inside the authenticated shell:
 
 1. **PageHeader** — breadcrumb trail (`pace-base` → `Events`); title "Choose an event"; subtitle with organisation event count; header actions: secondary "Find by code", primary "New event" (navigates to event creation — BA01).
-2. **Event tile grid** — responsive grid of `EventCard` cards via `BaseShellEventCard` (default first 4 upcoming-then-past ordered events; "Show all" toggle when more than 4). Each card resolves its header logo via `useEventLogoReference` (`core_events.logo_id` → public `core_file_references`) with `event_logo` stub fallback from `data_user_events_get`; initials appear only when both paths are absent (CR29 / BA01 pointer model). Card body shows date badge, name, venue, and date meta; footer shows foot counts (applications, forms, expected participants). Tile click navigates into that event's overview (prototype: `/events/:code`; production: sets event context and navigates to `/event-dashboard`).
+2. **Event tile grid** — responsive grid of `EventCard` cards via `BaseShellEventCard` (default first 4 tiles per CR08 `orderEventsForLanding` from `@solvera/pace-core/events`; "Show all" toggle when more than 4). Each card resolves its header logo via `useEventLogoReference` (`core_events.logo_id` → public `core_file_references`) with `event_logo` stub fallback from `data_user_events_get`; initials appear only when both paths are absent (CR29 / BA01 pointer model). Card body shows date badge, name, venue, and date meta; footer shows foot counts (applications, forms, expected participants). Tile click navigates into that event's overview (prototype: `/events/:code`; production: sets event context and navigates to `/event-dashboard`).
 3. **AttentionQueue** — cross-event items for events with applications awaiting approval; each item links to that event's applications queue.
 
 **FI-15.** When the operator has zero events, the landing shows an `EmptyState` with guidance and a primary action to create an event (BA01).
@@ -282,11 +283,11 @@ Prototype uses hash routing (`#/…`); production uses `BrowserRouter` with flat
 - Timer runs only while `isAuthenticated === true`
 - `inactivityEnabled` is `true` in `UnifiedAuthProvider` only when ALL FOUR of `idleTimeoutMs`, `warnBeforeMs`, `onIdleLogout`, AND `renderInactivityWarning` are provided. Omitting any one disables the feature silently with no warning.
 
-### BR-04 — Navigation permission gating
+### BR-04 — Navigation permission gating (map-first)
 
-- Each `NavigationItem` in the nav array carries a `pageId` matching a `page_name` value in `rbac_app_pages` where the item is permission-scoped.
-- `PaceAppLayout`'s internal `NavigationMenu` evaluates `read` permission for each item's `pageId` against the authenticated user's RBAC state.
-- Items without a matching permitted page are hidden (not rendered, not disabled).
+- Each `NavigationItem` in the nav array carries a **`pageId`** matching a `page_name` value in `rbac_app_pages` where the item is permission-scoped.
+- `PaceAppLayout` with **`enforcePermissions`** and **`NavigationMenu`** pre-filters items using the permission map (`NavPermissionMapProvider`); items without read permission are hidden.
+- Registered route **read** for direct URL access is enforced by **`useShellRouteAccessDenied(getBaseRoutePermissionForPath)`** backed by **`base-route-registry.ts`** / **`base-route-permissions.ts`** — not by per-route **`PagePermissionGuard read`** wrappers.
 - Nav items are supplied by BR-08 context rules; RBAC dynamically hides inaccessible items.
 
 ### BR-05 — Session restoration
@@ -353,7 +354,7 @@ Primary nav is derived from route context (prototype: `navItemsForRoute()` in `a
 ]
 ```
 
-Production maps prototype `href` values through [`baseRouteRegistry.ts`](../../src/config/baseRouteRegistry.ts). `pageId` values must match `rbac_app_pages.page_name` for permission-scoped items. Verify via Supabase MCP before shipping.
+Production maps prototype `href` values through [`src/features/navigation/base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts) and [`base-route-permissions.ts`](../../src/features/navigation/base-route-permissions.ts). `pageId` values must match `rbac_app_pages.page_name` for permission-scoped items. Verify via Supabase MCP before shipping.
 
 **Pass 2 note:** current production passes a static 10-item list from the full route registry; pass 2 should adopt this context-aware model.
 
@@ -386,7 +387,7 @@ These must be non-null strings passed to `PaceAppLayout` at all times while the 
 | Auth state | `useUnifiedAuth()` | `user`, `session`, `isAuthenticated`, `signOut`, `isLoading` |
 | User display info | `useUnifiedAuth()` | `user.user_metadata.full_name`, `user.email` |
 | Inactivity state | `useUnifiedAuth()` | `showInactivityWarning`, `inactivityTimeRemaining`, `handleStaySignedIn`, `handleSignOutNow` |
-| RBAC page permissions | `PaceAppLayout` internals | consumed implicitly via `navItems[].pageId` |
+| RBAC page permissions | `base-route-permissions.ts` + `PaceAppLayout` | Shell route read via `routeAccessDenied`; nav via `navItems[].pageId` |
 
 **Cross-slice handoffs:**
 
@@ -422,14 +423,16 @@ BA00 may consume existing RBAC read RPC contracts as part of bootstrap app-id re
 | `PaceLoginPage` | Default: `@solvera/pace-core`; allow scoped exception if needed by export location | Login route |
 | `ProtectedRoute` | Default: `@solvera/pace-core`; allow scoped exception if needed by export location | Session gate for protected routes |
 | `setupRBAC` | Scoped exception allowed (`@solvera/pace-core/rbac`) when not available from root | RBAC bootstrap before render |
+| `useShellRouteAccessDenied` | `@solvera/pace-core/rbac` | Shell route read denial from `base-route-permissions` map |
 | `useUnifiedAuth` | Default: `@solvera/pace-core`; allow scoped exception if needed by export location | User/session source for bridge + shell actions |
 
 ### 9.2 Slice-specific caveats only
 
 - `setupRBAC(supabaseClient, { appName: 'BASE', getAppId })` runs immediately after client creation and before render.
 - `OrganisationServiceProvider` receives `user/session` from `useUnifiedAuth()` through `AuthBridge`.
-- Keep `PaceAppLayout` permission enforcement enabled.
+- Keep `PaceAppLayout` permission enforcement enabled (`enforcePermissions`, `routeAccessDenied`, `permissionFallback`).
 - `/` is the shell landing (event picker); it is not page-guarded.
+- Feature slices that need **scoped read** or **mutation** gating add **`PagePermissionGuard`** on their page bodies — not duplicate route-read guards for paths in **`base-route-registry.ts`**.
 - Import style in this slice follows root-first policy; scoped imports are exception-only.
 
 ## §10 Permission and access rules
@@ -439,7 +442,8 @@ BA00 may consume existing RBAC read RPC contracts as part of bootstrap app-id re
 | `/login` | Open to all. No auth required. |
 | `/` (shell landing) | Authenticated users only (via `ProtectedRoute`). Renders event picker. No `PagePermissionGuard`. |
 | `*` (404) | Authenticated users only (via `ProtectedRoute`). No `PagePermissionGuard`. |
-| Navigation items | Each item's visibility gated by `read` permission on `rbac_app_pages.page_name` matching `pageId`. Enforced by `PaceAppLayout` internals. |
+| Navigation items | Each item's visibility gated by permission map on `pageId`. Enforced by `NavigationMenu` + `enforcePermissions`. |
+| Registered feature routes | Shell **read** via `base-route-registry` + `useShellRouteAccessDenied`; **`PagePermissionGuard`** only when a slice needs scoped read or mutation gating |
 | Change password modal | All authenticated users. No additional permission check. |
 | Inactivity modal | All authenticated users. Fires automatically. |
 | User menu (sign out, change password) | All authenticated users. Always rendered (user props always non-null in BA00). |

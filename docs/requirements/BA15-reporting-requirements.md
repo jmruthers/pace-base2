@@ -50,7 +50,9 @@ Give event organisers a composable, on-demand reporting tool scoped to the selec
 ### 3.5 Page-level guards and evaluation ordering
 
 **Evaluation order when no event is selected:**
-`PagePermissionGuard pageName="reports" operation="read"` wraps the entire page surface and fires first, before any page content renders. When the user navigates to `/reports` with no event selected, the guard is called with `scope={{ organisationId: <org_id>, eventId: undefined }}`. The guard resolves `reports.read` against the user's org-level role with this partial scope.
+> **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+
+When the user navigates to `/reports` with no event selected, shell route access resolves against org-level `read:page.reports` via the route registry (partial event scope). Page content evaluates only after route access is granted.
 
 - If the user **lacks** `reports.read`: the guard's `fallback` renders (standard access-denied component). The user never sees any reporting UI, including the no-event empty state.
 - If the user **holds** `reports.read`: the guard's `children` render. Because `eventId` is absent, the no-event empty state is shown (see FI-08). The `ReportBuilder` and template panel are not rendered.

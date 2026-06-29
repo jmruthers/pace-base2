@@ -42,14 +42,16 @@ Event staff need a single admin surface to set up and manage all scan points for
 
 - All reads use **`useSecureSupabase()`** from `@solvera/pace-core/rbac`. No service-role client in route code.
 - `base_scan_point` RLS uses the older `check_user_event_access` / `check_user_is_event_creator` pattern (confirmed against dev-db 2026-05-12), not `check_rbac_permission_with_context`. SELECT is permitted via `check_user_event_access`. INSERT and UPDATE are permitted via `check_user_is_event_creator`. DELETE is also permitted for event creators via `check_user_is_event_creator` (operators with creator rights can delete scan points — contrast with the specced "denied" posture; the live policy is more permissive). service_role bypasses all RLS. No RPC exists in dev-db for scan-point mutations.
-- **`PagePermissionGuard`** gates the `/scanning` shell route using `pageName="scanning"` and `operation="read"` (BA00 `AuthenticatedShell` routing). The scanning setup page component SHOULD ALSO wrap its returned tree in **`PagePermissionGuard`** with the same `pageName` / `operation` (and `AccessDenied` fallback) so page-level RBAC hooks meet Standard 3 audit expectations, even though the shell route already enforces read access.
+- > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+- **`PagePermissionGuard`** gates **mutation affordances** (`create` / `update` / `delete`) per §10; route read is shell-owned only.
 - Event context is resolved via **`useEvents()`** — use `selectedEvent.id` as `event_id` at all data boundaries.
 - Manifest generation executes direct SELECT queries via the secure Supabase client — no RPC or Edge function.
 
 ### Page-level guards and evaluation ordering for `/scanning`
 
-1. **`PagePermissionGuard`** with `pageName="scanning"` and `operation="read"` wraps the **shell route** for `/scanning` (BA00) and SHOULD wrap the page component’s returned content as well (Standard 3).
-2. If the guard denies access, **`AccessDenied`** is rendered immediately. No-event messaging does not replace or precede denial.
+1. > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+
+2. **Route read access** is enforced by the authenticated shell / `PaceAppLayout` `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). If access is denied, **`AccessDenied`** is rendered immediately. No-event messaging does not replace or precede denial.
 3. If the guard is loading and no custom `loadingFallback` prop is supplied, **`PagePermissionGuard`** renders `null` — neither children nor the denial state is shown. A null Supabase client (transient auth initialisation) renders a centred **`LoadingSpinner`** in the main content region.
 4. If the guard permits and **no event is selected** (`selectedEvent` is null or `selectedEvent.id` is falsy), the page shows a blocking **`Card`** instructing the user to select an event in the shell header. Data fetches do not run. The four section DataTables are not rendered.
 5. If the guard permits and **an event is selected**, all four sections load for that `event_id`.

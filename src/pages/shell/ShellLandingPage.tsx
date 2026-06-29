@@ -8,12 +8,14 @@ import {
   PageHeader,
 } from '@solvera/pace-core/components';
 import { useEvents, useUnifiedAuth } from '@solvera/pace-core/hooks';
+import {
+  LANDING_DEFAULT_TILE_COUNT,
+  orderEventsForLanding,
+  shouldShowLandingEventToggle,
+  sliceLandingEventTiles,
+} from '@solvera/pace-core/events';
 import type { EventStub } from '@solvera/pace-core/types';
 import { BaseShellEventCard } from '@/features/shell/BaseShellEventCard';
-import {
-  orderEventsForShellLanding,
-  SHELL_LANDING_DEFAULT_TILE_COUNT,
-} from '@/features/shell/shellLandingHelpers';
 import { useShellLandingAttentionItems } from '@/features/shell/useShellLandingAttentionItems';
 import { useShellLandingTileCounts } from '@/features/shell/useShellLandingTileCounts';
 
@@ -23,11 +25,12 @@ export function ShellLandingPage() {
   const { selectedOrganisationId } = useUnifiedAuth();
   const [showAll, setShowAll] = useState(false);
 
-  const orderedEvents = useMemo(() => orderEventsForShellLanding(events), [events]);
-  const visibleEvents = showAll
-    ? orderedEvents
-    : orderedEvents.slice(0, SHELL_LANDING_DEFAULT_TILE_COUNT);
-  const hasMore = orderedEvents.length > SHELL_LANDING_DEFAULT_TILE_COUNT;
+  const orderedEvents = useMemo(() => orderEventsForLanding(events), [events]);
+  const visibleEvents = useMemo(
+    () => sliceLandingEventTiles(orderedEvents, showAll, LANDING_DEFAULT_TILE_COUNT),
+    [orderedEvents, showAll]
+  );
+  const hasMore = shouldShowLandingEventToggle(orderedEvents.length, LANDING_DEFAULT_TILE_COUNT);
   const tileCounts = useShellLandingTileCounts(visibleEvents);
 
   const openEvent = useCallback(

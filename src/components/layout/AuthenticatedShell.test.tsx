@@ -34,6 +34,7 @@ vi.mock('react-router-dom', () => ({
 
 vi.mock('@solvera/pace-core/rbac', () => ({
   AccessDenied: () => <main>Access denied</main>,
+  useShellRouteAccessDenied: () => false,
 }));
 
 vi.mock('@solvera/pace-core/hooks', () => ({
@@ -180,7 +181,13 @@ describe('AuthenticatedShell', () => {
     render(<AuthenticatedShell />);
 
     expect(paceLayoutState.lastProps).toMatchObject({
-      navItems: [{ id: 'nav-events', label: 'Events', href: '/', pageId: 'EventDashboardPage' }],
+      navItems: [{
+        id: 'nav-events',
+        label: 'Events',
+        href: '/',
+        pageId: 'EventDashboardPage',
+        permissions: ['read:page.EventDashboardPage'],
+      }],
     });
   });
 
@@ -190,10 +197,10 @@ describe('AuthenticatedShell', () => {
 
     expect(paceLayoutState.lastProps).toMatchObject({
       navItems: [
-        { id: 'nav-overview', label: 'Overview', href: '/event-dashboard', pageId: 'EventDashboardPage' },
-        { id: 'nav-applications', label: 'Applications', href: '/applications', pageId: 'ApplicationsPage' },
-        { id: 'nav-comms', label: 'Communications', href: '/communications', pageId: 'CommunicationsPage' },
-        { id: 'nav-reports', label: 'Reports', href: '/reports', pageId: 'ReportsPage' },
+        { id: 'nav-overview', label: 'Overview', href: '/event-dashboard', pageId: 'EventDashboardPage', permissions: ['read:page.EventDashboardPage'] },
+        { id: 'nav-applications', label: 'Applications', href: '/applications', pageId: 'ApplicationsPage', permissions: ['read:page.ApplicationsPage'] },
+        { id: 'nav-comms', label: 'Communications', href: '/communications', pageId: 'CommunicationsPage', permissions: ['read:page.CommunicationsPage'] },
+        { id: 'nav-reports', label: 'Reports', href: '/reports', pageId: 'ReportsPage', permissions: ['read:page.ReportsPage'] },
       ],
     });
   });

@@ -44,15 +44,17 @@ Event organisers need to structure participants into named units (groups), defin
 - `base_unit_roles` inserts and updates omit `event_id` and `organisation_id` — the `sync_base_unit_roles_event_org_trigger` fills both automatically.
 - Preference submission uses **`app_base_unit_preference_submit(p_unit_id, p_event_id)`** only. No direct `submitted_at` update on `base_activity_preference` rows from the client.
 - Draft preference rows (CRUD of individual `base_activity_preference` rows) use direct Supabase table writes while `submitted_at IS NULL`.
-- **`PagePermissionGuard`** gates both routes; mutation affordances use `create` / `update` / `delete` as applicable per §10.
+- > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+- Mutation affordances use `PagePermissionGuard` with `create` / `update` / `delete` as applicable per §10.
 - Event context is resolved via **`useEvents()`** — use `selectedEvent.id` as the `event_id` at all data boundaries.
 
 ### Page-level guards and evaluation ordering
 
 **Both routes — `/units` and `/unit-preferences`**
 
-1. Outer **`PagePermissionGuard`** with the appropriate `pageName` and `operation="read"` wraps the main content.
-2. If the guard denies access, **`AccessDenied`** is shown; no-event messaging does not replace denial.
+1. > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+
+2. **Route read access** is enforced by the authenticated shell / `PaceAppLayout` `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). If access is denied, **`AccessDenied`** is shown; no-event messaging does not replace denial.
 3. If the guard is loading and no custom `loading` prop is supplied, **`PagePermissionGuard`** renders `null` — neither children nor the denial state.
 4. If the guard permits and **no event is selected** (`selectedEvent.id` falsy), the page shows a blocking **`Card`** instructing the user to choose an event in the shell. Data fetches do not run.
 5. If the guard permits and **an event is selected**, data loads for that `event_id`.

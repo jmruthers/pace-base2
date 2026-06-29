@@ -41,7 +41,8 @@ Event operators need an unambiguous, fast scanning surface that processes card r
 ### Architectural posture
 
 - The route renders inside the authenticated `ProtectedRoute` but does **not** use `PaceAppLayout`. A slim custom header replaces the standard shell header and sidebar.
-- **`PagePermissionGuard`** with `pageName="scanning-runtime"` and `operation="read"` wraps the route. No additional permission is required beyond `read:page.scanning-runtime` for page access.
+- > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+- No additional permission is required beyond `read:page.scanning-runtime` for route access once registered in [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts).
 - All reads use **`useSecureSupabase()`** from `@solvera/pace-core/rbac`. No service-role client in route code.
 - BA13 has no authenticated INSERT permission on `base_scan_event`. BA13 writes to the local IndexedDB queue only. BA14's sync worker holds the service_role INSERT path to `base_scan_event`.
 - The IndexedDB queue is a BA13-owned client-local data structure. It stores pending scan events before BA14 flushes them.
@@ -53,7 +54,9 @@ Event operators need an unambiguous, fast scanning surface that processes card r
 
 ### Page-level guards and evaluation ordering for `/scanning/:scanPointId`
 
-1. **`PagePermissionGuard`** with `pageName="scanning-runtime"` and `operation="read"` wraps the route. If access is denied, `AccessDenied` is rendered immediately. The remaining states below are only evaluated after the guard passes.
+1. > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+
+2. **Route read access** is enforced by the authenticated shell / `PaceAppLayout` `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). If access is denied, `AccessDenied` is rendered in the shell main region. The remaining states below are only evaluated after route access is granted.
 2. If the guard is loading (auth client not yet settled), the guard renders `null`. A null Supabase client (transient auth initialisation) renders a centred `LoadingSpinner` in the main content region.
 3. If the guard permits and the `scanPointId` URL parameter does not resolve to any `base_scan_point` row accessible to the authenticated user, the **scan-point not found** error state is rendered. The scan `Input` is not rendered. See §4 item RT-EX-01.
 4. If the guard permits, the `scanPointId` resolves to a row, but `is_active = false`, the **inactive scan point** warning state is rendered. The scan `Input` is not rendered. See §4 item RT-EX-02.

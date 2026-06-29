@@ -35,7 +35,8 @@ Let permitted operators define registration types for the selected event: human-
 
 - All reads and RPCs route through **`useSecureSupabase()`** from `@solvera/pace-core/rbac`; no unrestricted Supabase singleton.
 - Writes use **`app_base_registration_type_upsert`**, **`app_base_registration_type_set_active`**, and **`app_base_registration_type_delete`** only — no privileged direct `INSERT`/`UPDATE`/`DELETE` to `base_registration_type`, eligibility, or requirement tables from the authenticated client outside these RPCs.
-- **`PagePermissionGuard`** gates the page boundary with `pageName="registration-types"`. Mutation affordances use **`create`** and **`update`** checks; builder authoring surfaces render within an **`update`** guard.
+- > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+- Mutation affordances use **`PagePermissionGuard`** with **`create`** and **`update`** checks; builder authoring surfaces render within an **`update`** guard.
 - Drag-and-drop for requirement reorder uses **`DndContext`**, **`SortableContext`**, and related symbols from **`@solvera/pace-core/forms`** (pace-core bundles **`@dnd-kit/core`**, **`@dnd-kit/sortable`**, **`@dnd-kit/utilities`** for consuming apps).
 - Composition uses pace-core primitives named in §9; layout follows Standard 07 (Semantic HTML + grids as per project rules).
 - Import policy is root-first for consuming apps: use `@solvera/pace-core` by default. Scoped entrypoints (`/rbac`, `/components`) are exception paths used when root does not expose the required symbol or a documented advanced/performance/migration case applies.
@@ -46,8 +47,9 @@ Let permitted operators define registration types for the selected event: human-
 
 **Evaluation order when context is incomplete**
 
-1. `PagePermissionGuard` with `operation="read"` wraps the route content.
-2. If the guard denies access, **`AccessDenied`** renders; no-event messaging does not replace it.
+1. > **Route read access:** Enforced by the app authenticated shell / PaceAppLayout `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). The page component must not wrap content in an outer `PagePermissionGuard operation="read"` unless this slice explicitly requires a **scoped read** override (`scope={{ organisationId, eventId, appId }}`).
+
+2. **Route read access** is enforced by the authenticated shell / `PaceAppLayout` `routeAccessDenied` and [`base-route-registry.ts`](../../src/features/navigation/base-route-registry.ts). If access is denied, **`AccessDenied`** renders; no-event messaging does not replace it.
 3. If the guard is loading (no custom `loading` prop), **`null`** is rendered (`PagePermissionGuard` default) — neither children nor denial yet.
 4. If the guard permits and **no event** is selected, the page shows the configured **select-event** blocking card (`Card` explaining that an event must be chosen in the shell header).
 5. If the guard permits and **an event** is selected, the main list surface loads.

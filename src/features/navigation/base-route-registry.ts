@@ -7,6 +7,8 @@ export interface BaseRouteDefinition {
   sliceId: string;
   includeInShell: boolean;
   includeInNavigation: boolean;
+  /** React page file stem when it differs from RBAC `pageName` (shell audit). */
+  pageStem?: string;
 }
 
 export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
@@ -54,6 +56,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     path: '/forms',
     label: 'Forms',
     pageName: 'FormsPage',
+    pageStem: 'FormsListPage',
     sliceId: 'forms-authoring-and-base-integration',
     includeInShell: true,
     includeInNavigation: true,
@@ -78,6 +81,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     path: '/registration-type-builder',
     label: 'Registration Type Builder',
     pageName: 'RegistrationTypesPage',
+    pageStem: 'RegistrationTypeBuilderPage',
     sliceId: 'registration-setup-and-policy',
     includeInShell: true,
     includeInNavigation: false,
@@ -94,6 +98,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     path: '/applications/:applicationId',
     label: 'Application Detail',
     pageName: 'ApplicationsPage',
+    pageStem: 'ApplicationDetailPage',
     sliceId: 'applications-admin-and-review',
     includeInShell: true,
     includeInNavigation: false,
@@ -142,6 +147,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     path: '/activities/:offeringId',
     label: 'Activity Offering',
     pageName: 'ActivitiesPage',
+    pageStem: 'ActivityOfferingPage',
     sliceId: 'activity-offering-and-session-setup',
     includeInShell: true,
     includeInNavigation: false,
@@ -150,6 +156,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     path: '/scanning',
     label: 'Scanning',
     pageName: 'ScanningPage',
+    pageStem: 'ScanningSetupPage',
     sliceId: 'scanning-setup',
     includeInShell: true,
     includeInNavigation: true,
@@ -158,6 +165,7 @@ export const BASE_ROUTE_REGISTRY: ReadonlyArray<BaseRouteDefinition> = [
     path: '/scanning/tracking',
     label: 'Tracking Dashboard',
     pageName: 'ScanningPage',
+    pageStem: 'ScanningTrackingPage',
     sliceId: 'scanning-tracking-dashboard',
     includeInShell: true,
     includeInNavigation: false,

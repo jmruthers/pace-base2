@@ -8,7 +8,8 @@ import {
   PaceAppLayout,
   PasswordChangeForm,
 } from '@solvera/pace-core/components';
-import { AccessDenied } from '@solvera/pace-core/rbac';
+import { AccessDenied, useShellRouteAccessDenied } from '@solvera/pace-core/rbac';
+import { attachBaseNavPermissions, getBaseRoutePermissionForPath } from '@/features/navigation/base-route-permissions';
 import { useUnifiedAuth } from '@solvera/pace-core/hooks';
 import { APP_NAME } from '@/config/appName';
 import { getContextAwareShellNavigationItems } from '@/config/shellNavigation';
@@ -32,8 +33,10 @@ export function AuthenticatedShell() {
   const { isLoading, user, signOut, updatePassword, selectedEventId } = useUnifiedAuth();
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
+  const routeAccessDenied = useShellRouteAccessDenied(getBaseRoutePermissionForPath);
+
   const navItems = useMemo(
-    () => [...getContextAwareShellNavigationItems(selectedEventId)],
+    () => attachBaseNavPermissions([...getContextAwareShellNavigationItems(selectedEventId)]),
     [selectedEventId]
   );
 
@@ -91,6 +94,7 @@ export function AuthenticatedShell() {
           },
         ]}
         enforcePermissions
+        routeAccessDenied={routeAccessDenied}
         permissionFallback={<AccessDenied />}
       >
         <Outlet />

@@ -4,7 +4,7 @@ import { MemoryRouter, Navigate, Outlet } from 'react-router-dom';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { BASE_ROUTE_REGISTRY } from './config/baseRouteRegistry';
+import { BASE_ROUTE_REGISTRY } from './features/navigation/base-route-registry';
 import { getContextAwareShellNavigationItems } from './config/shellNavigation';
 
 const authState = vi.hoisted(() => ({
@@ -88,12 +88,20 @@ vi.mock('./pages/shell/BaseNotFoundPage', () => ({
   ),
 }));
 vi.mock('./components/layout/AuthenticatedShell', () => ({
-  AuthenticatedShell: () => (
-    <main>
-      Shell Layout
-      <Outlet />
-    </main>
-  ),
+  AuthenticatedShell: () => {
+    if (resolvedScopeState.isLoading) {
+      return null;
+    }
+    if (!permissionState.allowRead) {
+      return <main>Access Denied</main>;
+    }
+    return (
+      <main>
+        Shell Layout
+        <Outlet />
+      </main>
+    );
+  },
 }));
 
 vi.mock('@/components/shell/FeaturePlaceholderPanel', () => ({

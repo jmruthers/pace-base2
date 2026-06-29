@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { orderEventsForShellLanding } from './shellLandingHelpers';
+import { orderEventsForShellLanding } from '@solvera/pace-core/events';
 
 describe('shellLandingHelpers', () => {
-  it('orders upcoming events before past events', () => {
+  it('orders upcoming events before past events via pace-core', () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const future = new Date(today);
